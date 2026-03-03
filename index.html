@@ -305,7 +305,7 @@ body.day .load-card { background:rgba(91,68,214,.07);border-color:rgba(91,68,214
 <script>
 // ── HARDCODED DEFAULTS ───────────────────────────────────────────────────
 const DEFAULT_CLIENT_ID = '802226109271-praqff3gi21a2i90mp78bmn6a7999s9m.apps.googleusercontent.com';
-const DEFAULT_MASTER_ID = '';   // Set to your master.json file ID after uploading
+const DEFAULT_MASTER_ID = '1G-TZIlJPtSygE7jDmDDbJsuAr8pRGP8T';
 const DEFAULT_FOLDER_ID = '1FpSq1CKfMec2P3p15C8U7HFYgK-HLiNE';
 
 let CLIENT_ID      = localStorage.getItem('st_client_id')  || DEFAULT_CLIENT_ID;
@@ -547,31 +547,104 @@ async function loadOrCreateCurrentMonth() {
 }
 
 async function createFromMaster(name) {
-  showToast('📋 Creating from master.json...','info');
+  showToast('📋 Creating new month file...','info');
   try {
-    // Download master.json content
-    const masterText = await driveDownloadText(MASTER_FILE_ID);
-    const masterData = JSON.parse(masterText);
+    let masterData;
 
-    // Deep clone and stamp with current month
+    // Try to download master.json from Drive first (works if file is in same account)
+    if (MASTER_FILE_ID) {
+      try {
+        const masterText = await driveDownloadText(MASTER_FILE_ID);
+        masterData = JSON.parse(masterText);
+        showToast('✓ Master template loaded from Drive','info');
+      } catch(e) {
+        // File not accessible (different account / not shared) — fall back to built-in template
+        console.warn('Master file not accessible, using built-in template:', e.message);
+        masterData = getBuiltInMasterData();
+      }
+    } else {
+      masterData = getBuiltInMasterData();
+    }
+
+    // Stamp with current month
     const newData = JSON.parse(JSON.stringify(masterData));
-    newData._month = MONTHS[currentMonth.month];
-    newData._year  = currentMonth.year;
+    newData._month   = MONTHS[currentMonth.month];
+    newData._year    = currentMonth.year;
     newData._created = new Date().toISOString();
 
-    // Create new file in destination folder
+    // Create new JSON file in destination folder
     const result = await driveCreateJson(name, newData, DEST_FOLDER_ID);
     currentFileId = result.id;
 
-    // Load the data into app
     loadDataFromObject(newData);
     setFileStatus(true);
     switchTab(currentTab);
-    showToast('✓ New month file created!','success');
+    showToast('✓ '+name+' created!','success');
   } catch(e) {
     showToast('❌ Create error: '+e.message,'error');
     console.error(e);
   }
+}
+
+// Built-in master template — exact copy of your master.json
+// Used as fallback when Drive master file isn't accessible
+function getBuiltInMasterData() {
+  return {
+    "_version": 1,
+    "_description": "Salary Tracker Master Template - Naveen Somalapuri",
+    "income": [
+      {"sno":1,"source":"Naveen","category":"Salary","paymentMode":"Bank Transfer","accountReceived":"ICICI","dateReceived":"","amount":"","status":"Pending","month":"","remarks":"Hide7906rs home knows 35677rs"},
+      {"sno":2,"source":"Dad","category":"","paymentMode":"Bank Transfer","accountReceived":"","dateReceived":"","amount":"","status":"Delayed","month":"","remarks":""},
+      {"sno":3,"source":"Mom","category":"","paymentMode":"Cash","accountReceived":"","dateReceived":"","amount":"","status":"Delayed","month":"","remarks":""}
+    ],
+    "fixed": [
+      {"sno":1,"source":"FED","loanNumber":"75007600354653","totalLoanAmount":"","category":"","paymentMode":"SBI Bank","dateToPay":"5th","dateStart":"","dateEnd":"","datePaid":"","amount":"2708","status":"Pending","pendingAmount":"","interestRate":"","remarks":""},
+      {"sno":2,"source":"HDB","loanNumber":"52565440","totalLoanAmount":"","category":"","paymentMode":"SBI Bank","dateToPay":"4th","dateStart":"","dateEnd":"","datePaid":"","amount":"4426","status":"Pending","pendingAmount":"","interestRate":"","remarks":""},
+      {"sno":3,"source":"SBI","loanNumber":"","totalLoanAmount":"","category":"","paymentMode":"ICICI Bank","dateToPay":"","dateStart":"","dateEnd":"","datePaid":"","amount":"1619","status":"Pending","pendingAmount":"","interestRate":"","remarks":""},
+      {"sno":4,"source":"AXIS MAX LIFE INSURANCE","loanNumber":"","totalLoanAmount":"","category":"","paymentMode":"","dateToPay":"18th","dateStart":"","dateEnd":"","datePaid":"","amount":"1080","status":"Pending","pendingAmount":"","interestRate":"","remarks":""},
+      {"sno":5,"source":"RBL","loanNumber":"","totalLoanAmount":"","category":"","paymentMode":"","dateToPay":"","dateStart":"","dateEnd":"","datePaid":"","amount":"1751.83","status":"Pending","pendingAmount":"","interestRate":"","remarks":""},
+      {"sno":6,"source":"IDFC (Nanna)","loanNumber":"","totalLoanAmount":"","category":"","paymentMode":"","dateToPay":"","dateStart":"","dateEnd":"","datePaid":"","amount":"2187","status":"Pending","pendingAmount":"","interestRate":"","remarks":""},
+      {"sno":7,"source":"TVS","loanNumber":"","totalLoanAmount":"","category":"","paymentMode":"BOI Bank","dateToPay":"3rd","dateStart":"","dateEnd":"","datePaid":"","amount":"5453","status":"Pending","pendingAmount":"","interestRate":"","remarks":""},
+      {"sno":8,"source":"ICICI","loanNumber":"","totalLoanAmount":"","category":"","paymentMode":"","dateToPay":"","dateStart":"","dateEnd":"","datePaid":"","amount":"1955.43","status":"Pending","pendingAmount":"","interestRate":"","remarks":""},
+      {"sno":9,"source":"ICICI","loanNumber":"","totalLoanAmount":"","category":"","paymentMode":"","dateToPay":"","dateStart":"","dateEnd":"","datePaid":"","amount":"2036.9","status":"Pending","pendingAmount":"","interestRate":"","remarks":""},
+      {"sno":10,"source":"ICICI","loanNumber":"","totalLoanAmount":"","category":"","paymentMode":"","dateToPay":"","dateStart":"","dateEnd":"","datePaid":"","amount":"1765.44","status":"Pending","pendingAmount":"","interestRate":"","remarks":""},
+      {"sno":11,"source":"RBL (For Dad)","loanNumber":"","totalLoanAmount":"16000","category":"","paymentMode":"","dateToPay":"","dateStart":"2025-12-02","dateEnd":"","datePaid":"","amount":"1593.04","status":"Pending","pendingAmount":"","interestRate":"25% + 18%GST on interest","remarks":"Minimum due 2088"},
+      {"sno":12,"source":"Naveen Hided Extra Increment amount","loanNumber":"","totalLoanAmount":"","category":"","paymentMode":"","dateToPay":"","dateStart":"","dateEnd":"","datePaid":"","amount":"7906","status":"Pending","pendingAmount":"","interestRate":"16% + 18%GST","remarks":"Minimum due 2547"},
+      {"sno":13,"source":"Park Fee","loanNumber":"","totalLoanAmount":"","category":"","paymentMode":"","dateToPay":"","dateStart":"","dateEnd":"","datePaid":"","amount":"200","status":"Pending","pendingAmount":"","interestRate":"","remarks":""},
+      {"sno":14,"source":"IDFC (For Dad)","loanNumber":"","totalLoanAmount":"15574","category":"","paymentMode":"","dateToPay":"","dateStart":"2025-12-20","dateEnd":"2026-11-20","datePaid":"","amount":"1413.05","status":"Pending","pendingAmount":"","interestRate":"","remarks":""}
+    ],
+    "semifixed": [
+      {"sno":1,"source":"Room Rent","loanNumber":"","category":"","paymentMode":"Auto-Debit","dateToPay":"","dateStart":"","dateEnd":"","datePaid":"","amount":"","status":"Pending","pendingAmount":"","interestRate":"","remarks":""},
+      {"sno":2,"source":"Gas Bill","loanNumber":"","category":"","paymentMode":"Cash","dateToPay":"","dateStart":"","dateEnd":"","datePaid":"","amount":"","status":"Pending","pendingAmount":"","interestRate":"","remarks":""},
+      {"sno":3,"source":"Amma Mobile Recharge (Jio)","loanNumber":"","category":"","paymentMode":"Bank Transfer","dateToPay":"","dateStart":"","dateEnd":"","datePaid":"","amount":"","status":"Pending","pendingAmount":"","interestRate":"","remarks":""},
+      {"sno":4,"source":"Nanna Mobile Recharge (Airtel)","loanNumber":"","category":"","paymentMode":"Cash","dateToPay":"","dateStart":"","dateEnd":"","datePaid":"","amount":"","status":"Pending","pendingAmount":"","interestRate":"","remarks":""},
+      {"sno":5,"source":"Ashwini Mobile Recharge (Jio)","loanNumber":"","category":"","paymentMode":"Bank Transfer","dateToPay":"","dateStart":"","dateEnd":"","datePaid":"","amount":"","status":"Pending","pendingAmount":"","interestRate":"","remarks":""},
+      {"sno":6,"source":"Garbage Bill","loanNumber":"","category":"","paymentMode":"Bank Transfer","dateToPay":"","dateStart":"","dateEnd":"","datePaid":"","amount":"","status":"Pending","pendingAmount":"","interestRate":"","remarks":""},
+      {"sno":7,"source":"Internet Bill","loanNumber":"","category":"","paymentMode":"Bank Transfer","dateToPay":"","dateStart":"","dateEnd":"","datePaid":"","amount":"","status":"Pending","pendingAmount":"","interestRate":"","remarks":""}
+    ],
+    "variable": [
+      {"sno":1,"source":"Nanna","date":"","category":"","subcategory":"","paymentMode":"Bank Transfer","accountUsed":"SBI","description":"Every month gives to dad","amount":"","month":"","status":"Pending","remarks":""},
+      {"sno":2,"source":"Amazon Pay Later","date":"","category":"","subcategory":"","paymentMode":"Auto-Debit","accountUsed":"BOI","description":"Mobile recharges and small expenses","amount":"","month":"","status":"Pending","remarks":""},
+      {"sno":3,"source":"Weekly market 2nd week","date":"","category":"","subcategory":"","paymentMode":"Bank Transfer","accountUsed":"ICICI","description":"","amount":"","month":"","status":"Pending","remarks":""},
+      {"sno":4,"source":"Weekly market 3rd week","date":"","category":"","subcategory":"","paymentMode":"","accountUsed":"","description":"","amount":"","month":"","status":"Pending","remarks":""},
+      {"sno":5,"source":"Weekly market 4th week","date":"","category":"","subcategory":"","paymentMode":"","accountUsed":"","description":"","amount":"","month":"","status":"Pending","remarks":""},
+      {"sno":6,"source":"Milk Packet, Raja kayanna, RRR kayanna","date":"","category":"","subcategory":"","paymentMode":"","accountUsed":"","description":"","amount":"","month":"","status":"Pending","remarks":""},
+      {"sno":7,"source":"Devudi gurchi Karuchu","date":"","category":"","subcategory":"","paymentMode":"","accountUsed":"","description":"","amount":"","month":"","status":"Pending","remarks":""},
+      {"sno":8,"source":"Naveen Bus Charges For Office","date":"","category":"","subcategory":"","paymentMode":"","accountUsed":"","description":"","amount":"","month":"","status":"Pending","remarks":""},
+      {"sno":9,"source":"Naveen Metro Charges For Office","date":"","category":"","subcategory":"","paymentMode":"","accountUsed":"","description":"","amount":"","month":"","status":"Pending","remarks":""},
+      {"sno":10,"source":"Nanna Bike Petrol","date":"","category":"","subcategory":"","paymentMode":"","accountUsed":"","description":"","amount":"","month":"","status":"Pending","remarks":""},
+      {"sno":11,"source":"Naveen Daily Eggs (30)","date":"","category":"","subcategory":"","paymentMode":"","accountUsed":"","description":"","amount":"","month":"","status":"Pending","remarks":""},
+      {"sno":12,"source":"Amma Kinley Soda","date":"","category":"","subcategory":"","paymentMode":"","accountUsed":"","description":"","amount":"","month":"","status":"Pending","remarks":""},
+      {"sno":13,"source":"Sunday hair colour","date":"","category":"","subcategory":"","paymentMode":"","accountUsed":"","description":"","amount":"","month":"","status":"Pending","remarks":""},
+      {"sno":14,"source":"Bore Bill","date":"","category":"","subcategory":"","paymentMode":"Bank Transfer","accountUsed":"HDFC","description":"","amount":"","month":"","status":"Pending","remarks":""},
+      {"sno":15,"source":"Grocery","date":"","category":"","subcategory":"","paymentMode":"Bank Transfer","accountUsed":"HDFC","description":"","amount":"","month":"","status":"Pending","remarks":""}
+    ],
+    "unexpected": [],
+    "lending": [
+      {"sno":1,"personName":"","contact":"","type":"Lent","mode":"IDFC CC","dateGiven":"","dueDate":"","interestRate":"","amount":"","returned":"","balance":"","status":"Partially Paid","accountUsed":"","remarks":""},
+      {"sno":2,"personName":"","contact":"","type":"Lent","mode":"Bank Transfer","dateGiven":"","dueDate":"","interestRate":"","amount":"","returned":"","balance":"","status":"Partially Paid","accountUsed":"","remarks":""}
+    ]
+  };
 }
 
 async function loadJsonData() {
