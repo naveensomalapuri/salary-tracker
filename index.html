@@ -371,6 +371,7 @@ let addRowContext  = null;
 let gisLoaded     = false;
 
 let data = { income:[], fixed:[], semifixed:[], variable:[], unexpected:[], lending:[] };
+let originalWorkbook = null; // keeps the raw XLSX workbook so we can preserve all formatting on save
 
 // ── SCHEMAS (mirrors Excel columns exactly) ───────────────────────────────
 const SCHEMAS = {
@@ -613,6 +614,7 @@ async function loadFileData() {
   try {
     const ab = await driveDownload(currentFileId);
     const wb = XLSX.read(ab, { type:'array', cellDates:true });
+    originalWorkbook = wb; // preserve for formatting-safe save
     parseWorkbook(wb);
     setFileStatus(true);
     switchTab(currentTab);
@@ -660,7 +662,9 @@ async function saveToGDrive() {
   btn.innerHTML = '<div class="spinner"></div> Saving...';
   btn.disabled = true;
   try {
-    const wb  = buildWorkbook();
+    // Use the original workbook if available so all Excel formatting/colors are preserved.
+    // We only write the data cells back — headers, styles, merged cells stay untouched.
+    const wb = originalWorkbook ? patchWorkbook(originalWorkbook) : buildWorkbook();
     const buf = XLSX.write(wb, { bookType:'xlsx', type:'array' });
     const blob = new Blob([buf], { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     await driveUpload(currentFileId, blob, getFileName());
@@ -669,12 +673,126 @@ async function saveToGDrive() {
     document.getElementById('syncBar').classList.remove('visible');
   } catch(e) {
     showToast('❌ Save error: ' + e.message, 'error');
+    console.error(e);
   } finally {
     btn.innerHTML = '☁️ Save to Drive';
     btn.disabled = false;
   }
 }
 
+// ── FORMAT-PRESERVING SAVE ────────────────────────────────────────────────
+// patchWorkbook takes the original loaded workbook and writes ONLY the data
+// cell values back into it — all styles, colors, merged cells, fonts stay intact.
+function patchWorkbook(wb) {
+  const sheetMap = {
+    'Income':'income', 'Fixed Expenses':'fixed', 'Semi Fixed Exp':'semifixed',
+    'Varaible Exp':'variable', 'Unexpected Exp':'unexpected', 'Lending & Borrowing':'lending'
+  };
+
+  Object.entries(sheetMap).forEach(([sheetName, key]) => {
+    const ws = wb.Sheets[sheetName];
+    if (!ws) return;
+    const schema = SCHEMAS[key];
+    const rows   = data[key];
+
+    // Data starts at Excel row 4 (0-indexed row 3), column B (index 1)
+    // First clear old data rows by reading sheet range and blanking data area
+    const range = XLSX.utils.decode_range(ws['!ref'] || 'B1:P50');
+
+    // Write each data row back — only value, keep style from original cell
+    rows.forEach((row, ri) => {
+      const excelRow = 4 + ri; // rows 1-3 are title/header/blank
+      schema.forEach((col, ci) => {
+        const excelCol = 1 + ci; // col A=0, data starts at B=1
+        const cellAddr = XLSX.utils.encode_cell({ r: excelRow - 1, c: excelCol });
+        const val = row[col.key];
+
+        // Get existing cell (to preserve its style) or create new one
+        const existingCell = ws[cellAddr];
+        let newCell;
+
+        if (col.type === 'number') {
+          const num = parseFloat(val);
+          newCell = { t: isNaN(num) ? 's' : 'n', v: isNaN(num) ? (val||'') : num };
+        } else if (col.type === 'date' && val) {
+          // Store dates as strings (text) to avoid timezone issues
+          newCell = { t: 's', v: val || '' };
+        } else if (col.key === 'sno') {
+          const num = parseInt(val);
+          newCell = { t: isNaN(num) ? 's' : 'n', v: isNaN(num) ? (val||'') : num };
+        } else {
+          newCell = { t: 's', v: val !== null && val !== undefined ? String(val) : '' };
+        }
+
+        // Preserve style from the original cell if it exists
+        if (existingCell && existingCell.s) newCell.s = existingCell.s;
+
+        ws[cellAddr] = newCell;
+      });
+
+      // Extend sheet range if new rows were added beyond original range
+      if (excelRow - 1 > range.e.r) range.e.r = excelRow - 1;
+    });
+
+    // Also blank out any extra rows that existed in original but were deleted
+    const originalRowCount = range.e.r - 2; // approx data rows in original
+    for (let ri = rows.length; ri < originalRowCount; ri++) {
+      const excelRow = 4 + ri;
+      schema.forEach((col, ci) => {
+        const cellAddr = XLSX.utils.encode_cell({ r: excelRow - 1, c: 1 + ci });
+        if (ws[cellAddr]) ws[cellAddr] = { t: 's', v: '' };
+      });
+    }
+
+    ws['!ref'] = XLSX.utils.encode_range(range);
+  });
+
+  // Update Dashboard summary values
+  patchDashboard(wb);
+
+  return wb;
+}
+
+function patchDashboard(wb) {
+  const ws = wb.Sheets['Dashboard Main'];
+  if (!ws) return;
+
+  const fi = sumIf(data.fixed,    'amount','status','Paid');
+  const si = sumIf(data.semifixed,'amount','status','Paid');
+  const vi = sumIf(data.variable, 'amount','status','Paid');
+  const ui = sumIf(data.unexpected,'amount','status','Paid');
+  const ti = sum(data.income,'amount');
+  const pi = sumIf(data.income,'amount','status','Paid');
+  const te = fi+si+vi+ui;
+
+  // Map of cell address → value (matches your Excel Dashboard Main layout)
+  // Row 2 (index 1): totals row — C2=TotalIncome, F2=PaidIncome, I2=PendingIncome
+  // Row 4 (index 3): I4=FixedPaid
+  // Row 6 (index 5): I6=SemiPaid
+  // Row 8 (index 7): C8=TotalExpenses
+  // Row 10 (index 9): I10=VariablePaid
+  // Row 12 (index 11): I12=UnexpectedPaid
+  // Row 14 (index 13): B14=NetBalance
+  const patches = {
+    'C2': ti, 'F2': pi, 'I2': ti - pi,
+    'I4': fi,
+    'I6': si,
+    'C8': te,
+    'I10': vi,
+    'I12': ui,
+    'B14': pi - te
+  };
+
+  Object.entries(patches).forEach(([addr, val]) => {
+    const existing = ws[addr];
+    const cell = { t: 'n', v: val };
+    if (existing && existing.s) cell.s = existing.s;
+    ws[addr] = cell;
+  });
+}
+
+// Fallback: build a brand-new workbook (used only when originalWorkbook is null,
+// i.e. the file was just created and never downloaded)
 function buildWorkbook() {
   const wb = XLSX.utils.book_new();
   const fi = sumIf(data.fixed,    'amount','status','Paid');
@@ -703,13 +821,13 @@ function buildWorkbook() {
   ];
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(dash), 'Dashboard Main');
 
-  addSheet(wb,'Income',       'income',   'Income',
+  addSheet(wb,'Income',        'income',    'Income',
     ['S. No','Source','Category','Payment Mode','Account Received','Date Received','Amount (₹)','Status','Month','Remarks']);
-  addSheet(wb,'Fixed Expenses','fixed',   "Fixed Expenses (EMI's, Bank Loans and etc)",
+  addSheet(wb,'Fixed Expenses','fixed',     "Fixed Expenses (EMI's, Bank Loans and etc)",
     ['S. No','Source','Loan Number','Total Loan Amount','Category','Payment Mode','Date to Pay','Date of Start','Date of End','Date of Paid','Amount (₹)','Status','Pending Amount (₹)','Interest Rate (%)','Remarks']);
-  addSheet(wb,'Semi Fixed Exp','semifixed','Semi Fixed',
+  addSheet(wb,'Semi Fixed Exp','semifixed', 'Semi Fixed',
     ['S. No','Source','Loan Number','Category','Payment Mode','Date to Pay','Date of Start','Date of End','Date of Paid','Amount (₹)','Status','Pending Amount (₹)','Interest Rate (%)','Remarks']);
-  addSheet(wb,'Varaible Exp', 'variable', 'Variable Expenses',
+  addSheet(wb,'Varaible Exp',  'variable',  'Variable Expenses',
     ['S. No','Source','Date','Category','Subcategory','Payment Mode','Account Used','Description','Amount (₹)','Month','Status','Remarks']);
   addSheet(wb,'Unexpected Exp','unexpected','Unexpected Expenses',
     ['S. No','Source','Date','Category','Subcategory','Payment Mode','Account Used','Description','Amount (₹)','Month','Status','Remarks']);
@@ -931,7 +1049,7 @@ function setFileStatus(linked) {
   el.className = 'file-status' + (linked?' linked':'');
   el.innerHTML = `<div class="dot"></div><span>${linked ? getFileName() : 'No file'}</span>`;
 }
-function resetData() { data={income:[],fixed:[],semifixed:[],variable:[],unexpected:[],lending:[]}; }
+function resetData() { data={income:[],fixed:[],semifixed:[],variable:[],unexpected:[],lending:[]}; originalWorkbook=null; }
 function openModal(id)  { document.getElementById(id).classList.add('open'); }
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 document.querySelectorAll('.modal-overlay').forEach(el=>{
