@@ -769,9 +769,15 @@ function switchTab(tab) {
 }
 
 function renderDashboard(c) {
-  const ti=sum(data.income,'amount'), pi=sumIf(data.income,'amount','status','Paid');
-  const fi=sumIf(data.fixed,'amount','status','Paid'), si=sumIf(data.semifixed,'amount','status','Paid');
-  const vi=sumIf(data.variable,'amount','status','Paid'), ui=sumIf(data.unexpected,'amount','status','Paid');
+  // Income: Total = all rows, Paid = only status 'Paid', Pending = 'Pending'+'Delayed'
+  const ti=sum(data.income,'amount');
+  const pi=sumIf(data.income,'amount','status','Paid');
+
+  // Expenses: only count rows where status === 'Paid' (Pending/Delayed don't count yet)
+  const fi=sumIf(data.fixed,    'amount','status','Paid');
+  const si=sumIf(data.semifixed,'amount','status','Paid');
+  const vi=sumIf(data.variable, 'amount','status','Paid');
+  const ui=sumIf(data.unexpected,'amount','status','Paid');
   const te=fi+si+vi+ui, nb=pi-te, pct=pi>0?Math.min(100,(te/pi)*100):0;
 
   const noFile = !currentFileId ? `<div class="load-card">
@@ -782,10 +788,10 @@ function renderDashboard(c) {
 
   c.innerHTML = noFile + `
     <div class="dashboard-grid">
-      <div class="stat-card income"><div class="stat-label">Total Income</div><div class="stat-value income">${fmt(ti)}</div></div>
+      <div class="stat-card income"><div class="stat-label">Paid Income</div><div class="stat-value income">${fmt(pi)}</div></div>
       <div class="stat-card expenses"><div class="stat-label">Paid Expenses</div><div class="stat-value expenses">${fmt(te)}</div></div>
       <div class="stat-card balance"><div class="stat-label">Net Balance</div><div class="stat-value ${nb>=0?'balance-pos':'balance-neg'}">${fmt(nb)}</div></div>
-      <div class="stat-card pending"><div class="stat-label">Pending Income</div><div class="stat-value" style="color:var(--delayed)">${fmt(ti-pi)}</div></div>
+      <div class="stat-card pending"><div class="stat-label">Unpaid Income</div><div class="stat-value" style="color:var(--delayed)">${fmt(ti-pi)}</div></div>
     </div>
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;margin-bottom:1rem">
       <div style="display:flex;justify-content:space-between;margin-bottom:.45rem;font-size:.73rem">
@@ -797,16 +803,18 @@ function renderDashboard(c) {
     <div class="section-head">Breakdown</div>
     <div class="sheet-table">
       <table style="min-width:unset;width:100%">
-        <thead><tr><th>Category</th><th style="text-align:right">Paid</th><th style="text-align:right">Pending</th></tr></thead>
+        <thead><tr><th>Category</th><th style="text-align:right">Paid</th><th style="text-align:right">Pending</th><th style="text-align:right">Delayed</th></tr></thead>
         <tbody>
-          ${[['Fixed Exp',fi,sumIf(data.fixed,'amount','status','Pending')],
-             ['Semi Fixed',si,sumIf(data.semifixed,'amount','status','Pending')],
-             ['Variable',vi,sumIf(data.variable,'amount','status','Pending')],
-             ['Unexpected',ui,sumIf(data.unexpected,'amount','status','Pending')]
-            ].map(([cat,p,pnd])=>`<tr>
+          ${[
+            ['Fixed Exp',   fi, sumIf(data.fixed,    'amount','status','Pending'), sumIf(data.fixed,    'amount','status','Delayed')],
+            ['Semi Fixed',  si, sumIf(data.semifixed,'amount','status','Pending'), sumIf(data.semifixed,'amount','status','Delayed')],
+            ['Variable',    vi, sumIf(data.variable, 'amount','status','Pending'), sumIf(data.variable, 'amount','status','Delayed')],
+            ['Unexpected',  ui, sumIf(data.unexpected,'amount','status','Pending'),sumIf(data.unexpected,'amount','status','Delayed')]
+            ].map(([cat,p,pnd,del])=>`<tr>
               <td>${cat}</td>
               <td style="text-align:right;color:var(--accent);font-family:var(--font-mono)">${fmt(p)}</td>
               <td style="text-align:right;color:var(--accent2);font-family:var(--font-mono)">${fmt(pnd)}</td>
+              <td style="text-align:right;color:var(--delayed);font-family:var(--font-mono)">${del>0?fmt(del):'-'}</td>
             </tr>`).join('')}
         </tbody>
       </table>
