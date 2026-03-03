@@ -1,102 +1,161 @@
-# 💰 Salary Tracker — Mobile Web App
+# 💰 Salary Tracker
+### Naveen Somalapuri — Mobile Finance Manager
 
-A mobile-first web app to manage your monthly salary tracker Excel files on Google Drive, directly from your phone.
-
-## What It Does
-
-- 📋 **Opens your master Excel file** and copies it into your Google Drive folder for the selected month
-- 📊 **Loads all 7 sheets**: Dashboard, Income, Fixed Expenses, Semi Fixed, Variable, Unexpected, Lending & Borrowing
-- ✏️ **Edit all entries inline** — tap any cell to change values, status, dates, amounts
-- ➕ **Add new rows** via a mobile-friendly form
-- ☁️ **Saves back to Google Drive** with one tap — no laptop needed!
+A mobile-first web app to manage your monthly finances directly from your phone. All data is stored as clean **JSON files in your Google Drive** — no Excel formatting issues, no laptop needed.
 
 ---
 
-## 🚀 Deployment (GitHub Pages)
+## ✨ Features
 
-### Step 1: Create GitHub Repo
-1. Go to [github.com](https://github.com) → New Repository
-2. Name it `salary-tracker` (or anything you like)
-3. Upload `index.html` to the repo
+| Feature | Details |
+|---|---|
+| 📋 **Monthly files** | Auto-creates `March-2026_Salary_Tracker.json` from your master template each month |
+| ✏️ **Inline editing** | Tap any cell to edit values, status, dates, amounts directly in the table |
+| ➕ **Add / Delete rows** | Mobile-friendly form to add entries, one-tap delete |
+| ☁️ **Save to Drive** | One tap saves your JSON back to Google Drive |
+| 📊 **Export Excel** | Download a formatted `.xlsx` anytime from the sync bar |
+| 🌙 **Day / Night mode** | Toggle between dark and light theme — preference is remembered |
+| 📅 **Month picker** | Switch any month/year freely |
+| 📱 **Mobile first** | Built for phone, works on desktop too |
+
+---
+
+## 📂 Data Storage (JSON)
+
+Each month's file is a clean JSON file saved in your Drive folder:
+
+```
+Drive Folder/
+├── master.json                          ← your template (never modified)
+├── January-2026_Salary_Tracker.json
+├── February-2026_Salary_Tracker.json
+├── March-2026_Salary_Tracker.json
+└── ...
+```
+
+**No more Excel formatting issues.** The app reads/writes pure JSON. Use the **📊 Export Excel** button whenever you want a spreadsheet copy.
+
+---
+
+## 📋 Tabs & What They Track
+
+| Tab | What it tracks |
+|---|---|
+| **Dashboard** | Paid Income, Paid Expenses, Net Balance, Unpaid Income |
+| **Income** | Salary and other income sources |
+| **Fixed Expenses** | EMIs, loans, insurance (monthly fixed amounts) |
+| **Semi Fixed** | Rent, recharges, bills (mostly fixed) |
+| **Variable Expenses** | Weekly market, fuel, daily expenses |
+| **Unexpected** | Medical, repairs, surprise costs |
+| **Lending & Borrowing** | Money lent/borrowed with auto balance tracking |
+
+### Status Values
+
+- **Income & all Expense tabs:** `Paid` · `Pending` · `Delayed`
+- **Lending & Borrowing:** `Fully Paid` · `Partially Paid` · `Pending`
+
+### Dashboard Logic
+
+The dashboard **only counts rows where `status = Paid`**:
+
+| Card | What it shows |
+|---|---|
+| **Paid Income** | Sum of income rows marked Paid |
+| **Paid Expenses** | Sum of Fixed + Semi Fixed + Variable + Unexpected rows marked Paid |
+| **Net Balance** | Paid Income minus Paid Expenses |
+| **Unpaid Income** | Total income minus Paid income |
+
+The breakdown table shows **Paid**, **Pending**, and **Delayed** columns per expense category. Lending & Borrowing is intentionally excluded from expense totals.
+
+---
+
+## 🚀 Deployment — GitHub Pages
+
+### Step 1 — Create GitHub Repo
+1. Go to [github.com](https://github.com) and create a **New Repository**
+2. Name it `salary-tracker`
+3. Upload `index.html` to the repo root
 4. Go to **Settings → Pages → Source: Deploy from branch → main → / (root)**
-5. Your URL will be: `https://YOUR_USERNAME.github.io/salary-tracker`
+5. Your app URL: `https://naveensomalapuri.github.io/salary-tracker/`
 
 ---
 
 ## 🔑 Google API Setup (One-Time)
 
-### Step 1: Create Google Cloud Project
+### Step 1 — Create Google Cloud Project
 1. Go to [console.cloud.google.com](https://console.cloud.google.com)
-2. Click **New Project** → Give it a name → Create
+2. Click **New Project** → give it a name → Create
 3. Select the project
 
-### Step 2: Enable APIs
-In the left menu go to **APIs & Services → Library** and enable:
-- ✅ **Google Drive API**
-- ✅ **Google Picker API**
+### Step 2 — Enable Google Drive API
+1. Go to **APIs & Services → Library**
+2. Search **Google Drive API** → Enable
 
-### Step 3: Create OAuth 2.0 Credentials
+### Step 3 — Create OAuth 2.0 Client ID
 1. Go to **APIs & Services → Credentials → Create Credentials → OAuth Client ID**
-2. If asked to configure consent screen: External → fill in App name → Save
+2. If prompted, configure consent screen: **External** → fill App name → Save
 3. Application type: **Web Application**
-4. Authorized JavaScript origins: Add your GitHub Pages URL
+4. Under **Authorized JavaScript origins** add:
    ```
-   https://YOUR_USERNAME.github.io
+   https://naveensomalapuri.github.io
    ```
-5. Click **Create** → Copy the **Client ID**
+5. Click **Create** → copy the **Client ID**
 
-### Step 4: Create API Key
-1. Go to **Credentials → Create Credentials → API Key**
-2. Copy the key
-3. Click **Edit** → Restrict to: Drive API + Picker API
+### Step 4 — Get Your Destination Folder ID
+1. Open the Google Drive folder where you want monthly files saved
+2. URL looks like: `https://drive.google.com/drive/folders/XXXXXXXX`
+3. Copy the ID after `/folders/` — that is your **Folder ID**
 
-### Step 5: Get Your Master File ID
-1. Open your master Excel file in Google Drive
-2. Click Share → Copy link
-3. The link looks like: `https://drive.google.com/file/d/XXXXXXXXXXXXXXX/view`
-4. Copy the part between `/d/` and `/view` — that's your **File ID**
+### Step 5 — Upload master.json *(optional)*
+The app has the full master template built-in as a fallback, so this step is optional. Only needed if you want to customise the template:
+1. Edit and upload `master.json` to your Drive folder
+2. Right-click → Get link → copy the File ID from between `/d/` and `/view`
+3. Paste it in the app Settings as **Master JSON File ID**
 
-### Step 6: Get Your Destination Folder ID
-1. Open the folder in Google Drive where you want monthly copies saved
-2. Look at the URL: `https://drive.google.com/drive/folders/XXXXXXXXXXXXXXX`
-3. Copy the ID after `/folders/` — that's your **Folder ID**
+> **Pre-configured defaults already in the app:**
+> - Master File ID: `1G-TZIlJPtSygE7jDmDDbJsuAr8pRGP8T`
+> - Folder ID: `1FpSq1CKfMec2P3p15C8U7HFYgK-HLiNE`
 
-### Step 7: Configure the App
-1. Open the app → Click the ⚙️ Settings button
-2. Paste in your: Client ID, API Key, Master File ID, Folder ID
-3. Click **Save Config**
+### Step 6 — Configure the App
+1. Open the app → tap **⚙️** in the top-right header
+2. Paste your **Client ID**, **Master JSON File ID**, and **Folder ID**
+3. Tap **💾 Save**
 
 ---
 
-## 📱 How to Use (Every Month)
+## 📱 Monthly Workflow
 
-1. Open the app URL on your phone
-2. Sign in with Google
-3. Tap **📅 month selector** → pick the month → Apply
-4. Tap **📋 Load / Create Month File** on the dashboard
-   - If file exists: loads it from Drive
-   - If new: copies master file into your folder automatically
-5. Go through each tab and fill in your data
-6. Tap **☁️ Save to Drive** — done!
-
----
-
-## 📋 Sheet Structure
-
-| Tab | What it tracks |
-|-----|---------------|
-| Dashboard | Summary: Total Income, Expenses, Net Balance |
-| Income | Salary & other income sources |
-| Fixed Expenses | EMIs, loans, insurance (monthly fixed) |
-| Semi Fixed | Rent, recharges, bills (mostly fixed) |
-| Variable Expenses | Weekly market, fuel, daily expenses |
-| Unexpected | Medical, repairs, surprise costs |
-| Lending & Borrowing | Money lent/borrowed with balance tracking |
+1. Open `https://naveensomalapuri.github.io/salary-tracker/` on your phone
+2. Tap **Continue with Google** → sign in
+3. Tap **📅** → select the month → **Apply**
+4. On the Dashboard tap **📋 Load / Create Month File**
+   - File already exists → loads it instantly from Drive
+   - New month → auto-creates `Month-Year_Salary_Tracker.json` from master template
+5. Go through each tab and update your data
+6. Tap **☁️ Save** in the bottom bar to save back to Drive
+7. Tap **📊 Excel** to download a `.xlsx` spreadsheet copy anytime
 
 ---
 
 ## 🔧 Tech Stack
-- Pure HTML + CSS + JavaScript (no frameworks, no server needed)
-- [SheetJS](https://sheetjs.com/) for Excel read/write
-- Google Drive API v3 for file management
-- Google Identity Services for OAuth
+
+| Tool | Purpose |
+|---|---|
+| HTML + CSS + JavaScript | Entire app — no frameworks, no build step, no server |
+| Google Drive API v3 | File read/write via OAuth token — no API key needed |
+| Google Identity Services | OAuth 2.0 sign-in |
+| SheetJS (xlsx.js) | Excel export only |
+| GitHub Pages | Free hosting |
+
+---
+
+## 🛠 Troubleshooting
+
+| Problem | Fix |
+|---|---|
+| Sign-in popup blocked | Allow popups for the site in your browser |
+| Sign-in fails with origin error | Add `https://naveensomalapuri.github.io` to **Authorized JavaScript origins** in Google Cloud Console |
+| Create error: Failed to fetch | App automatically falls back to the built-in template — no action needed |
+| File not found on load | Check the Folder ID in Settings and ensure you have edit access to that folder |
+| Changes not saving | Make sure you are signed in and a file has been loaded (green dot shows in header) |
+| Excel export looks plain | Expected — the export is a freshly generated file; use it for viewing or printing |
