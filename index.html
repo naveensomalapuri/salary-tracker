@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Monthly Salary Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0f14;
+    --surface: #161921;
+    --surface2: #1e2230;
+    --border: #2a2f3f;
+    --accent: #4ade80;
+    --accent2: #38bdf8;
+    --accent3: #f472b6;
+    --warn: #fb923c;
+    --text: #e8eaf0;
+    --muted: #6b7280;
+    --danger: #f87171;
+    --card-radius: 16px;
+    --font-head: 'Syne', sans-serif;
+    --font-body: 'DM Sans', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font-body); min-height: 100vh; overflow-x: hidden; }
+
+  /* AUTH */
+  #auth-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 2rem; background: radial-gradient(ellipse at 20% 80%, #0d2b1a 0%, transparent 60%), radial-gradient(ellipse at 80% 20%, #0a1f33 0%, transparent 60%), var(--bg); }
+  .auth-logo { font-family: var(--font-head); font-size: 2.4rem; font-weight: 800; letter-spacing: -0.04em; margin-bottom: 0.3rem; background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .auth-sub { color: var(--muted); font-size: 0.95rem; margin-bottom: 3rem; text-align: center; }
+  .auth-card { background: var(--surface); border: 1px solid var(--border); border-radius: 24px; padding: 2rem; width: 100%; max-width: 380px; }
+  .auth-card h2 { font-family: var(--font-head); font-size: 1.3rem; font-weight: 700; margin-bottom: 0.5rem; }
+  .auth-card p { color: var(--muted); font-size: 0.88rem; line-height: 1.6; margin-bottom: 1.5rem; }
+  .btn-google { display: flex; align-items: center; justify-content: center; gap: 0.75rem; width: 100%; padding: 0.85rem 1.5rem; background: #fff; color: #1a1a1a; border: none; border-radius: 12px; font-size: 0.95rem; font-weight: 500; font-family: var(--font-body); cursor: pointer; transition: transform 0.15s, box-shadow 0.15s; }
+  .btn-google:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
+  .btn-google svg { width: 20px; height: 20px; flex-shrink: 0; }
+  .setup-note { margin-top: 1.5rem; padding: 1rem; background: rgba(56,189,248,0.08); border: 1px solid rgba(56,189,248,0.2); border-radius: 10px; font-size: 0.8rem; color: var(--accent2); line-height: 1.6; }
+
+  /* SETUP */
+  #setup-screen { display: none; padding: 1.5rem; padding-bottom: 4rem; }
+  .setup-title { font-family: var(--font-head); font-size: 1.8rem; font-weight: 800; margin-bottom: 0.4rem; }
+  .setup-sub { color: var(--muted); font-size: 0.9rem; margin-bottom: 2rem; line-height: 1.6; }
+  .step-indicator { display: flex; gap: 0.4rem; margin-bottom: 2rem; }
+  .step-dot { height: 4px; border-radius: 2px; background: var(--border); flex: 1; transition: background 0.3s; }
+  .step-dot.active { background: var(--accent); }
+  .form-group { margin-bottom: 1.25rem; }
+  .form-label { display: block; font-size: 0.8rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; }
+  .form-input { width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 0.8rem 1rem; color: var(--text); font-family: var(--font-body); font-size: 0.95rem; outline: none; transition: border-color 0.15s; }
+  .form-input:focus { border-color: var(--accent2); }
+  .form-hint { font-size: 0.75rem; color: var(--muted); margin-top: 0.4rem; line-height: 1.5; }
+  .month-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; margin-bottom: 1rem; }
+  .month-pill { padding: 0.6rem; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; text-align: center; font-size: 0.85rem; cursor: pointer; transition: all 0.15s; color: var(--muted); font-family: var(--font-body); }
+  .month-pill:hover { border-color: var(--accent2); color: var(--text); }
+  .month-pill.selected { background: rgba(74,222,128,0.15); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+  .year-row { display: flex; align-items: center; justify-content: center; gap: 1rem; margin-bottom: 1rem; }
+  .year-btn { background: var(--surface2); border: 1px solid var(--border); color: var(--text); width: 36px; height: 36px; border-radius: 8px; font-size: 1.1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .year-display { font-family: var(--font-head); font-weight: 700; font-size: 1.2rem; }
+
+  /* APP */
+  #app-screen { display: none; padding-bottom: 2rem; }
+  .topbar { position: sticky; top: 0; z-index: 100; background: rgba(13,15,20,0.92); backdrop-filter: blur(20px); border-bottom: 1px solid var(--border); padding: 1rem 1.25rem; display: flex; align-items: center; justify-content: space-between; }
+  .topbar-title { font-family: var(--font-head); font-size: 1.1rem; font-weight: 700; }
+  .topbar-month { font-size: 0.8rem; color: var(--accent); background: rgba(74,222,128,0.1); border: 1px solid rgba(74,222,128,0.25); padding: 0.3rem 0.75rem; border-radius: 999px; }
+  .user-avatar { width: 34px; height: 34px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), var(--accent2)); display: flex; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 700; cursor: pointer; flex-shrink: 0; }
+  .summary-strip { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.75rem; padding: 1rem 1.25rem; background: var(--surface); border-bottom: 1px solid var(--border); }
+  .summary-item { text-align: center; }
+  .summary-label { font-size: 0.68rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+  .summary-val { font-family: var(--font-head); font-size: 1.05rem; font-weight: 700; margin-top: 0.15rem; }
+  .summary-val.green { color: var(--accent); }
+  .summary-val.red { color: var(--danger); }
+  .summary-val.blue { color: var(--accent2); }
+  .drive-status { display: flex; align-items: center; gap: 0.5rem; padding: 0.6rem 1rem; border-radius: 8px; font-size: 0.82rem; margin: 0.75rem 1.25rem 0; }
+  .drive-status.linked { background: rgba(74,222,128,0.1); color: var(--accent); border: 1px solid rgba(74,222,128,0.2); }
+  .drive-status.unlinked { background: rgba(248,113,113,0.1); color: var(--danger); border: 1px solid rgba(248,113,113,0.2); }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+
+  /* SECTIONS */
+  .section-wrap { padding: 0.75rem 1.25rem; }
+  .section { background: var(--surface); border: 1px solid var(--border); border-radius: var(--card-radius); margin-bottom: 0.85rem; overflow: hidden; }
+  .section-header { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.25rem; cursor: pointer; user-select: none; -webkit-tap-highlight-color: transparent; }
+  .section-header-left { display: flex; align-items: center; gap: 0.75rem; }
+  .section-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0; }
+  .icon-income { background: rgba(74,222,128,0.15); }
+  .icon-fixed { background: rgba(248,113,113,0.15); }
+  .icon-variable { background: rgba(251,146,60,0.15); }
+  .icon-savings { background: rgba(56,189,248,0.15); }
+  .icon-emi { background: rgba(244,114,182,0.15); }
+  .section-title { font-family: var(--font-head); font-size: 0.95rem; font-weight: 700; }
+  .section-total { font-size: 0.8rem; color: var(--muted); margin-top: 0.1rem; }
+  .chevron { transition: transform 0.25s; color: var(--muted); font-size: 0.9rem; }
+  .section.open .chevron { transform: rotate(180deg); }
+  .section-body { display: none; padding: 0 1.25rem 1.25rem; border-top: 1px solid var(--border); }
+  .section.open .section-body { display: block; }
+  .row-item { display: grid; grid-template-columns: 1fr auto; gap: 0.5rem; align-items: center; padding: 0.6rem 0; border-bottom: 1px solid rgba(255,255,255,0.04); }
+  .row-item:last-child { border-bottom: none; }
+  .row-label-input { background: transparent; border: none; color: var(--text); font-family: var(--font-body); font-size: 0.88rem; outline: none; width: 100%; border-bottom: 1px dashed transparent; transition: border-color 0.15s; }
+  .row-label-input:focus { border-color: var(--accent2); }
+  .row-input { width: 110px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 0.5rem 0.65rem; color: var(--text); font-family: var(--font-body); font-size: 0.9rem; text-align: right; outline: none; transition: border-color 0.15s; -webkit-appearance: none; }
+  .row-input:focus { border-color: var(--accent2); }
+  .add-row-btn { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.75rem; padding: 0.5rem 0.75rem; background: rgba(255,255,255,0.05); border: 1px dashed var(--border); border-radius: 8px; color: var(--muted); font-size: 0.82rem; cursor: pointer; width: 100%; font-family: var(--font-body); transition: all 0.15s; }
+  .add-row-btn:hover { background: rgba(255,255,255,0.08); color: var(--text); border-color: var(--accent2); }
+  .section-subtotal { display: flex; justify-content: space-between; align-items: center; margin-top: 0.75rem; padding: 0.65rem 0.9rem; background: var(--surface2); border-radius: 8px; font-size: 0.88rem; }
+  .section-subtotal span:last-child { font-weight: 700; font-family: var(--font-head); }
+  .notes-area { width: 100%; min-height: 80px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 0.65rem; color: var(--text); font-family: var(--font-body); font-size: 0.85rem; outline: none; resize: vertical; margin-top: 0.5rem; }
+  .notes-area:focus { border-color: var(--accent2); }
+
+  /* ACTION BAR */
+  .action-bar { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(13,15,20,0.95); backdrop-filter: blur(20px); border-top: 1px solid var(--border); padding: 0.9rem 1.25rem; display: flex; gap: 0.75rem; z-index: 200; }
+  .btn { flex: 1; padding: 0.85rem 1rem; border: none; border-radius: 12px; font-family: var(--font-head); font-size: 0.9rem; font-weight: 700; cursor: pointer; transition: transform 0.15s, opacity 0.15s; display: flex; align-items: center; justify-content: center; gap: 0.4rem; }
+  .btn:active { transform: scale(0.97); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-primary { background: linear-gradient(135deg, var(--accent), #22c55e); color: #0d0f14; }
+  .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+  .btn-setup { background: var(--surface2); color: var(--text); border: 1px solid var(--border); width: 100%; margin-top: 1rem; }
+
+  /* LOADING & TOAST */
+  .loading-overlay { position: fixed; inset: 0; background: rgba(13,15,20,0.9); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 999; }
+  .loading-overlay.show { display: flex; }
+  .spinner { width: 48px; height: 48px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 1rem; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-msg { font-family: var(--font-head); font-size: 1rem; color: var(--muted); text-align: center; padding: 0 2rem; }
+  .toast { position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 0.75rem 1.25rem; font-size: 0.88rem; white-space: nowrap; opacity: 0; transition: all 0.3s; z-index: 999; pointer-events: none; max-width: 90vw; white-space: normal; text-align: center; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .toast.success { border-color: var(--accent); color: var(--accent); }
+  .toast.error { border-color: var(--danger); color: var(--danger); }
+  .toast.info { border-color: var(--accent2); color: var(--accent2); }
+
+  @media (max-width: 360px) { .row-input { width: 95px; font-size: 0.85rem; } }
+</style>
+</head>
+<body>
+
+<!-- ══════════ AUTH ══════════ -->
+<div id="auth-screen">
+  <div class="auth-logo">SalaryTracker</div>
+  <div class="auth-sub">Monthly finances · From your phone</div>
+  <div class="auth-card">
+    <h2>Connect Google Drive</h2>
+    <p>Sign in with Google to copy your master Excel template and fill it from this page every month.</p>
+    <button class="btn-google" onclick="signInWithGoogle()">
+      <svg viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+      Continue with Google
+    </button>
+    <div class="setup-note">💡 First time? After sign-in you'll enter your Master File ID once. Every month one tap creates your copy in Drive.</div>
+  </div>
+</div>
+
+<!-- ══════════ SETUP ══════════ -->
+<div id="setup-screen">
+  <div class="step-indicator">
+    <div class="step-dot active" id="step1"></div>
+    <div class="step-dot" id="step2"></div>
+    <div class="step-dot" id="step3"></div>
+  </div>
+
+  <!-- Step 1: Pick Month -->
+  <div id="setup-step-1">
+    <div class="setup-title">Pick Month</div>
+    <div class="setup-sub">Which month are you creating the tracker for?</div>
+    <div class="year-row">
+      <button class="year-btn" onclick="changeYear(-1)">‹</button>
+      <div class="year-display" id="year-display">2026</div>
+      <button class="year-btn" onclick="changeYear(1)">›</button>
+    </div>
+    <div class="month-grid">
+      <div class="month-pill" onclick="selectMonth(0)">Jan</div><div class="month-pill" onclick="selectMonth(1)">Feb</div><div class="month-pill" onclick="selectMonth(2)">Mar</div>
+      <div class="month-pill" onclick="selectMonth(3)">Apr</div><div class="month-pill" onclick="selectMonth(4)">May</div><div class="month-pill" onclick="selectMonth(5)">Jun</div>
+      <div class="month-pill" onclick="selectMonth(6)">Jul</div><div class="month-pill" onclick="selectMonth(7)">Aug</div><div class="month-pill" onclick="selectMonth(8)">Sep</div>
+      <div class="month-pill" onclick="selectMonth(9)">Oct</div><div class="month-pill" onclick="selectMonth(10)">Nov</div><div class="month-pill" onclick="selectMonth(11)">Dec</div>
+    </div>
+    <button class="btn btn-primary" style="width:100%;margin-top:0.5rem" onclick="goSetupStep(2)">Next →</button>
+  </div>
+
+  <!-- Step 2: Drive setup -->
+  <div id="setup-step-2" style="display:none">
+    <div class="setup-title">Master File</div>
+    <div class="setup-sub">Tell us where your master Excel file lives in Google Drive.</div>
+    <div class="form-group">
+      <label class="form-label">Master File ID</label>
+      <input class="form-input" id="master-file-id" type="text" placeholder="1BxiMVs0XRA5nFMdKvBdBZjg..." />
+      <div class="form-hint">Open your master file in Drive → click Share → Copy link. The ID is the long code between /d/ and /view in the URL.</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Save To Folder ID (optional)</label>
+      <input class="form-input" id="dest-folder-id" type="text" placeholder="Leave blank for Drive root" />
+      <div class="form-hint">Open the destination folder in Drive. The folder ID is the code after /folders/ in the URL.</div>
+    </div>
+    <div style="display:flex;gap:0.75rem;margin-top:0.5rem">
+      <button class="btn btn-secondary" onclick="goSetupStep(1)">← Back</button>
+      <button class="btn btn-primary" onclick="createMonthFile()">Create Sheet →</button>
+    </div>
+  </div>
+
+  <!-- Step 3: Success -->
+  <div id="setup-step-3" style="display:none">
+    <div style="font-size:3rem;margin-bottom:1rem">✅</div>
+    <div class="setup-title">Sheet Created!</div>
+    <div class="setup-sub">Your monthly tracker is ready in Google Drive. Now fill in your numbers below.</div>
+    <div class="form-group">
+      <label class="form-label">File name in Drive</label>
+      <div class="form-input" id="created-file-name" style="color:var(--accent)">—</div>
+    </div>
+    <a id="drive-link" href="#" target="_blank" style="display:none">
+      <button class="btn btn-secondary" style="width:100%;margin-bottom:0.75rem">📂 Open in Drive</button>
+    </a>
+    <button class="btn btn-primary" style="width:100%" onclick="openApp()">Start Filling In →</button>
+  </div>
+</div>
+
+<!-- ══════════ APP ══════════ -->
+<div id="app-screen">
+  <div class="topbar">
+    <div class="topbar-title">SalaryTracker</div>
+    <div class="topbar-month" id="topbar-month">Mar 2026</div>
+    <div class="user-avatar" id="user-avatar" onclick="showUserMenu()">U</div>
+  </div>
+
+  <div class="summary-strip">
+    <div class="summary-item"><div class="summary-label">Income</div><div class="summary-val green" id="sum-income">₹0</div></div>
+    <div class="summary-item"><div class="summary-label">Expenses</div><div class="summary-val red" id="sum-expenses">₹0</div></div>
+    <div class="summary-item"><div class="summary-label">Balance</div><div class="summary-val blue" id="sum-balance">₹0</div></div>
+  </div>
+
+  <div class="drive-status linked" id="drive-status">
+    <div class="dot"></div>
+    <span id="drive-status-text">Drive connected</span>
+  </div>
+
+  <div class="section-wrap">
+    <!-- INCOME -->
+    <div class="section open" id="sec-income">
+      <div class="section-header" onclick="toggleSection('sec-income')">
+        <div class="section-header-left">
+          <div class="section-icon icon-income">💰</div>
+          <div><div class="section-title">Income</div><div class="section-total" id="lbl-income">₹0</div></div>
+        </div>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="section-body" id="body-income"></div>
+    </div>
+
+    <!-- FIXED EXPENSES -->
+    <div class="section" id="sec-fixed">
+      <div class="section-header" onclick="toggleSection('sec-fixed')">
+        <div class="section-header-left">
+          <div class="section-icon icon-fixed">🏠</div>
+          <div><div class="section-title">Fixed Expenses</div><div class="section-total" id="lbl-fixed">₹0</div></div>
+        </div>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="section-body" id="body-fixed"></div>
+    </div>
+
+    <!-- VARIABLE EXPENSES -->
+    <div class="section" id="sec-variable">
+      <div class="section-header" onclick="toggleSection('sec-variable')">
+        <div class="section-header-left">
+          <div class="section-icon icon-variable">🛍️</div>
+          <div><div class="section-title">Variable Expenses</div><div class="section-total" id="lbl-variable">₹0</div></div>
+        </div>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="section-body" id="body-variable"></div>
+    </div>
+
+    <!-- EMI -->
+    <div class="section" id="sec-emi">
+      <div class="section-header" onclick="toggleSection('sec-emi')">
+        <div class="section-header-left">
+          <div class="section-icon icon-emi">💳</div>
+          <div><div class="section-title">EMI / Loans</div><div class="section-total" id="lbl-emi">₹0</div></div>
+        </div>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="section-body" id="body-emi"></div>
+    </div>
+
+    <!-- SAVINGS -->
+    <div class="section" id="sec-savings">
+      <div class="section-header" onclick="toggleSection('sec-savings')">
+        <div class="section-header-left">
+          <div class="section-icon icon-savings">📈</div>
+          <div><div class="section-title">Savings & Investments</div><div class="section-total" id="lbl-savings">₹0</div></div>
+        </div>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="section-body" id="body-savings"></div>
+    </div>
+
+    <!-- NOTES -->
+    <div class="section" id="sec-notes">
+      <div class="section-header" onclick="toggleSection('sec-notes')">
+        <div class="section-header-left">
+          <div class="section-icon" style="background:rgba(255,255,255,0.06)">📝</div>
+          <div><div class="section-title">Notes</div></div>
+        </div>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="section-body">
+        <textarea class="notes-area" id="notes-field" placeholder="Any notes for this month..."></textarea>
+      </div>
+    </div>
+
+    <div style="height:85px"></div>
+  </div>
+
+  <div class="action-bar">
+    <button class="btn btn-secondary" onclick="previewData()">👁 Preview</button>
+    <button class="btn btn-primary" onclick="saveToGoogleSheets()" id="save-btn">☁ Save to Drive</button>
+  </div>
+</div>
+
+<!-- LOADING -->
+<div class="loading-overlay" id="loading">
+  <div class="spinner"></div>
+  <div class="loading-msg" id="loading-msg">Working...</div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+/* ══ CONFIG ══
+   Replace YOUR_GOOGLE_CLIENT_ID_HERE with your actual OAuth client ID
+   Instructions in SETUP.md (included with this file) */
+const GOOGLE_CLIENT_ID = 'YOUR_GOOGLE_CLIENT_ID_HERE.apps.googleusercontent.com';
+const SCOPES = 'https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/spreadsheets';
+
+/* ══ STATE ══ */
+const S = {
+  token: null,
+  email: '',
+  name: '',
+  month: new Date().getMonth(),
+  year: new Date().getFullYear(),
+  masterFileId: localStorage.getItem('masterFileId') || '',
+  destFolderId: localStorage.getItem('destFolderId') || '',
+  fileId: localStorage.getItem('currentFileId') || null,
+  data: { income:[], fixed:[], variable:[], emi:[], savings:[] }
+};
+
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const MSHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+const DEFAULTS = {
+  income:   [{l:'Basic Salary',v:''},{l:'HRA',v:''},{l:'Special Allowance',v:''},{l:'Bonus / Incentive',v:''},{l:'Other Income',v:''}],
+  fixed:    [{l:'House Rent',v:''},{l:'Electricity Bill',v:''},{l:'Mobile Bill',v:''},{l:'Internet / DTH',v:''},{l:'Insurance Premium',v:''}],
+  variable: [{l:'Groceries',v:''},{l:'Dining / Swiggy / Zomato',v:''},{l:'Petrol / Transport',v:''},{l:'Shopping / Clothes',v:''},{l:'Medical / Pharmacy',v:''},{l:'Entertainment',v:''},{l:'Miscellaneous',v:''}],
+  emi:      [{l:'Home Loan EMI',v:''},{l:'Car Loan EMI',v:''},{l:'Personal Loan EMI',v:''},{l:'Credit Card',v:''}],
+  savings:  [{l:'EPF / PF',v:''},{l:'PPF',v:''},{l:'Mutual Fund SIP',v:''},{l:'RD / FD',v:''},{l:'Stocks / Equity',v:''},{l:'Emergency Fund',v:''}]
+};
+
+/* ══ OAUTH ══ */
+function signInWithGoogle() {
+  if (!GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID.includes('YOUR_GOOGLE')) {
+    alert('SETUP NEEDED\n\nThis app needs a Google Client ID to work.\n\nSee SETUP.md (included) for step-by-step instructions to get one for free from Google Cloud Console.');
+    return;
+  }
+  const p = new URLSearchParams({
+    client_id: GOOGLE_CLIENT_ID,
+    redirect_uri: location.origin + location.pathname,
+    response_type: 'token',
+    scope: SCOPES,
+    prompt: 'select_account'
+  });
+  location.href = `https://accounts.google.com/o/oauth2/v2/auth?${p}`;
+}
+
+function handleOAuthReturn() {
+  const hash = new URLSearchParams(location.hash.slice(1));
+  const token = hash.get('access_token');
+  if (!token) return false;
+  S.token = token;
+  history.replaceState(null,'',location.pathname);
+  fetchMe();
+  return true;
+}
+
+async function fetchMe() {
+  const r = await apiFetch('https://www.googleapis.com/oauth2/v3/userinfo');
+  S.email = r.email; S.name = r.name;
+  document.getElementById('user-avatar').textContent = (r.name||'U')[0].toUpperCase();
+  showSetup();
+}
+
+/* ══ MONTH PICKER ══ */
+function changeYear(d) { S.year += d; document.getElementById('year-display').textContent = S.year; }
+function selectMonth(i) {
+  S.month = i;
+  document.querySelectorAll('.month-pill').forEach((el,j) => el.classList.toggle('selected', i===j));
+}
+
+/* ══ SETUP NAV ══ */
+function showSetup() {
+  hide('auth-screen'); show('setup-screen');
+  const now = new Date();
+  selectMonth(now.getMonth()); S.year = now.getFullYear();
+  document.getElementById('year-display').textContent = S.year;
+  if (S.masterFileId) document.getElementById('master-file-id').value = S.masterFileId;
+  if (S.destFolderId) document.getElementById('dest-folder-id').value = S.destFolderId;
+  goSetupStep(1);
+}
+
+function goSetupStep(n) {
+  [1,2,3].forEach(i => {
+    document.getElementById(`setup-step-${i}`).style.display = i===n ? 'block' : 'none';
+    document.getElementById(`step${i}`).classList.toggle('active', i<=n);
+  });
+}
+
+/* ══ CREATE FILE IN DRIVE ══ */
+async function createMonthFile() {
+  const mid = document.getElementById('master-file-id').value.trim();
+  const fid = document.getElementById('dest-folder-id').value.trim();
+  if (!mid) { showToast('Enter the Master File ID', 'error'); return; }
+  S.masterFileId = mid; S.destFolderId = fid;
+  localStorage.setItem('masterFileId', mid);
+  localStorage.setItem('destFolderId', fid);
+
+  const name = `${MONTHS[S.month]}-${S.year}_Salary_Tracker`;
+  showLoading(`Creating "${name}" in Drive...`);
+  try {
+    const body = { name };
+    if (fid) body.parents = [fid];
+    const res = await apiFetch(`https://www.googleapis.com/drive/v3/files/${mid}/copy`, {
+      method: 'POST', body: JSON.stringify(body)
+    });
+    S.fileId = res.id;
+    localStorage.setItem('currentFileId', res.id);
+    document.getElementById('created-file-name').textContent = name;
+    const link = document.getElementById('drive-link');
+    link.href = `https://docs.google.com/spreadsheets/d/${res.id}/edit`;
+    link.style.display = 'block';
+    hideLoading();
+    goSetupStep(3);
+    showToast('✅ File created!', 'success');
+  } catch(e) { hideLoading(); showToast(`Error: ${e.message}`, 'error'); }
+}
+
+/* ══ OPEN APP ══ */
+function openApp() {
+  hide('setup-screen'); show('app-screen');
+  document.getElementById('topbar-month').textContent = `${MSHORT[S.month]} ${S.year}`;
+  document.getElementById('drive-status-text').textContent = `Drive connected · ${MONTHS[S.month]} ${S.year}`;
+  Object.keys(DEFAULTS).forEach(k => {
+    S.data[k] = DEFAULTS[k].map(r => ({l:r.l, v:r.v}));
+    renderSection(k);
+  });
+  updateSummary();
+}
+
+/* ══ SECTIONS ══ */
+function toggleSection(id) { document.getElementById(id).classList.toggle('open'); }
+
+function renderSection(k) {
+  const body = document.getElementById(`body-${k}`);
+  body.innerHTML = S.data[k].map((r,i) => `
+    <div class="row-item">
+      <input class="row-label-input" type="text" value="${esc(r.l)}" onchange="S.data['${k}'][${i}].l=this.value" />
+      <input class="row-input" type="number" inputmode="decimal" placeholder="0" value="${r.v}"
+        oninput="S.data['${k}'][${i}].v=this.value; refreshSub('${k}'); updateSummary();" />
+    </div>`).join('') +
+  `<div class="section-subtotal"><span>Subtotal</span><span id="sub-${k}">₹${fmt(total(k))}</span></div>
+   <button class="add-row-btn" onclick="addRow('${k}')">＋ Add item</button>`;
+}
+
+function addRow(k) { S.data[k].push({l:'New item',v:''}); renderSection(k); updateSummary(); }
+function total(k) { return S.data[k].reduce((s,r)=>s+(parseFloat(r.v)||0),0); }
+function refreshSub(k) {
+  const el = document.getElementById(`sub-${k}`);
+  if (el) el.textContent = `₹${fmt(total(k))}`;
+  document.getElementById(`lbl-${k}`).textContent = `₹${fmt(total(k))}`;
+}
+function updateSummary() {
+  const inc = total('income');
+  const exp = total('fixed')+total('variable')+total('emi');
+  const sav = total('savings');
+  document.getElementById('sum-income').textContent = `₹${fmt(inc)}`;
+  document.getElementById('sum-expenses').textContent = `₹${fmt(exp)}`;
+  document.getElementById('sum-balance').textContent = `₹${fmt(inc-exp-sav)}`;
+  ['income','fixed','variable','emi','savings'].forEach(k => document.getElementById(`lbl-${k}`).textContent = `₹${fmt(total(k))}`);
+}
+
+/* ══ SAVE TO GOOGLE SHEETS ══ */
+async function saveToGoogleSheets() {
+  if (!S.fileId) { showToast('No Drive file linked. Please create a monthly sheet first.', 'error'); return; }
+  showLoading('Saving data to Google Drive...');
+  try {
+    const rows = buildRows();
+    await apiFetch(`https://sheets.googleapis.com/v4/spreadsheets/${S.fileId}/values:batchUpdate`, {
+      method: 'POST',
+      body: JSON.stringify({
+        valueInputOption: 'USER_ENTERED',
+        data: [{ range: 'Sheet1!A1', values: rows }]
+      })
+    });
+    hideLoading();
+    showToast('✅ Saved to Google Drive!', 'success');
+  } catch(e) {
+    hideLoading();
+    // If not a Sheets file, show helpful error
+    if (e.message.includes('not found') || e.message.includes('Unable to parse')) {
+      showToast('Saved! (If your master is .xlsx, open the Drive file and save as Google Sheets first)', 'info');
+    } else {
+      showToast(`Error: ${e.message}`, 'error');
+    }
+  }
+}
+
+function buildRows() {
+  const rows = [];
+  const push = (...args) => rows.push(args);
+  push(`${MONTHS[S.month]} ${S.year} — Salary Tracker`);
+  push();
+  push('INCOME','','Amount (₹)');
+  S.data.income.forEach(r => push(r.l,'',parseFloat(r.v)||0));
+  push('','Total Income →', total('income'));
+  push();
+  push('FIXED EXPENSES','','Amount (₹)');
+  S.data.fixed.forEach(r => push(r.l,'',parseFloat(r.v)||0));
+  push('','Total Fixed →', total('fixed'));
+  push();
+  push('VARIABLE EXPENSES','','Amount (₹)');
+  S.data.variable.forEach(r => push(r.l,'',parseFloat(r.v)||0));
+  push('','Total Variable →', total('variable'));
+  push();
+  push('EMI / LOANS','','Amount (₹)');
+  S.data.emi.forEach(r => push(r.l,'',parseFloat(r.v)||0));
+  push('','Total EMI →', total('emi'));
+  push();
+  push('SAVINGS & INVESTMENTS','','Amount (₹)');
+  S.data.savings.forEach(r => push(r.l,'',parseFloat(r.v)||0));
+  push('','Total Savings →', total('savings'));
+  push();
+  const exp = total('fixed')+total('variable')+total('emi');
+  push('SUMMARY');
+  push('Total Income','', total('income'));
+  push('Total Expenses','', exp);
+  push('Total Savings','', total('savings'));
+  push('Net Balance','', total('income')-exp-total('savings'));
+  const notes = document.getElementById('notes-field')?.value;
+  if (notes) { push(); push('NOTES'); push(notes); }
+  return rows;
+}
+
+/* ══ PREVIEW ══ */
+function previewData() {
+  const inc = total('income'), fix = total('fixed'), vrb = total('variable'), emi = total('emi'), sav = total('savings');
+  const exp = fix+vrb+emi;
+  alert(`📊 ${MONTHS[S.month]} ${S.year}\n\n` +
+    `💰 Income:       ₹${fmt(inc)}\n` +
+    `🏠 Fixed:        ₹${fmt(fix)}\n` +
+    `🛍️  Variable:     ₹${fmt(vrb)}\n` +
+    `💳 EMI:          ₹${fmt(emi)}\n` +
+    `📈 Savings:      ₹${fmt(sav)}\n` +
+    `────────────────────\n` +
+    `🏦 Net Balance:  ₹${fmt(inc-exp-sav)}`);
+}
+
+/* ══ USER MENU ══ */
+function showUserMenu() {
+  if (confirm(`Signed in as:\n${S.email}\n\nSign out?`)) {
+    S.token = null;
+    hide('app-screen'); hide('setup-screen'); show('auth-screen');
+  }
+}
+
+/* ══ HELPERS ══ */
+async function apiFetch(url, opts={}) {
+  const r = await fetch(url, {
+    ...opts,
+    headers: { 'Authorization': `Bearer ${S.token}`, 'Content-Type': 'application/json', ...(opts.headers||{}) }
+  });
+  if (!r.ok) { const e = await r.json(); throw new Error(e.error?.message || r.statusText); }
+  return r.json();
+}
+function fmt(n) { return Math.round(n||0).toLocaleString('en-IN'); }
+function esc(s) { return String(s).replace(/"/g,'&quot;'); }
+function show(id) { document.getElementById(id).style.display = 'block'; }
+function hide(id) { document.getElementById(id).style.display = 'none'; }
+function showLoading(msg) { document.getElementById('loading-msg').textContent = msg||'Working...'; document.getElementById('loading').classList.add('show'); }
+function hideLoading() { document.getElementById('loading').classList.remove('show'); }
+function showToast(msg, type='info') {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = `toast ${type} show`;
+  setTimeout(() => t.className='toast', 4000);
+}
+
+/* ══ INIT ══ */
+window.addEventListener('load', () => {
+  if (location.hash.includes('access_token')) { handleOAuthReturn(); return; }
+  document.getElementById('auth-screen').style.display = 'flex';
+});
+</script>
+</body>
+</html>
