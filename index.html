@@ -3,149 +3,84 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Salary Tracker</title>
+<title>Salary Tracker – Naveen Somalapuri</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 :root {
-  --bg: #0d0f14;
-  --surface: #161a22;
-  --surface2: #1e2433;
-  --border: #2a3045;
-  --accent: #00e5a0;
-  --accent2: #ff6b35;
-  --accent3: #7b61ff;
-  --text: #e8eaf0;
-  --muted: #6b7280;
-  --paid: #00e5a0;
-  --pending: #ff6b35;
-  --delayed: #f59e0b;
-  --radius: 12px;
-  --font-head: 'Syne', sans-serif;
-  --font-mono: 'Space Mono', monospace;
+  --bg:#0d0f14; --surface:#161a22; --surface2:#1e2433; --border:#2a3045;
+  --accent:#00e5a0; --accent2:#ff6b35; --accent3:#7b61ff;
+  --text:#e8eaf0; --muted:#6b7280;
+  --paid:#00e5a0; --pending:#ff6b35; --delayed:#f59e0b;
+  --radius:12px; --font-head:'Syne',sans-serif; --font-mono:'Space Mono',monospace;
 }
-
-/* ── DAY MODE THEME ── */
 body.day {
-  --bg: #f0f4fb;
-  --surface: #ffffff;
-  --surface2: #e8ecf7;
-  --border: #cdd3ea;
-  --text: #1a1d2e;
-  --muted: #7b829a;
-  --accent: #00a372;
-  --accent2: #e85d20;
-  --accent3: #5b44d6;
-  --paid: #00a372;
-  --pending: #e85d20;
-  --delayed: #c07c00;
+  --bg:#f0f4fb; --surface:#ffffff; --surface2:#e8ecf7; --border:#cdd3ea;
+  --text:#1a1d2e; --muted:#7b829a;
+  --accent:#00a372; --accent2:#e85d20; --accent3:#5b44d6;
+  --paid:#00a372; --pending:#e85d20; --delayed:#c07c00;
 }
+*,*::before,*::after { transition:background-color .3s,border-color .3s,color .3s,box-shadow .3s !important; }
+.modal,.sync-bar,.toast { transition:transform .3s cubic-bezier(.34,1.56,.64,1) !important; }
+.progress-fill { transition:width .5s ease !important; }
+.spinner,.inline-input,.inline-select,select option { transition:none !important; }
+*  { margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent; }
+html,body { background:var(--bg);color:var(--text);font-family:var(--font-mono);min-height:100vh;overflow-x:hidden; }
 
-/* smooth theme transition on all elements */
-*, *::before, *::after {
-  transition: background-color .3s ease, border-color .3s ease, color .3s ease, box-shadow .3s ease !important;
-}
-/* but keep interactive animations snappy */
-.modal, .sync-bar, .toast { transition: transform .3s cubic-bezier(.34,1.56,.64,1) !important; }
-.progress-fill { transition: width .5s ease !important; }
-.spinner { transition: none !important; }
-
-* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-html,body { background:var(--bg); color:var(--text); font-family:var(--font-mono); min-height:100vh; overflow-x:hidden; }
-
-/* ── THEME TOGGLE BUTTON ── */
-.theme-toggle {
-  width:52px; height:28px; border-radius:14px;
-  background:var(--surface2); border:1.5px solid var(--border);
-  cursor:pointer; position:relative; flex-shrink:0; overflow:hidden;
-  transition:background .3s ease, border-color .3s ease !important;
-}
-.toggle-track-day {
-  position:absolute; inset:0; border-radius:14px;
-  background:linear-gradient(135deg,#ffe066,#ffb300);
-  opacity:0; transition:opacity .3s ease !important;
-}
-body.day .toggle-track-day { opacity:1; }
-.toggle-thumb {
-  position:absolute; top:3px; left:3px;
-  width:20px; height:20px; border-radius:50%;
-  background:var(--surface2); border:1px solid var(--border);
-  display:flex; align-items:center; justify-content:center;
-  font-size:.7rem; z-index:1;
-  box-shadow:0 1px 5px rgba(0,0,0,.35);
-  transition:transform .35s cubic-bezier(.34,1.56,.64,1) !important;
-}
-body.day .toggle-thumb { transform:translateX(24px); }
-.t-moon { position:absolute; transition:opacity .2s ease,transform .2s ease !important; }
-.t-sun  { position:absolute; opacity:0; transform:scale(.5) rotate(-90deg);
-          transition:opacity .2s ease,transform .2s ease !important; }
-body.day .t-moon { opacity:0; transform:scale(.5) rotate(90deg); }
-body.day .t-sun  { opacity:1; transform:scale(1) rotate(0deg); }
-
-/* ── DAY MODE OVERRIDES ── */
-body.day #splash {
-  background:radial-gradient(ellipse at 30% 20%,rgba(0,163,114,.13) 0%,transparent 60%),
-             radial-gradient(ellipse at 80% 80%,rgba(91,68,214,.09) 0%,transparent 60%),var(--bg);
-}
-body.day .splash-title {
-  background:linear-gradient(135deg,#1a1d2e,#00a372);
-  -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
-}
-body.day .header-logo > span:first-child {
-  background:linear-gradient(135deg,#1a1d2e,#00a372);
-  -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
-}
-body.day .btn-primary { color:#fff; }
-body.day .inline-select { color:var(--text); }
-body.day td { border-bottom-color:rgba(205,211,234,.6); }
-body.day tr:hover td { background:rgba(0,0,0,.025); }
-body.day .tab-btn.active { color:var(--accent); border-bottom-color:var(--accent); }
-body.day .load-card { background:rgba(91,68,214,.07); border-color:rgba(91,68,214,.3); }
-body.day .modal-overlay { background:rgba(0,0,0,.35); }
-body.day .modal { box-shadow:0 -8px 40px rgba(0,0,0,.12); }
-
-/* SPLASH */
+/* ── SPLASH ── */
 #splash {
-  display:flex; flex-direction:column; align-items:center; justify-content:center;
-  min-height:100vh; padding:2rem;
-  background: radial-gradient(ellipse at 30% 20%,rgba(0,229,160,.09) 0%,transparent 60%),
-              radial-gradient(ellipse at 80% 80%,rgba(123,97,255,.09) 0%,transparent 60%), var(--bg);
-  text-align:center;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  min-height:100vh;padding:2rem;text-align:center;
+  background:radial-gradient(ellipse at 30% 20%,rgba(0,229,160,.09) 0%,transparent 60%),
+             radial-gradient(ellipse at 80% 80%,rgba(123,97,255,.09) 0%,transparent 60%),var(--bg);
 }
-.logo-mark { width:72px;height:72px;border-radius:20px;background:linear-gradient(135deg,var(--accent),var(--accent3));display:flex;align-items:center;justify-content:center;font-size:2rem;margin-bottom:1.5rem;box-shadow:0 0 40px rgba(0,229,160,.3); }
-.splash-title { font-family:var(--font-head);font-size:2.4rem;font-weight:800;letter-spacing:-1px;background:linear-gradient(135deg,var(--text),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:.5rem; }
-.splash-sub { color:var(--muted);font-size:.8rem;margin-bottom:1rem;line-height:1.7; }
-.btn-google { display:flex;align-items:center;gap:.75rem;background:white;color:#1a1a1a;border:none;border-radius:var(--radius);padding:.9rem 1.8rem;font-size:.95rem;font-weight:700;font-family:var(--font-head);cursor:pointer;transition:all .2s;box-shadow:0 4px 24px rgba(0,0,0,.4);margin-bottom:1.25rem; }
+body.day #splash { background:radial-gradient(ellipse at 30% 20%,rgba(0,163,114,.12) 0%,transparent 60%),radial-gradient(ellipse at 80% 80%,rgba(91,68,214,.08) 0%,transparent 60%),var(--bg); }
+.logo-mark { width:72px;height:72px;border-radius:20px;background:linear-gradient(135deg,var(--accent),var(--accent3));display:flex;align-items:center;justify-content:center;font-size:2rem;margin-bottom:1.2rem;box-shadow:0 0 40px rgba(0,229,160,.3); }
+.splash-title { font-family:var(--font-head);font-size:2.4rem;font-weight:800;letter-spacing:-1px;background:linear-gradient(135deg,var(--text),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:.25rem; }
+.splash-name { font-family:var(--font-head);font-size:.82rem;font-weight:600;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:2rem; }
+.splash-sub { color:var(--muted);font-size:.8rem;margin-bottom:2rem;line-height:1.7; }
+.btn-google { display:flex;align-items:center;gap:.75rem;background:white;color:#1a1a1a;border:none;border-radius:var(--radius);padding:.9rem 1.8rem;font-size:.95rem;font-weight:700;font-family:var(--font-head);cursor:pointer;box-shadow:0 4px 24px rgba(0,0,0,.4);margin-bottom:1.25rem; }
 .btn-google:active { transform:scale(.97); }
 .splash-note { font-size:.72rem;color:var(--muted);max-width:300px;line-height:1.7; }
 .splash-note a { color:var(--accent);text-decoration:none; }
 
-/* APP */
-#app { display:none; min-height:100vh; flex-direction:column; padding-bottom:80px; }
+/* ── APP ── */
+#app { display:none;min-height:100vh;flex-direction:column;padding-bottom:80px; }
 #app.visible { display:flex; }
 .app-header { background:var(--surface);border-bottom:1px solid var(--border);padding:1rem 1rem 0;position:sticky;top:0;z-index:100; }
-.header-top { display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem; }
-
-.splash-name { font-family:var(--font-head); font-size:.85rem; font-weight:600; color:var(--muted); letter-spacing:.08em; text-transform:uppercase; margin-top:-.3rem; margin-bottom:2.5rem; }
-.header-logo { display:flex; flex-direction:column; gap:.05rem; }
-.header-logo > span:first-child { font-family:var(--font-head);font-weight:800;font-size:1.05rem;background:linear-gradient(135deg,var(--text),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text; }
-.logo-name { font-family:var(--font-head); font-size:.6rem; font-weight:600; color:var(--muted); letter-spacing:.06em; text-transform:uppercase; line-height:1; }
-.header-actions { display:flex;gap:.5rem; }
-.icon-btn { width:38px;height:38px;border-radius:10px;background:var(--surface2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text);font-size:1rem;transition:all .2s;user-select:none; }
+.header-top { display:flex;align-items:center;justify-content:space-between;margin-bottom:.9rem; }
+.header-logo { display:flex;flex-direction:column;gap:.05rem; }
+.header-logo-main { font-family:var(--font-head);font-weight:800;font-size:1.05rem;background:linear-gradient(135deg,var(--text),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1.2; }
+.header-logo-name { font-family:var(--font-head);font-size:.58rem;font-weight:600;color:var(--muted);letter-spacing:.07em;text-transform:uppercase; }
+body.day .header-logo-main { background:linear-gradient(135deg,#1a1d2e,#00a372);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text; }
+.header-actions { display:flex;gap:.45rem;align-items:center; }
+.icon-btn { width:36px;height:36px;border-radius:10px;background:var(--surface2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:.95rem;user-select:none; }
 .icon-btn:active { background:var(--border); }
-.month-bar { display:flex;align-items:center;justify-content:space-between;padding-bottom:0; }
-.month-display { font-family:var(--font-head);font-size:1.4rem;font-weight:700; }
-.file-status { font-size:.65rem;color:var(--muted);display:flex;align-items:center;gap:.3rem;max-width:160px;overflow:hidden; }
+
+/* theme toggle */
+.theme-toggle { width:50px;height:26px;border-radius:13px;background:var(--surface2);border:1.5px solid var(--border);cursor:pointer;position:relative;overflow:hidden;flex-shrink:0; }
+.toggle-track-day { position:absolute;inset:0;border-radius:13px;background:linear-gradient(135deg,#ffe066,#ffb300);opacity:0; }
+body.day .toggle-track-day { opacity:1; }
+.toggle-thumb { position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:var(--surface2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:.68rem;z-index:1;box-shadow:0 1px 5px rgba(0,0,0,.35);transition:transform .35s cubic-bezier(.34,1.56,.64,1) !important; }
+body.day .toggle-thumb { transform:translateX(24px); }
+.t-moon { position:absolute;transition:opacity .2s,transform .2s !important; }
+.t-sun  { position:absolute;opacity:0;transform:scale(.5) rotate(-90deg);transition:opacity .2s,transform .2s !important; }
+body.day .t-moon { opacity:0;transform:scale(.5) rotate(90deg); }
+body.day .t-sun  { opacity:1;transform:scale(1) rotate(0); }
+
+.month-bar { display:flex;align-items:center;justify-content:space-between; }
+.month-display { font-family:var(--font-head);font-size:1.35rem;font-weight:700; }
+.file-status { font-size:.63rem;color:var(--muted);display:flex;align-items:center;gap:.3rem;max-width:150px;overflow:hidden; }
 .file-status.linked { color:var(--accent); }
 .dot { width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0; }
-.tab-nav { display:flex;gap:0;overflow-x:auto;scrollbar-width:none;margin-top:.75rem; }
+.tab-nav { display:flex;overflow-x:auto;scrollbar-width:none;margin-top:.75rem; }
 .tab-nav::-webkit-scrollbar { display:none; }
-.tab-btn { flex-shrink:0;padding:.6rem .9rem;font-family:var(--font-mono);font-size:.7rem;color:var(--muted);background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;transition:all .2s;white-space:nowrap; }
+.tab-btn { flex-shrink:0;padding:.55rem .85rem;font-family:var(--font-mono);font-size:.68rem;color:var(--muted);background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap; }
 .tab-btn.active { color:var(--accent);border-bottom-color:var(--accent); }
-.content { flex:1; padding:1rem; }
+.content { flex:1;padding:1rem; }
 
-/* DASHBOARD */
+/* ── DASHBOARD ── */
 .dashboard-grid { display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:1rem; }
 .stat-card { background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;position:relative;overflow:hidden; }
 .stat-card::before { content:'';position:absolute;top:0;left:0;right:0;height:2px; }
@@ -153,76 +88,86 @@ body.day .modal { box-shadow:0 -8px 40px rgba(0,0,0,.12); }
 .stat-card.expenses::before { background:var(--accent2); }
 .stat-card.balance::before { background:var(--accent3); }
 .stat-card.pending::before { background:var(--delayed); }
-.stat-label { font-size:.63rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.4rem; }
+.stat-label { font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.4rem; }
 .stat-value { font-family:var(--font-head);font-size:1.2rem;font-weight:700; }
 .stat-value.income { color:var(--accent); }
 .stat-value.expenses { color:var(--accent2); }
 .stat-value.balance-pos { color:var(--accent); }
 .stat-value.balance-neg { color:var(--accent2); }
-.section-head { font-family:var(--font-head);font-size:.82rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:1.25rem 0 .6rem; }
+.section-head { font-family:var(--font-head);font-size:.8rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:1.2rem 0 .6rem; }
 .progress-bar { height:4px;background:var(--border);border-radius:2px;overflow:hidden;margin-top:.5rem; }
-.progress-fill { height:100%;background:linear-gradient(90deg,var(--accent),var(--accent3));border-radius:2px;transition:width .5s ease; }
+.progress-fill { height:100%;background:linear-gradient(90deg,var(--accent),var(--accent3));border-radius:2px; }
 
-/* TABLES */
+/* ── TABLES ── */
 .sheet-table { background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden; }
 .table-scroll { overflow-x:auto;-webkit-overflow-scrolling:touch; }
-table { width:100%;border-collapse:collapse;font-size:.72rem;min-width:600px; }
-th { background:var(--surface2);padding:.55rem .7rem;text-align:left;font-size:.62rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);white-space:nowrap;font-family:var(--font-head);font-weight:600;border-bottom:1px solid var(--border); }
-td { padding:.65rem .7rem;border-bottom:1px solid rgba(42,48,69,.5);vertical-align:middle;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+table { width:100%;border-collapse:collapse;font-size:.72rem;min-width:580px; }
+th { background:var(--surface2);padding:.5rem .65rem;text-align:left;font-size:.6rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);white-space:nowrap;font-family:var(--font-head);font-weight:600;border-bottom:1px solid var(--border); }
+td { padding:.6rem .65rem;border-bottom:1px solid rgba(42,48,69,.5);vertical-align:middle;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+body.day td { border-bottom-color:rgba(205,211,234,.6); }
 tr:last-child td { border-bottom:none; }
-tr:hover td { background:rgba(255,255,255,.02); }
+tr:hover td { background:rgba(128,128,128,.04); }
 .inline-input { background:none;border:none;color:var(--text);font-family:var(--font-mono);font-size:.72rem;width:100%;outline:none;padding:0; }
 .inline-input:focus { background:var(--surface2);padding:2px 4px;border-radius:4px;outline:1px solid var(--accent); }
-.inline-select { background:none;border:none;font-family:var(--font-mono);font-size:.72rem;outline:none;cursor:pointer;padding:0;width:100%; }
-.delete-btn { background:none;border:none;color:var(--muted);cursor:pointer;padding:.2rem .4rem;border-radius:4px;font-size:.85rem;transition:all .15s; }
+.inline-select { background:none;border:none;font-family:var(--font-mono);font-size:.72rem;outline:none;cursor:pointer;padding:0;width:100%;color:var(--text); }
+.delete-btn { background:none;border:none;color:var(--muted);cursor:pointer;padding:.2rem .4rem;border-radius:4px;font-size:.8rem; }
 .delete-btn:hover { color:var(--accent2);background:rgba(255,107,53,.1); }
-.add-row-btn { width:100%;padding:.75rem;background:none;border:1px dashed var(--border);border-top:none;border-radius:0 0 var(--radius) var(--radius);color:var(--muted);font-size:.75rem;font-family:var(--font-mono);cursor:pointer;transition:all .2s; }
+.add-row-btn { width:100%;padding:.7rem;background:none;border:1px dashed var(--border);border-top:none;border-radius:0 0 var(--radius) var(--radius);color:var(--muted);font-size:.73rem;font-family:var(--font-mono);cursor:pointer; }
 .add-row-btn:hover { background:var(--surface2);color:var(--accent);border-color:var(--accent); }
 
-/* SYNC BAR */
-.sync-bar { position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--border);padding:.75rem 1rem;display:flex;gap:.75rem;z-index:200;transform:translateY(100%);transition:transform .3s cubic-bezier(.34,1.56,.64,1); }
+/* ── SYNC BAR ── */
+.sync-bar { position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--border);padding:.75rem 1rem;display:flex;gap:.75rem;z-index:200;transform:translateY(100%); }
 .sync-bar.visible { transform:translateY(0); }
-.btn { flex:1;padding:.8rem;border-radius:var(--radius);border:none;font-family:var(--font-head);font-size:.85rem;font-weight:700;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:.4rem; }
+.btn { flex:1;padding:.8rem;border-radius:var(--radius);border:none;font-family:var(--font-head);font-size:.85rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:.4rem; }
 .btn:active { transform:scale(.97); }
 .btn:disabled { opacity:.6;cursor:not-allowed; }
 .btn-primary { background:var(--accent);color:#0d0f14; }
+body.day .btn-primary { color:#fff; }
 .btn-secondary { background:var(--surface2);color:var(--text);border:1px solid var(--border); }
+.btn-export { background:var(--accent3);color:#fff;border:none; }
 
-/* MODALS */
-.modal-overlay { position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(4px);z-index:300;display:flex;align-items:flex-end;opacity:0;pointer-events:none;transition:opacity .25s; }
+/* ── MODALS ── */
+.modal-overlay { position:fixed;inset:0;background:rgba(0,0,0,.72);backdrop-filter:blur(4px);z-index:300;display:flex;align-items:flex-end;opacity:0;pointer-events:none; }
 .modal-overlay.open { opacity:1;pointer-events:all; }
-.modal { width:100%;background:var(--surface);border-radius:20px 20px 0 0;border:1px solid var(--border);border-bottom:none;padding:1.25rem;transform:translateY(100%);transition:transform .3s cubic-bezier(.34,1.56,.64,1);max-height:88vh;overflow-y:auto; }
+.modal { width:100%;background:var(--surface);border-radius:20px 20px 0 0;border:1px solid var(--border);border-bottom:none;padding:1.25rem;transform:translateY(100%);max-height:88vh;overflow-y:auto; }
 .modal-overlay.open .modal { transform:translateY(0); }
 .modal-handle { width:40px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 1.25rem; }
 .modal-title { font-family:var(--font-head);font-size:1.1rem;font-weight:700;margin-bottom:1.25rem; }
 .form-group { margin-bottom:.9rem; }
-.form-label { display:block;font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.35rem;font-family:var(--font-head); }
-.form-input,.form-select { width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.7rem .85rem;color:var(--text);font-family:var(--font-mono);font-size:.85rem;outline:none;transition:border-color .2s;appearance:none;-webkit-appearance:none; }
+.form-label { display:block;font-size:.67rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.35rem;font-family:var(--font-head); }
+.form-input,.form-select { width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.68rem .85rem;color:var(--text);font-family:var(--font-mono);font-size:.85rem;outline:none;appearance:none;-webkit-appearance:none; }
 .form-input:focus,.form-select:focus { border-color:var(--accent); }
-.form-hint { font-size:.68rem;color:var(--muted);margin-top:.35rem;line-height:1.5; }
+.form-hint { font-size:.67rem;color:var(--muted);margin-top:.3rem;line-height:1.5; }
 .month-grid { display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;margin-bottom:1rem; }
-.month-chip { padding:.6rem;background:var(--surface2);border:1px solid var(--border);border-radius:8px;text-align:center;font-size:.8rem;cursor:pointer;transition:all .2s;font-family:var(--font-mono);color:var(--text); }
+.month-chip { padding:.6rem;background:var(--surface2);border:1px solid var(--border);border-radius:8px;text-align:center;font-size:.78rem;cursor:pointer;font-family:var(--font-mono);color:var(--text); }
 .month-chip.selected,.month-chip:hover { background:rgba(0,229,160,.15);border-color:var(--accent);color:var(--accent); }
+body.day .month-chip.selected,body.day .month-chip:hover { background:rgba(0,163,114,.12); }
 .year-selector { display:flex;align-items:center;justify-content:center;gap:1rem;margin-bottom:1rem; }
 .year-btn { width:36px;height:36px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1rem; }
 .year-display { font-family:var(--font-head);font-size:1.1rem;font-weight:700; }
 
-/* TOAST */
-.toast { position:fixed;top:1rem;left:50%;transform:translateX(-50%) translateY(-80px);background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:.7rem 1.2rem;font-size:.78rem;z-index:500;transition:transform .3s cubic-bezier(.34,1.56,.64,1);white-space:nowrap;display:flex;align-items:center;gap:.5rem;max-width:90vw;overflow:hidden;text-overflow:ellipsis; }
+/* ── TOAST ── */
+.toast { position:fixed;top:1rem;left:50%;transform:translateX(-50%) translateY(-80px);background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:.68rem 1.2rem;font-size:.78rem;z-index:500;white-space:nowrap;display:flex;align-items:center;gap:.5rem;max-width:92vw;overflow:hidden;text-overflow:ellipsis; }
 .toast.show { transform:translateX(-50%) translateY(0); }
 .toast.success { border-color:var(--accent);color:var(--accent); }
-.toast.error { border-color:var(--accent2);color:var(--accent2); }
-.toast.info { border-color:var(--accent3);color:var(--accent3); }
-.spinner { width:16px;height:16px;border:2px solid rgba(0,229,160,.3);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;flex-shrink:0; }
-@keyframes spin { to { transform:rotate(360deg); } }
-.load-card { background:rgba(123,97,255,.1);border:1px solid rgba(123,97,255,.4);border-radius:var(--radius);padding:1.1rem;margin-bottom:1rem; }
-.load-card-title { font-family:var(--font-head);font-weight:700;margin-bottom:.4rem;color:var(--accent3);font-size:.9rem; }
-.load-card-sub { color:var(--muted);font-size:.75rem;margin-bottom:.85rem;line-height:1.5; }
+.toast.error   { border-color:var(--accent2);color:var(--accent2); }
+.toast.info    { border-color:var(--accent3);color:var(--accent3); }
+.spinner { width:16px;height:16px;border:2px solid rgba(0,229,160,.3);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;flex-shrink:0;transition:none !important; }
+@keyframes spin { to{transform:rotate(360deg)} }
 
-@media(min-width:600px) {
-  .content { max-width:720px; margin:0 auto; }
-  .app-header { padding:1rem 1.5rem 0; }
-  .content { padding:1.25rem 1.5rem; }
+.load-card { background:rgba(123,97,255,.1);border:1px solid rgba(123,97,255,.4);border-radius:var(--radius);padding:1.1rem;margin-bottom:1rem; }
+body.day .load-card { background:rgba(91,68,214,.07);border-color:rgba(91,68,214,.3); }
+.load-card-title { font-family:var(--font-head);font-weight:700;margin-bottom:.35rem;color:var(--accent3);font-size:.9rem; }
+.load-card-sub { color:var(--muted);font-size:.74rem;margin-bottom:.85rem;line-height:1.5; }
+
+/* ── SETUP STEPS ── */
+.setup-step { display:flex;gap:.75rem;margin-bottom:.85rem;font-size:.78rem;line-height:1.5; }
+.step-num { width:22px;height:22px;border-radius:50%;background:rgba(0,229,160,.15);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:700;flex-shrink:0;margin-top:.1rem; }
+
+@media(min-width:600px){
+  .content{max-width:720px;margin:0 auto}
+  .app-header{padding:1rem 1.5rem 0}
+  .content{padding:1.25rem 1.5rem}
 }
 </style>
 </head>
@@ -244,9 +189,8 @@ tr:hover td { background:rgba(255,255,255,.02); }
     Continue with Google
   </button>
   <p class="splash-note">
-    💡 First time? After sign-in you'll enter your<br>
-    Master File ID once. Every month one tap<br>
-    creates your copy in Drive.<br><br>
+    💡 First time? After sign-in configure your<br>
+    Master JSON file ID and folder once.<br><br>
     <a href="#" onclick="openSetupFromSplash();return false">⚙️ Configure settings →</a>
   </p>
 </div>
@@ -255,15 +199,15 @@ tr:hover td { background:rgba(255,255,255,.02); }
 <div id="app">
   <header class="app-header">
     <div class="header-top">
-      <div class="header-logo"><span>💰 Salary Tracker</span><span class="logo-name">Naveen Somalapuri</span></div>
+      <div class="header-logo">
+        <span class="header-logo-main">💰 Salary Tracker</span>
+        <span class="header-logo-name">Naveen Somalapuri</span>
+      </div>
       <div class="header-actions">
         <div class="icon-btn" onclick="showMonthPicker()" title="Change Month">📅</div>
-        <button class="theme-toggle" onclick="toggleTheme()" title="Toggle Day/Night" id="themeToggle" aria-label="Toggle theme">
+        <button class="theme-toggle" onclick="toggleTheme()" title="Toggle Day/Night">
           <div class="toggle-track-day"></div>
-          <div class="toggle-thumb">
-            <span class="t-moon">🌙</span>
-            <span class="t-sun">☀️</span>
-          </div>
+          <div class="toggle-thumb"><span class="t-moon">🌙</span><span class="t-sun">☀️</span></div>
         </button>
         <div class="icon-btn" onclick="openSettingsModal()" title="Settings">⚙️</div>
         <div class="icon-btn" onclick="signOut()" title="Sign Out">👤</div>
@@ -283,10 +227,13 @@ tr:hover td { background:rgba(255,255,255,.02); }
       <button class="tab-btn"         onclick="switchTab('lending')">Lending</button>
     </nav>
   </header>
+
   <div class="content" id="content"></div>
+
   <div class="sync-bar" id="syncBar">
-    <button class="btn btn-secondary" onclick="discardChanges()">✕ Discard</button>
-    <button class="btn btn-primary" id="saveBtn" onclick="saveToGDrive()">☁️ Save to Drive</button>
+    <button class="btn btn-secondary" onclick="discardChanges()" style="flex:.7">✕ Discard</button>
+    <button class="btn btn-primary"   id="saveBtn" onclick="saveToGDrive()">☁️ Save</button>
+    <button class="btn btn-export"    onclick="exportExcel()" style="flex:.8">📊 Excel</button>
   </div>
 </div>
 
@@ -295,19 +242,27 @@ tr:hover td { background:rgba(255,255,255,.02); }
   <div class="modal">
     <div class="modal-handle"></div>
     <h2 class="modal-title">⚙️ Settings</h2>
+
+    <div style="background:rgba(0,229,160,.07);border:1px solid rgba(0,229,160,.2);border-radius:10px;padding:.9rem;margin-bottom:1.1rem;font-size:.75rem;line-height:1.7;color:var(--muted)">
+      <strong style="color:var(--accent)">📋 One-time setup:</strong><br>
+      1. Upload <code style="color:var(--text)">master.json</code> to your Google Drive folder<br>
+      2. Get its File ID from the share link<br>
+      3. Paste below and save
+    </div>
+
     <div class="form-group">
       <label class="form-label">Google OAuth Client ID</label>
       <input type="text" class="form-input" id="cfgClientId" placeholder="xxxxx.apps.googleusercontent.com">
     </div>
     <div class="form-group">
-      <label class="form-label">Master File ID</label>
+      <label class="form-label">Master JSON File ID</label>
       <input type="text" class="form-input" id="cfgMasterId" placeholder="1HVNQDFpcYlt...">
-      <p class="form-hint">From share link — the part between /d/ and /edit</p>
+      <p class="form-hint">Share link → copy the ID between /d/ and /view</p>
     </div>
     <div class="form-group">
       <label class="form-label">Destination Folder ID</label>
       <input type="text" class="form-input" id="cfgFolderId" placeholder="1FpSq1CK...">
-      <p class="form-hint">From folder URL — the part after /folders/</p>
+      <p class="form-hint">Drive folder URL → copy ID after /folders/</p>
     </div>
     <div style="display:flex;gap:.75rem;margin-top:1rem">
       <button class="btn btn-secondary" onclick="closeModal('settingsModal')">Cancel</button>
@@ -316,7 +271,7 @@ tr:hover td { background:rgba(255,255,255,.02); }
   </div>
 </div>
 
-<!-- MONTH PICKER MODAL -->
+<!-- MONTH PICKER -->
 <div class="modal-overlay" id="monthModal">
   <div class="modal">
     <div class="modal-handle"></div>
@@ -348,9 +303,9 @@ tr:hover td { background:rgba(255,255,255,.02); }
 <div class="toast" id="toast"></div>
 
 <script>
-// ── DEFAULTS ─────────────────────────────────────────────────────────────
+// ── HARDCODED DEFAULTS ───────────────────────────────────────────────────
 const DEFAULT_CLIENT_ID = '802226109271-praqff3gi21a2i90mp78bmn6a7999s9m.apps.googleusercontent.com';
-const DEFAULT_MASTER_ID = '1HVNQDFpcYltYSfN3neH1xA1p_tMlGnyT';
+const DEFAULT_MASTER_ID = '';   // Set to your master.json file ID after uploading
 const DEFAULT_FOLDER_ID = '1FpSq1CKfMec2P3p15C8U7HFYgK-HLiNE';
 
 let CLIENT_ID      = localStorage.getItem('st_client_id')  || DEFAULT_CLIENT_ID;
@@ -371,54 +326,53 @@ let addRowContext  = null;
 let gisLoaded     = false;
 
 let data = { income:[], fixed:[], semifixed:[], variable:[], unexpected:[], lending:[] };
-let originalWorkbook = null; // keeps the raw XLSX workbook so we can preserve all formatting on save
 
-// ── SCHEMAS (mirrors Excel columns exactly) ───────────────────────────────
+// ── SCHEMAS ───────────────────────────────────────────────────────────────
 const SCHEMAS = {
   income:[
-    {key:'sno',        label:'#',             type:'sno'},
-    {key:'source',     label:'Source',         type:'text'},
-    {key:'category',   label:'Category',       type:'text'},
-    {key:'paymentMode',label:'Mode',            type:'select', opts:['Bank Transfer','Cash','Auto-Debit','UPI','Credit Card']},
+    {key:'sno',            label:'#',          type:'sno'},
+    {key:'source',         label:'Source',     type:'text'},
+    {key:'category',       label:'Category',   type:'text'},
+    {key:'paymentMode',    label:'Mode',       type:'select', opts:['Bank Transfer','Cash','Auto-Debit','UPI','Credit Card']},
     {key:'accountReceived',label:'Account',    type:'text'},
     {key:'dateReceived',   label:'Date Recv',  type:'date'},
-    {key:'amount',     label:'Amount (₹)',     type:'number'},
-    {key:'status',     label:'Status',         type:'select', opts:['Paid','Pending','Delayed']},
-    {key:'month',      label:'Month',          type:'text'},
-    {key:'remarks',    label:'Remarks',        type:'text'}
+    {key:'amount',         label:'Amount (₹)', type:'number'},
+    {key:'status',         label:'Status',     type:'select', opts:['Paid','Pending','Delayed']},
+    {key:'month',          label:'Month',      type:'text'},
+    {key:'remarks',        label:'Remarks',    type:'text'}
   ],
   fixed:[
-    {key:'sno',             label:'#',           type:'sno'},
-    {key:'source',          label:'Source',      type:'text'},
-    {key:'loanNumber',      label:'Loan No.',    type:'text'},
-    {key:'totalLoanAmount', label:'Total Loan',  type:'number'},
-    {key:'category',        label:'Category',    type:'text'},
-    {key:'paymentMode',     label:'Mode',        type:'select', opts:['Bank Transfer','Auto-Debit','Cash','SBI Bank','ICICI Bank','BOI Bank','UPI']},
-    {key:'dateToPay',       label:'Due Day',     type:'text'},
-    {key:'dateStart',       label:'Start',       type:'date'},
-    {key:'dateEnd',         label:'End',         type:'date'},
-    {key:'datePaid',        label:'Paid On',     type:'date'},
-    {key:'amount',          label:'Amount (₹)',  type:'number'},
-    {key:'status',          label:'Status',      type:'select', opts:['Paid','Pending','Delayed']},
-    {key:'pendingAmount',   label:'Pending (₹)', type:'number'},
-    {key:'interestRate',    label:'Interest',    type:'text'},
-    {key:'remarks',         label:'Remarks',     type:'text'}
+    {key:'sno',             label:'#',          type:'sno'},
+    {key:'source',          label:'Source',     type:'text'},
+    {key:'loanNumber',      label:'Loan No.',   type:'text'},
+    {key:'totalLoanAmount', label:'Total Loan', type:'number'},
+    {key:'category',        label:'Category',   type:'text'},
+    {key:'paymentMode',     label:'Mode',       type:'select', opts:['Bank Transfer','Auto-Debit','Cash','SBI Bank','ICICI Bank','BOI Bank','UPI']},
+    {key:'dateToPay',       label:'Due Day',    type:'text'},
+    {key:'dateStart',       label:'Start',      type:'date'},
+    {key:'dateEnd',         label:'End',        type:'date'},
+    {key:'datePaid',        label:'Paid On',    type:'date'},
+    {key:'amount',          label:'Amount (₹)', type:'number'},
+    {key:'status',          label:'Status',     type:'select', opts:['Paid','Pending','Delayed']},
+    {key:'pendingAmount',   label:'Pending (₹)',type:'number'},
+    {key:'interestRate',    label:'Interest',   type:'text'},
+    {key:'remarks',         label:'Remarks',    type:'text'}
   ],
   semifixed:[
-    {key:'sno',           label:'#',           type:'sno'},
-    {key:'source',        label:'Source',      type:'text'},
-    {key:'loanNumber',    label:'Ref No.',     type:'text'},
-    {key:'category',      label:'Category',    type:'text'},
-    {key:'paymentMode',   label:'Mode',        type:'select', opts:['Bank Transfer','Auto-Debit','Cash','UPI','RBL CC']},
-    {key:'dateToPay',     label:'Due Day',     type:'text'},
-    {key:'dateStart',     label:'Start',       type:'date'},
-    {key:'dateEnd',       label:'End',         type:'date'},
-    {key:'datePaid',      label:'Paid On',     type:'date'},
-    {key:'amount',        label:'Amount (₹)',  type:'number'},
-    {key:'status',        label:'Status',      type:'select', opts:['Paid','Pending','Delayed']},
-    {key:'pendingAmount', label:'Pending (₹)', type:'number'},
-    {key:'interestRate',  label:'Interest',    type:'text'},
-    {key:'remarks',       label:'Remarks',     type:'text'}
+    {key:'sno',           label:'#',          type:'sno'},
+    {key:'source',        label:'Source',     type:'text'},
+    {key:'loanNumber',    label:'Ref No.',    type:'text'},
+    {key:'category',      label:'Category',   type:'text'},
+    {key:'paymentMode',   label:'Mode',       type:'select', opts:['Bank Transfer','Auto-Debit','Cash','UPI','RBL CC']},
+    {key:'dateToPay',     label:'Due Day',    type:'text'},
+    {key:'dateStart',     label:'Start',      type:'date'},
+    {key:'dateEnd',       label:'End',        type:'date'},
+    {key:'datePaid',      label:'Paid On',    type:'date'},
+    {key:'amount',        label:'Amount (₹)', type:'number'},
+    {key:'status',        label:'Status',     type:'select', opts:['Paid','Pending','Delayed']},
+    {key:'pendingAmount', label:'Pending (₹)',type:'number'},
+    {key:'interestRate',  label:'Interest',   type:'text'},
+    {key:'remarks',       label:'Remarks',    type:'text'}
   ],
   variable:[
     {key:'sno',         label:'#',           type:'sno'},
@@ -450,19 +404,19 @@ const SCHEMAS = {
   ],
   lending:[
     {key:'sno',         label:'#',            type:'sno'},
-    {key:'personName',  label:'Person',        type:'text'},
-    {key:'contact',     label:'Contact',       type:'text'},
-    {key:'type',        label:'Type',          type:'select', opts:['Lent','Borrowed']},
-    {key:'mode',        label:'Mode',          type:'select', opts:['Bank Transfer','Cash','UPI','IDFC CC','RBL CC','ICICI CC']},
-    {key:'dateGiven',   label:'Date Given',    type:'date'},
-    {key:'dueDate',     label:'Due Date',      type:'date'},
-    {key:'interestRate',label:'Interest',      type:'text'},
-    {key:'amount',      label:'Amount (₹)',    type:'number'},
-    {key:'returned',    label:'Returned (₹)',  type:'number'},
-    {key:'balance',     label:'Balance (₹)',   type:'number'},
-    {key:'status',      label:'Status',        type:'select', opts:['Fully Paid','Partially Paid','Pending']},
-    {key:'accountUsed', label:'Account',       type:'text'},
-    {key:'remarks',     label:'Remarks',       type:'text'}
+    {key:'personName',  label:'Person',       type:'text'},
+    {key:'contact',     label:'Contact',      type:'text'},
+    {key:'type',        label:'Type',         type:'select', opts:['Lent','Borrowed']},
+    {key:'mode',        label:'Mode',         type:'select', opts:['Bank Transfer','Cash','UPI','IDFC CC','RBL CC','ICICI CC']},
+    {key:'dateGiven',   label:'Date Given',   type:'date'},
+    {key:'dueDate',     label:'Due Date',     type:'date'},
+    {key:'interestRate',label:'Interest',     type:'text'},
+    {key:'amount',      label:'Amount (₹)',   type:'number'},
+    {key:'returned',    label:'Returned (₹)', type:'number'},
+    {key:'balance',     label:'Balance (₹)',  type:'number'},
+    {key:'status',      label:'Status',       type:'select', opts:['Fully Paid','Partially Paid','Pending']},
+    {key:'accountUsed', label:'Account',      type:'text'},
+    {key:'remarks',     label:'Remarks',      type:'text'}
   ]
 };
 
@@ -471,429 +425,303 @@ function handleGoogleSignIn() {
   if (!CLIENT_ID) { openSettingsModal(); return; }
   loadGIS();
 }
-
 function loadGIS() {
-  if (typeof google !== 'undefined' && google.accounts && google.accounts.oauth2) {
-    initTokenClient(); return;
-  }
+  if (typeof google !== 'undefined' && google.accounts && google.accounts.oauth2) { initTokenClient(); return; }
   if (gisLoaded) return;
   gisLoaded = true;
-  showToast('Loading Google Sign-In...', 'info');
+  showToast('Loading Google Sign-In...','info');
   const s = document.createElement('script');
-  s.src   = 'https://accounts.google.com/gsi/client';
+  s.src = 'https://accounts.google.com/gsi/client';
   s.async = true;
-  s.defer = true;
   s.onload  = initTokenClient;
-  s.onerror = () => { gisLoaded = false; showToast('Network error loading Google API', 'error'); };
+  s.onerror = () => { gisLoaded=false; showToast('Network error loading Google API','error'); };
   document.head.appendChild(s);
 }
-
 function initTokenClient() {
   try {
     tokenClient = google.accounts.oauth2.initTokenClient({
-      client_id: CLIENT_ID,
-      scope:     SCOPES,
-      callback:  onTokenResponse
+      client_id: CLIENT_ID, scope: SCOPES, callback: onTokenResponse
     });
     tokenClient.requestAccessToken({ prompt:'' });
-  } catch(e) {
-    gisLoaded = false;
-    showToast('Error: ' + e.message, 'error');
-  }
+  } catch(e) { gisLoaded=false; showToast('Error: '+e.message,'error'); }
 }
-
 function onTokenResponse(resp) {
-  if (resp.error) {
-    showToast('Sign-in failed: ' + resp.error, 'error');
-    gisLoaded = false; return;
-  }
+  if (resp.error) { showToast('Sign-in failed: '+resp.error,'error'); gisLoaded=false; return; }
   accessToken = resp.access_token;
   onSignedIn();
 }
-
 function onSignedIn() {
-  document.getElementById('splash').style.display = 'none';
+  document.getElementById('splash').style.display='none';
   document.getElementById('app').classList.add('visible');
   updateMonthDisplay();
   switchTab('dashboard');
-  showToast('✓ Signed in!', 'success');
+  showToast('✓ Signed in!','success');
 }
-
 function signOut() {
   if (!confirm('Sign out?')) return;
-  if (accessToken && typeof google !== 'undefined') google.accounts.oauth2.revoke(accessToken, ()=>{});
-  accessToken = null; currentFileId = null; gisLoaded = false;
+  if (accessToken && typeof google!=='undefined') google.accounts.oauth2.revoke(accessToken,()=>{});
+  accessToken=null; currentFileId=null; gisLoaded=false;
   resetData();
-  document.getElementById('splash').style.display = 'flex';
+  document.getElementById('splash').style.display='flex';
   document.getElementById('app').classList.remove('visible');
 }
 
-// ── DRIVE REST API (OAuth token only, no API key needed) ──────────────────
-const driveHdrs = () => ({ 'Authorization': 'Bearer ' + accessToken });
+// ── DRIVE REST API (fetch, OAuth token only) ──────────────────────────────
+const H = () => ({ 'Authorization':'Bearer '+accessToken });
 
 async function driveList(q) {
-  const p = new URLSearchParams({ q, fields:'files(id,name)', pageSize:'10' });
-  const r = await fetch('https://www.googleapis.com/drive/v3/files?' + p, { headers: driveHdrs() });
-  if (!r.ok) { const t = await r.text(); throw new Error('Drive list: ' + r.status + ' ' + t); }
+  const p = new URLSearchParams({ q, fields:'files(id,name,mimeType)', pageSize:'10' });
+  const r = await fetch('https://www.googleapis.com/drive/v3/files?'+p, { headers:H() });
+  if (!r.ok) throw new Error('List failed: '+r.status);
   return (await r.json()).files || [];
 }
-
 async function driveCopy(fileId, name, folderId) {
-  const body = { name };
-  if (folderId) body.parents = [folderId];
+  const body = { name }; if (folderId) body.parents=[folderId];
   const r = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}/copy?fields=id,name`, {
-    method: 'POST',
-    headers: { ...driveHdrs(), 'Content-Type':'application/json' },
-    body: JSON.stringify(body)
+    method:'POST', headers:{...H(),'Content-Type':'application/json'}, body:JSON.stringify(body)
   });
-  if (!r.ok) { const t = await r.text(); throw new Error('Drive copy: ' + r.status + ' ' + t); }
+  if (!r.ok) throw new Error('Copy failed: '+r.status+' '+(await r.text()));
   return r.json();
 }
-
-async function driveDownload(fileId) {
-  const r = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, { headers: driveHdrs() });
-  if (!r.ok) { const t = await r.text(); throw new Error('Download: ' + r.status + ' ' + t); }
-  return r.arrayBuffer();
+async function driveDownloadText(fileId) {
+  const r = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, { headers:H() });
+  if (!r.ok) throw new Error('Download failed: '+r.status);
+  return r.text();
 }
-
-async function driveUpload(fileId, blob, name) {
+async function driveUploadJson(fileId, obj, name) {
+  const json = JSON.stringify(obj, null, 2);
+  const blob = new Blob([json], { type:'application/json' });
   const form = new FormData();
   form.append('metadata', new Blob([JSON.stringify({name})], {type:'application/json'}));
   form.append('file', blob);
   const r = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`, {
-    method: 'PATCH',
-    headers: driveHdrs(),
-    body: form
+    method:'PATCH', headers:H(), body:form
   });
-  if (!r.ok) { const t = await r.text(); throw new Error('Upload: ' + r.status + ' ' + t); }
+  if (!r.ok) throw new Error('Upload failed: '+r.status+' '+(await r.text()));
+  return r.json();
+}
+async function driveCreateJson(name, obj, folderId) {
+  // Create new file with content
+  const json = JSON.stringify(obj, null, 2);
+  const blob = new Blob([json], { type:'application/json' });
+  const meta = { name, mimeType:'application/json' };
+  if (folderId) meta.parents = [folderId];
+  const form = new FormData();
+  form.append('metadata', new Blob([JSON.stringify(meta)], {type:'application/json'}));
+  form.append('file', blob);
+  const r = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name', {
+    method:'POST', headers:H(), body:form
+  });
+  if (!r.ok) throw new Error('Create failed: '+r.status+' '+(await r.text()));
   return r.json();
 }
 
-// ── FILE OPERATIONS ───────────────────────────────────────────────────────
-function getFileName() {
-  return MONTHS[currentMonth.month] + '-' + currentMonth.year + '_Salary_Tracker.xlsx';
-}
+// ── FILE NAMES ────────────────────────────────────────────────────────────
+function getFileName()       { return `${MONTHS[currentMonth.month]}-${currentMonth.year}_Salary_Tracker.json`; }
+function getMasterFileName() { return 'master.json'; }
 
+// ── LOAD / CREATE ─────────────────────────────────────────────────────────
 async function loadOrCreateCurrentMonth() {
-  if (!accessToken)     { showToast('Please sign in first', 'error'); return; }
-  if (!MASTER_FILE_ID)  { showToast('Set Master File ID in ⚙️ Settings', 'error'); openSettingsModal(); return; }
+  if (!accessToken)    { showToast('Please sign in first','error'); return; }
+  if (!MASTER_FILE_ID) { showToast('Set Master JSON File ID in ⚙️ Settings first','error'); openSettingsModal(); return; }
 
   const name = getFileName();
-  showToast('🔍 Looking for ' + name + '...', 'info');
+  showToast('🔍 Looking for '+name+'...','info');
   try {
-    let q = "name='" + name + "' and trashed=false";
-    if (DEST_FOLDER_ID) q += " and '" + DEST_FOLDER_ID + "' in parents";
+    // Search for this month's JSON in the destination folder
+    let q = `name='${name}' and trashed=false and mimeType='application/json'`;
+    if (DEST_FOLDER_ID) q += ` and '${DEST_FOLDER_ID}' in parents`;
     const files = await driveList(q);
+
     if (files.length > 0) {
       currentFileId = files[0].id;
-      showToast('✓ File found! Loading...', 'success');
-      await loadFileData();
+      showToast('✓ File found! Loading...','success');
+      await loadJsonData();
     } else {
       await createFromMaster(name);
     }
   } catch(e) {
-    showToast('❌ ' + e.message, 'error');
+    showToast('❌ '+e.message,'error');
     console.error(e);
   }
 }
 
 async function createFromMaster(name) {
-  showToast('📋 Creating from master template...', 'info');
+  showToast('📋 Creating from master.json...','info');
   try {
-    const result = await driveCopy(MASTER_FILE_ID, name, DEST_FOLDER_ID);
-    currentFileId = result.id;
-    showToast('✓ New file created! Loading...', 'success');
-    await loadFileData();
-  } catch(e) {
-    showToast('❌ Create error: ' + e.message, 'error');
-    console.error(e);
-  }
-}
+    // Download master.json content
+    const masterText = await driveDownloadText(MASTER_FILE_ID);
+    const masterData = JSON.parse(masterText);
 
-async function loadFileData() {
-  try {
-    const ab = await driveDownload(currentFileId);
-    const wb = XLSX.read(ab, { type:'array', cellDates:true });
-    originalWorkbook = wb; // preserve for formatting-safe save
-    parseWorkbook(wb);
+    // Deep clone and stamp with current month
+    const newData = JSON.parse(JSON.stringify(masterData));
+    newData._month = MONTHS[currentMonth.month];
+    newData._year  = currentMonth.year;
+    newData._created = new Date().toISOString();
+
+    // Create new file in destination folder
+    const result = await driveCreateJson(name, newData, DEST_FOLDER_ID);
+    currentFileId = result.id;
+
+    // Load the data into app
+    loadDataFromObject(newData);
     setFileStatus(true);
     switchTab(currentTab);
-    showToast('✓ Data loaded!', 'success');
+    showToast('✓ New month file created!','success');
   } catch(e) {
-    showToast('❌ Load error: ' + e.message, 'error');
+    showToast('❌ Create error: '+e.message,'error');
     console.error(e);
   }
 }
 
-function parseWorkbook(wb) {
-  const sheetMap = {
-    'Income':'income', 'Fixed Expenses':'fixed', 'Semi Fixed Exp':'semifixed',
-    'Varaible Exp':'variable', 'Unexpected Exp':'unexpected', 'Lending & Borrowing':'lending'
-  };
-  Object.entries(sheetMap).forEach(([sn, key]) => {
-    const ws = wb.Sheets[sn];
-    if (!ws) return;
-    const rows = XLSX.utils.sheet_to_json(ws, { header:1, defval:null });
-    data[key] = parseRows(rows, key);
-  });
+async function loadJsonData() {
+  try {
+    const text = await driveDownloadText(currentFileId);
+    const obj  = JSON.parse(text);
+    loadDataFromObject(obj);
+    setFileStatus(true);
+    switchTab(currentTab);
+    showToast('✓ Data loaded!','success');
+  } catch(e) {
+    showToast('❌ Load error: '+e.message,'error');
+    console.error(e);
+  }
 }
 
-function parseRows(rows, key) {
-  const schema = SCHEMAS[key];
-  const result = [];
-  rows.slice(3).forEach((row, i) => {
-    if (!row || row.every(c => c===null||c===undefined||c==='')) return;
-    const obj = { _id: i + '_' + Date.now() };
-    schema.forEach((col, ci) => {
-      let v = row[1 + ci];
-      if (v instanceof Date) v = v.toISOString().split('T')[0];
-      obj[col.key] = (v === null || v === undefined) ? '' : String(v);
-    });
-    if (!obj.sno) obj.sno = String(result.length + 1);
-    result.push(obj);
+function loadDataFromObject(obj) {
+  const keys = ['income','fixed','semifixed','variable','unexpected','lending'];
+  keys.forEach(k => {
+    data[k] = (obj[k] || []).map((row, i) => ({
+      ...row,
+      _id: row._id || (k + '_' + i + '_' + Date.now())
+    }));
   });
-  return result;
 }
 
 // ── SAVE ─────────────────────────────────────────────────────────────────
 async function saveToGDrive() {
   if (!currentFileId) { await loadOrCreateCurrentMonth(); if (!currentFileId) return; }
   const btn = document.getElementById('saveBtn');
-  btn.innerHTML = '<div class="spinner"></div> Saving...';
+  btn.innerHTML = '<div class="spinner"></div>';
   btn.disabled = true;
   try {
-    // Use the original workbook if available so all Excel formatting/colors are preserved.
-    // We only write the data cells back — headers, styles, merged cells stay untouched.
-    const wb = originalWorkbook ? patchWorkbook(originalWorkbook) : buildWorkbook();
-    const buf = XLSX.write(wb, { bookType:'xlsx', type:'array' });
-    const blob = new Blob([buf], { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    await driveUpload(currentFileId, blob, getFileName());
-    showToast('✓ Saved to Google Drive!', 'success');
+    const payload = {
+      _version: 1,
+      _month:   MONTHS[currentMonth.month],
+      _year:    currentMonth.year,
+      _saved:   new Date().toISOString(),
+      income:      data.income,
+      fixed:       data.fixed,
+      semifixed:   data.semifixed,
+      variable:    data.variable,
+      unexpected:  data.unexpected,
+      lending:     data.lending
+    };
+    await driveUploadJson(currentFileId, payload, getFileName());
+    showToast('✓ Saved to Google Drive!','success');
     hasChanges = false;
     document.getElementById('syncBar').classList.remove('visible');
   } catch(e) {
-    showToast('❌ Save error: ' + e.message, 'error');
+    showToast('❌ Save error: '+e.message,'error');
     console.error(e);
   } finally {
-    btn.innerHTML = '☁️ Save to Drive';
+    btn.innerHTML = '☁️ Save';
     btn.disabled = false;
   }
 }
 
-// ── FORMAT-PRESERVING SAVE ────────────────────────────────────────────────
-// patchWorkbook takes the original loaded workbook and writes ONLY the data
-// cell values back into it — all styles, colors, merged cells, fonts stay intact.
-function patchWorkbook(wb) {
-  const sheetMap = {
-    'Income':'income', 'Fixed Expenses':'fixed', 'Semi Fixed Exp':'semifixed',
-    'Varaible Exp':'variable', 'Unexpected Exp':'unexpected', 'Lending & Borrowing':'lending'
-  };
+// ── EXPORT TO EXCEL ───────────────────────────────────────────────────────
+function exportExcel() {
+  try {
+    const wb = XLSX.utils.book_new();
 
-  Object.entries(sheetMap).forEach(([sheetName, key]) => {
-    const ws = wb.Sheets[sheetName];
-    if (!ws) return;
-    const schema = SCHEMAS[key];
-    const rows   = data[key];
+    // Dashboard summary sheet
+    const fi=sumIf(data.fixed,'amount','status','Paid'), si=sumIf(data.semifixed,'amount','status','Paid');
+    const vi=sumIf(data.variable,'amount','status','Paid'), ui=sumIf(data.unexpected,'amount','status','Paid');
+    const ti=sum(data.income,'amount'), pi=sumIf(data.income,'amount','status','Paid'), te=fi+si+vi+ui;
+    const dashRows = [
+      ['Salary Tracker — '+MONTHS[currentMonth.month]+' '+currentMonth.year],
+      [''],
+      ['Total Income', ti, 'Paid Income', pi, 'Pending Income', ti-pi],
+      ['Total Expenses', te, '', '', 'Net Balance', pi-te],
+      [''],
+      ['Fixed Expenses (Paid)', fi],
+      ['Semi Fixed Expenses (Paid)', si],
+      ['Variable Expenses (Paid)', vi],
+      ['Unexpected Expenses (Paid)', ui],
+    ];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(dashRows), 'Dashboard');
 
-    // Data starts at Excel row 4 (0-indexed row 3), column B (index 1)
-    // First clear old data rows by reading sheet range and blanking data area
-    const range = XLSX.utils.decode_range(ws['!ref'] || 'B1:P50');
-
-    // Write each data row back — only value, keep style from original cell
-    rows.forEach((row, ri) => {
-      const excelRow = 4 + ri; // rows 1-3 are title/header/blank
-      schema.forEach((col, ci) => {
-        const excelCol = 1 + ci; // col A=0, data starts at B=1
-        const cellAddr = XLSX.utils.encode_cell({ r: excelRow - 1, c: excelCol });
-        const val = row[col.key];
-
-        // Get existing cell (to preserve its style) or create new one
-        const existingCell = ws[cellAddr];
-        let newCell;
-
-        if (col.type === 'number') {
-          const num = parseFloat(val);
-          newCell = { t: isNaN(num) ? 's' : 'n', v: isNaN(num) ? (val||'') : num };
-        } else if (col.type === 'date' && val) {
-          // Store dates as strings (text) to avoid timezone issues
-          newCell = { t: 's', v: val || '' };
-        } else if (col.key === 'sno') {
-          const num = parseInt(val);
-          newCell = { t: isNaN(num) ? 's' : 'n', v: isNaN(num) ? (val||'') : num };
-        } else {
-          newCell = { t: 's', v: val !== null && val !== undefined ? String(val) : '' };
-        }
-
-        // Preserve style from the original cell if it exists
-        if (existingCell && existingCell.s) newCell.s = existingCell.s;
-
-        ws[cellAddr] = newCell;
-      });
-
-      // Extend sheet range if new rows were added beyond original range
-      if (excelRow - 1 > range.e.r) range.e.r = excelRow - 1;
+    // Each data sheet
+    const sheetDefs = [
+      {key:'income',     name:'Income',       headers:['S.No','Source','Category','Mode','Account','Date Received','Amount (₹)','Status','Month','Remarks']},
+      {key:'fixed',      name:'Fixed Exp',    headers:['S.No','Source','Loan No.','Total Loan','Category','Mode','Due Day','Start','End','Paid On','Amount (₹)','Status','Pending (₹)','Interest','Remarks']},
+      {key:'semifixed',  name:'Semi Fixed',   headers:['S.No','Source','Ref No.','Category','Mode','Due Day','Start','End','Paid On','Amount (₹)','Status','Pending (₹)','Interest','Remarks']},
+      {key:'variable',   name:'Variable Exp', headers:['S.No','Source','Date','Category','Subcategory','Mode','Account','Description','Amount (₹)','Month','Status','Remarks']},
+      {key:'unexpected', name:'Unexpected',   headers:['S.No','Source','Date','Category','Subcategory','Mode','Account','Description','Amount (₹)','Month','Status','Remarks']},
+      {key:'lending',    name:'Lending',      headers:['S.No','Person','Contact','Type','Mode','Date Given','Due Date','Interest','Amount (₹)','Returned (₹)','Balance (₹)','Status','Account','Remarks']},
+    ];
+    sheetDefs.forEach(({key, name, headers}) => {
+      const schema = SCHEMAS[key];
+      const aoa = [
+        [name + ' — ' + MONTHS[currentMonth.month] + ' ' + currentMonth.year],
+        headers,
+        ...data[key].map((row,i) => schema.map(c => c.type==='sno' ? i+1 : (row[c.key] || '')))
+      ];
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), name);
     });
 
-    // Also blank out any extra rows that existed in original but were deleted
-    const originalRowCount = range.e.r - 2; // approx data rows in original
-    for (let ri = rows.length; ri < originalRowCount; ri++) {
-      const excelRow = 4 + ri;
-      schema.forEach((col, ci) => {
-        const cellAddr = XLSX.utils.encode_cell({ r: excelRow - 1, c: 1 + ci });
-        if (ws[cellAddr]) ws[cellAddr] = { t: 's', v: '' };
-      });
-    }
-
-    ws['!ref'] = XLSX.utils.encode_range(range);
-  });
-
-  // Update Dashboard summary values
-  patchDashboard(wb);
-
-  return wb;
+    const fname = MONTHS[currentMonth.month]+'-'+currentMonth.year+'_Salary_Tracker.xlsx';
+    XLSX.writeFile(wb, fname);
+    showToast('📊 Excel downloaded!','success');
+  } catch(e) {
+    showToast('Export error: '+e.message,'error');
+  }
 }
 
-function patchDashboard(wb) {
-  const ws = wb.Sheets['Dashboard Main'];
-  if (!ws) return;
+// ── MATH HELPERS ─────────────────────────────────────────────────────────
+function sum(arr,f)        { return arr.reduce((s,r)=>s+(parseFloat(r[f])||0),0); }
+function sumIf(arr,f,cf,cv){ return arr.filter(r=>r[cf]===cv).reduce((s,r)=>s+(parseFloat(r[f])||0),0); }
+function fmt(n)            { return '₹'+parseFloat(n||0).toLocaleString('en-IN',{maximumFractionDigits:0}); }
 
-  const fi = sumIf(data.fixed,    'amount','status','Paid');
-  const si = sumIf(data.semifixed,'amount','status','Paid');
-  const vi = sumIf(data.variable, 'amount','status','Paid');
-  const ui = sumIf(data.unexpected,'amount','status','Paid');
-  const ti = sum(data.income,'amount');
-  const pi = sumIf(data.income,'amount','status','Paid');
-  const te = fi+si+vi+ui;
-
-  // Map of cell address → value (matches your Excel Dashboard Main layout)
-  // Row 2 (index 1): totals row — C2=TotalIncome, F2=PaidIncome, I2=PendingIncome
-  // Row 4 (index 3): I4=FixedPaid
-  // Row 6 (index 5): I6=SemiPaid
-  // Row 8 (index 7): C8=TotalExpenses
-  // Row 10 (index 9): I10=VariablePaid
-  // Row 12 (index 11): I12=UnexpectedPaid
-  // Row 14 (index 13): B14=NetBalance
-  const patches = {
-    'C2': ti, 'F2': pi, 'I2': ti - pi,
-    'I4': fi,
-    'I6': si,
-    'C8': te,
-    'I10': vi,
-    'I12': ui,
-    'B14': pi - te
-  };
-
-  Object.entries(patches).forEach(([addr, val]) => {
-    const existing = ws[addr];
-    const cell = { t: 'n', v: val };
-    if (existing && existing.s) cell.s = existing.s;
-    ws[addr] = cell;
-  });
-}
-
-// Fallback: build a brand-new workbook (used only when originalWorkbook is null,
-// i.e. the file was just created and never downloaded)
-function buildWorkbook() {
-  const wb = XLSX.utils.book_new();
-  const fi = sumIf(data.fixed,    'amount','status','Paid');
-  const si = sumIf(data.semifixed,'amount','status','Paid');
-  const vi = sumIf(data.variable, 'amount','status','Paid');
-  const ui = sumIf(data.unexpected,'amount','status','Paid');
-  const ti = sum(data.income,'amount');
-  const pi = sumIf(data.income,'amount','status','Paid');
-  const te = fi+si+vi+ui;
-
-  const dash = [
-    [null,null,'Total Income',null,null,'Paid Income',null,null,'Pending Income',null,null],
-    [null,null,ti,null,null,pi,null,null,ti-pi,null,null],
-    [null,null,null,null,null,null,null,null,'Fixed Expenses',null,null],
-    [null,null,null,null,null,null,null,null,fi,null,null],
-    [null,null,null,null,null,null,null,null,'Semi Fixed Expenses',null,null],
-    [null,null,null,null,null,null,null,null,si,null,null],
-    [null,null,'Total Expenses',null,null,null,null,null,null,null,null],
-    [null,null,te,null,null,null,null,null,null,null,null],
-    [null,null,null,null,null,null,null,null,'Variable Expenses',null,null],
-    [null,null,null,null,null,null,null,null,vi,null,null],
-    [null,null,null,null,null,null,null,null,'Unexpected Expenses',null,null],
-    [null,null,null,null,null,null,null,null,ui,null,null],
-    [null,'Net Balance',null,null,null,null,null,null,null,null,null],
-    [null,pi-te,null,null,null,null,null,null,null,null,null]
-  ];
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(dash), 'Dashboard Main');
-
-  addSheet(wb,'Income',        'income',    'Income',
-    ['S. No','Source','Category','Payment Mode','Account Received','Date Received','Amount (₹)','Status','Month','Remarks']);
-  addSheet(wb,'Fixed Expenses','fixed',     "Fixed Expenses (EMI's, Bank Loans and etc)",
-    ['S. No','Source','Loan Number','Total Loan Amount','Category','Payment Mode','Date to Pay','Date of Start','Date of End','Date of Paid','Amount (₹)','Status','Pending Amount (₹)','Interest Rate (%)','Remarks']);
-  addSheet(wb,'Semi Fixed Exp','semifixed', 'Semi Fixed',
-    ['S. No','Source','Loan Number','Category','Payment Mode','Date to Pay','Date of Start','Date of End','Date of Paid','Amount (₹)','Status','Pending Amount (₹)','Interest Rate (%)','Remarks']);
-  addSheet(wb,'Varaible Exp',  'variable',  'Variable Expenses',
-    ['S. No','Source','Date','Category','Subcategory','Payment Mode','Account Used','Description','Amount (₹)','Month','Status','Remarks']);
-  addSheet(wb,'Unexpected Exp','unexpected','Unexpected Expenses',
-    ['S. No','Source','Date','Category','Subcategory','Payment Mode','Account Used','Description','Amount (₹)','Month','Status','Remarks']);
-  addSheet(wb,'Lending & Borrowing','lending','Lending / Borrowing',
-    ['S. No','Person Name','Contact/Relation','Type','Mode','Date Given / Borrowed','Due Date','Interest Rate','Amount (₹)','Returned / Paid (₹)','Balance (₹)','Status','Account Used','Remarks']);
-
-  return wb;
-}
-
-function addSheet(wb, sheetName, key, title, headers) {
-  const schema = SCHEMAS[key];
-  const aoa = [
-    [null, title],
-    [null, ...headers],
-    [],
-    ...data[key].map(row => [null, ...schema.map(c => row[c.key] || '')])
-  ];
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), sheetName);
-}
-
-function sum(arr, f)        { return arr.reduce((s,r)=>s+(parseFloat(r[f])||0),0); }
-function sumIf(arr,f,cf,cv) { return arr.filter(r=>r[cf]===cv).reduce((s,r)=>s+(parseFloat(r[f])||0),0); }
-function fmt(n)             { return '₹'+parseFloat(n||0).toLocaleString('en-IN',{maximumFractionDigits:0}); }
-
-// ── TABS ──────────────────────────────────────────────────────────────────
+// ── TABS ─────────────────────────────────────────────────────────────────
 function switchTab(tab) {
   currentTab = tab;
   const tabs = ['dashboard','income','fixed','semifixed','variable','unexpected','lending'];
   document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',tabs[i]===tab));
   const c = document.getElementById('content');
-  const titles = {income:'Income',fixed:'Fixed Expenses',semifixed:'Semi Fixed Expenses',variable:'Variable Expenses',unexpected:'Unexpected Expenses',lending:'Lending & Borrowing'};
+  const titles = {income:'Income',fixed:'Fixed Expenses',semifixed:'Semi Fixed Expenses',
+                  variable:'Variable Expenses',unexpected:'Unexpected Expenses',lending:'Lending & Borrowing'};
   if (tab==='dashboard') renderDashboard(c); else renderSheet(c, tab, titles[tab]);
 }
 
 function renderDashboard(c) {
-  const ti = sum(data.income,'amount');
-  const pi = sumIf(data.income,'amount','status','Paid');
-  const fi = sumIf(data.fixed,'amount','status','Paid');
-  const si = sumIf(data.semifixed,'amount','status','Paid');
-  const vi = sumIf(data.variable,'amount','status','Paid');
-  const ui = sumIf(data.unexpected,'amount','status','Paid');
-  const te = fi+si+vi+ui;
-  const nb = pi - te;
-  const pct = pi > 0 ? Math.min(100,(te/pi)*100) : 0;
+  const ti=sum(data.income,'amount'), pi=sumIf(data.income,'amount','status','Paid');
+  const fi=sumIf(data.fixed,'amount','status','Paid'), si=sumIf(data.semifixed,'amount','status','Paid');
+  const vi=sumIf(data.variable,'amount','status','Paid'), ui=sumIf(data.unexpected,'amount','status','Paid');
+  const te=fi+si+vi+ui, nb=pi-te, pct=pi>0?Math.min(100,(te/pi)*100):0;
 
   const noFile = !currentFileId ? `<div class="load-card">
     <div class="load-card-title">📂 ${MONTHS[currentMonth.month]} ${currentMonth.year}</div>
-    <div class="load-card-sub">No file loaded. Tap below to load your existing file or create a new one from the master template.</div>
+    <div class="load-card-sub">No file loaded. Tap below to load existing or create new from master template.</div>
     <button class="btn btn-primary" style="width:100%" onclick="loadOrCreateCurrentMonth()">📋 Load / Create Month File</button>
   </div>` : '';
 
   c.innerHTML = noFile + `
     <div class="dashboard-grid">
       <div class="stat-card income"><div class="stat-label">Total Income</div><div class="stat-value income">${fmt(ti)}</div></div>
-      <div class="stat-card expenses"><div class="stat-label">Total Paid Exp</div><div class="stat-value expenses">${fmt(te)}</div></div>
+      <div class="stat-card expenses"><div class="stat-label">Paid Expenses</div><div class="stat-value expenses">${fmt(te)}</div></div>
       <div class="stat-card balance"><div class="stat-label">Net Balance</div><div class="stat-value ${nb>=0?'balance-pos':'balance-neg'}">${fmt(nb)}</div></div>
       <div class="stat-card pending"><div class="stat-label">Pending Income</div><div class="stat-value" style="color:var(--delayed)">${fmt(ti-pi)}</div></div>
     </div>
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;margin-bottom:1rem">
-      <div style="display:flex;justify-content:space-between;margin-bottom:.5rem;font-size:.73rem">
+      <div style="display:flex;justify-content:space-between;margin-bottom:.45rem;font-size:.73rem">
         <span style="color:var(--muted)">Spend vs Paid Income</span>
         <span style="color:var(--accent2);font-family:var(--font-head);font-weight:700">${pct.toFixed(1)}%</span>
       </div>
       <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
     </div>
-    <div class="section-head">Breakdown by Category</div>
+    <div class="section-head">Breakdown</div>
     <div class="sheet-table">
       <table style="min-width:unset;width:100%">
         <thead><tr><th>Category</th><th style="text-align:right">Paid</th><th style="text-align:right">Pending</th></tr></thead>
@@ -902,11 +730,11 @@ function renderDashboard(c) {
              ['Semi Fixed',si,sumIf(data.semifixed,'amount','status','Pending')],
              ['Variable',vi,sumIf(data.variable,'amount','status','Pending')],
              ['Unexpected',ui,sumIf(data.unexpected,'amount','status','Pending')]
-           ].map(([cat,p,pnd])=>`<tr>
-             <td>${cat}</td>
-             <td style="text-align:right;color:var(--accent);font-family:var(--font-mono)">${fmt(p)}</td>
-             <td style="text-align:right;color:var(--accent2);font-family:var(--font-mono)">${fmt(pnd)}</td>
-           </tr>`).join('')}
+            ].map(([cat,p,pnd])=>`<tr>
+              <td>${cat}</td>
+              <td style="text-align:right;color:var(--accent);font-family:var(--font-mono)">${fmt(p)}</td>
+              <td style="text-align:right;color:var(--accent2);font-family:var(--font-mono)">${fmt(pnd)}</td>
+            </tr>`).join('')}
         </tbody>
       </table>
     </div>`;
@@ -915,17 +743,17 @@ function renderDashboard(c) {
 function renderSheet(c, key, title) {
   const schema = SCHEMAS[key];
   const rows   = data[key];
-  const stCls  = {Paid:'var(--paid)',Pending:'var(--pending)',Delayed:'var(--delayed)','Partially Paid':'var(--accent3)','Fully Paid':'var(--paid)'};
+  const stColor = {Paid:'var(--paid)',Pending:'var(--pending)',Delayed:'var(--delayed)','Partially Paid':'var(--accent3)','Fully Paid':'var(--paid)'};
 
-  const thead = schema.map(col=>`<th>${col.label}</th>`).join('') + '<th></th>';
-  const tbody = rows.length === 0
-    ? `<tr><td colspan="${schema.length+1}" style="text-align:center;color:var(--muted);padding:2rem;font-size:.8rem">No entries. Tap + Add below.</td></tr>`
-    : rows.map((row,ri) => `<tr>${schema.map(col=>{
-        const v = (row[col.key] ?? '').toString().replace(/"/g,'&quot;');
-        if (col.type==='sno') return `<td style="color:var(--muted);font-size:.68rem;min-width:20px">${ri+1}</td>`;
-        if (col.type==='select') return `<td><select class="inline-select" style="color:${stCls[row[col.key]]||'var(--text)'}" onchange="updateCell('${key}',${ri},'${col.key}',this.value)">${col.opts.map(o=>`<option ${o===row[col.key]?'selected':''}>${o}</option>`).join('')}</select></td>`;
-        if (col.type==='number') return `<td><input class="inline-input" type="number" step="0.01" value="${v}" onchange="updateCell('${key}',${ri},'${col.key}',this.value)" style="width:80px;text-align:right"></td>`;
-        if (col.type==='date')   return `<td><input class="inline-input" type="date" value="${v}" onchange="updateCell('${key}',${ri},'${col.key}',this.value)" style="width:120px"></td>`;
+  const thead = schema.map(col=>`<th>${col.label}</th>`).join('')+'<th></th>';
+  const tbody = rows.length===0
+    ? `<tr><td colspan="${schema.length+1}" style="text-align:center;color:var(--muted);padding:2rem;font-size:.8rem">No entries yet. Tap + to add.</td></tr>`
+    : rows.map((row,ri)=>`<tr>${schema.map(col=>{
+        const v=(row[col.key]??'').toString().replace(/"/g,'&quot;');
+        if (col.type==='sno')    return `<td style="color:var(--muted);font-size:.68rem;min-width:22px">${ri+1}</td>`;
+        if (col.type==='select') return `<td><select class="inline-select" style="color:${stColor[row[col.key]]||'var(--text)'}" onchange="updateCell('${key}',${ri},'${col.key}',this.value)">${col.opts.map(o=>`<option ${o===row[col.key]?'selected':''}>${o}</option>`).join('')}</select></td>`;
+        if (col.type==='number') return `<td><input class="inline-input" type="number" step="0.01" value="${v}" onchange="updateCell('${key}',${ri},'${col.key}',this.value)" style="width:78px;text-align:right"></td>`;
+        if (col.type==='date')   return `<td><input class="inline-input" type="date" value="${v}" onchange="updateCell('${key}',${ri},'${col.key}',this.value)" style="width:118px"></td>`;
         return `<td><input class="inline-input" type="text" value="${v}" onchange="updateCell('${key}',${ri},'${col.key}',this.value)" style="min-width:65px"></td>`;
       }).join('')}<td><button class="delete-btn" onclick="deleteRow('${key}',${ri})">✕</button></td></tr>`
     ).join('');
@@ -938,38 +766,33 @@ function renderSheet(c, key, title) {
     <button class="add-row-btn" onclick="showAddRow('${key}','${title}')">+ Add Entry</button>`;
 }
 
-// ── EDIT / DELETE ─────────────────────────────────────────────────────────
+// ── CELL EDIT / DELETE ────────────────────────────────────────────────────
 function updateCell(key, ri, field, value) {
   data[key][ri][field] = value;
   if (key==='lending') {
-    const r = data[key][ri];
+    const r=data[key][ri];
     r.balance = String((parseFloat(r.amount)||0)-(parseFloat(r.returned)||0));
   }
   markDirty();
 }
-
-function deleteRow(key, ri) {
+function deleteRow(key,ri) {
   if (!confirm('Delete this row?')) return;
-  data[key].splice(ri, 1);
-  markDirty();
-  switchTab(currentTab);
+  data[key].splice(ri,1);
+  markDirty(); switchTab(currentTab);
 }
-
 function markDirty() { hasChanges=true; document.getElementById('syncBar').classList.add('visible'); }
-
 function discardChanges() {
   if (!confirm('Discard all unsaved changes?')) return;
-  hasChanges = false;
-  document.getElementById('syncBar').classList.remove('visible');
-  if (currentFileId) loadFileData(); else { resetData(); switchTab(currentTab); }
+  hasChanges=false; document.getElementById('syncBar').classList.remove('visible');
+  if (currentFileId) loadJsonData(); else { resetData(); switchTab(currentTab); }
 }
 
 // ── ADD ROW ───────────────────────────────────────────────────────────────
-function showAddRow(key, title) {
-  addRowContext = key;
-  document.getElementById('addRowTitle').textContent = 'Add ' + title;
-  const schema = SCHEMAS[key].filter(c=>c.type!=='sno');
-  document.getElementById('addRowForm').innerHTML = schema.map(col=>{
+function showAddRow(key,title) {
+  addRowContext=key;
+  document.getElementById('addRowTitle').textContent='Add '+title;
+  const schema=SCHEMAS[key].filter(c=>c.type!=='sno');
+  document.getElementById('addRowForm').innerHTML=schema.map(col=>{
     let inp='';
     if (col.type==='select') inp=`<select class="form-select" name="${col.key}"><option value="">Select...</option>${col.opts.map(o=>`<option>${o}</option>`).join('')}</select>`;
     else if (col.type==='date')   inp=`<input type="date"   class="form-input" name="${col.key}">`;
@@ -979,81 +802,67 @@ function showAddRow(key, title) {
   }).join('');
   openModal('addRowModal');
 }
-
 function submitAddRow() {
-  const key = addRowContext;
-  const schema = SCHEMAS[key];
-  const form = document.getElementById('addRowForm');
-  const row = { _id: Date.now() };
+  const key=addRowContext, schema=SCHEMAS[key], form=document.getElementById('addRowForm');
+  const row={_id:key+'_'+Date.now()};
   schema.forEach(col=>{
-    if (col.type==='sno') { row.sno=String(data[key].length+1); return; }
-    const el = form.querySelector('[name="'+col.key+'"]');
-    row[col.key] = el ? el.value : '';
+    if (col.type==='sno') { row.sno=data[key].length+1; return; }
+    const el=form.querySelector('[name="'+col.key+'"]');
+    row[col.key]=el?el.value:'';
   });
   if (key==='lending') row.balance=String((parseFloat(row.amount)||0)-(parseFloat(row.returned)||0));
   data[key].push(row);
-  closeModal('addRowModal');
-  markDirty();
-  switchTab(currentTab);
+  closeModal('addRowModal'); markDirty(); switchTab(currentTab);
 }
 
 // ── MONTH PICKER ──────────────────────────────────────────────────────────
-function showMonthPicker() {
-  pickerMonth = {...currentMonth};
-  document.getElementById('yearDisplay').textContent = pickerMonth.year;
-  renderMonthGrid();
-  openModal('monthModal');
-}
-function renderMonthGrid() {
-  document.getElementById('monthGrid').innerHTML = MONTHS.map((m,i)=>
-    `<div class="month-chip ${i===pickerMonth.month?'selected':''}" onclick="selMonth(${i})">${m.slice(0,3)}</div>`
-  ).join('');
-}
-function selMonth(i)   { pickerMonth.month=i; renderMonthGrid(); }
+function showMonthPicker() { pickerMonth={...currentMonth}; document.getElementById('yearDisplay').textContent=pickerMonth.year; renderMonthGrid(); openModal('monthModal'); }
+function renderMonthGrid() { document.getElementById('monthGrid').innerHTML=MONTHS.map((m,i)=>`<div class="month-chip ${i===pickerMonth.month?'selected':''}" onclick="selMonth(${i})">${m.slice(0,3)}</div>`).join(''); }
+function selMonth(i) { pickerMonth.month=i; renderMonthGrid(); }
 function changeYear(d) { pickerMonth.year+=d; document.getElementById('yearDisplay').textContent=pickerMonth.year; }
 function applyMonth() {
-  currentMonth={...pickerMonth};
-  updateMonthDisplay();
-  closeModal('monthModal');
-  currentFileId=null;
-  resetData();
-  setFileStatus(false);
-  switchTab(currentTab);
+  currentMonth={...pickerMonth}; updateMonthDisplay(); closeModal('monthModal');
+  currentFileId=null; resetData(); setFileStatus(false); switchTab(currentTab);
 }
-function updateMonthDisplay() {
-  document.getElementById('monthDisplay').textContent = MONTHS[currentMonth.month]+' '+currentMonth.year;
-}
+function updateMonthDisplay() { document.getElementById('monthDisplay').textContent=MONTHS[currentMonth.month]+' '+currentMonth.year; }
 
 // ── SETTINGS ──────────────────────────────────────────────────────────────
 function openSettingsModal() {
-  document.getElementById('cfgClientId').value = CLIENT_ID;
-  document.getElementById('cfgMasterId').value = MASTER_FILE_ID;
-  document.getElementById('cfgFolderId').value = DEST_FOLDER_ID;
+  document.getElementById('cfgClientId').value=CLIENT_ID;
+  document.getElementById('cfgMasterId').value=MASTER_FILE_ID;
+  document.getElementById('cfgFolderId').value=DEST_FOLDER_ID;
   openModal('settingsModal');
 }
 function openSetupFromSplash() { openSettingsModal(); }
 function saveSettings() {
-  const cid = document.getElementById('cfgClientId').value.trim();
-  const mid = document.getElementById('cfgMasterId').value.trim();
-  const fid = document.getElementById('cfgFolderId').value.trim();
-  if (cid) { CLIENT_ID=cid;      localStorage.setItem('st_client_id',cid); }
-  if (mid) { MASTER_FILE_ID=mid; localStorage.setItem('st_master_id',mid); }
-  if (fid) { DEST_FOLDER_ID=fid; localStorage.setItem('st_folder_id',fid); }
+  const cid=document.getElementById('cfgClientId').value.trim();
+  const mid=document.getElementById('cfgMasterId').value.trim();
+  const fid=document.getElementById('cfgFolderId').value.trim();
+  if (cid){ CLIENT_ID=cid;      localStorage.setItem('st_client_id',cid); }
+  if (mid){ MASTER_FILE_ID=mid; localStorage.setItem('st_master_id',mid); }
+  if (fid){ DEST_FOLDER_ID=fid; localStorage.setItem('st_folder_id',fid); }
   closeModal('settingsModal');
   showToast('✓ Settings saved!','success');
 }
 
+// ── THEME TOGGLE ──────────────────────────────────────────────────────────
+function toggleTheme() {
+  const isDay=document.body.classList.toggle('day');
+  localStorage.setItem('st_theme', isDay?'day':'night');
+}
+function applyStoredTheme() { if (localStorage.getItem('st_theme')==='day') document.body.classList.add('day'); }
+
 // ── HELPERS ───────────────────────────────────────────────────────────────
 function setFileStatus(linked) {
-  const el = document.getElementById('fileStatus');
-  el.className = 'file-status' + (linked?' linked':'');
-  el.innerHTML = `<div class="dot"></div><span>${linked ? getFileName() : 'No file'}</span>`;
+  const el=document.getElementById('fileStatus');
+  el.className='file-status'+(linked?' linked':'');
+  el.innerHTML=`<div class="dot"></div><span>${linked?getFileName():'No file'}</span>`;
 }
-function resetData() { data={income:[],fixed:[],semifixed:[],variable:[],unexpected:[],lending:[]}; originalWorkbook=null; }
+function resetData() { data={income:[],fixed:[],semifixed:[],variable:[],unexpected:[],lending:[]}; }
 function openModal(id)  { document.getElementById(id).classList.add('open'); }
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 document.querySelectorAll('.modal-overlay').forEach(el=>{
-  el.addEventListener('click', e=>{ if(e.target===el) el.classList.remove('open'); });
+  el.addEventListener('click',e=>{ if(e.target===el) el.classList.remove('open'); });
 });
 
 let toastTimer;
@@ -1062,17 +871,6 @@ function showToast(msg,type='info') {
   t.textContent=msg; t.className=`toast ${type} show`;
   clearTimeout(toastTimer);
   toastTimer=setTimeout(()=>t.classList.remove('show'),3500);
-}
-
-// ── THEME TOGGLE ─────────────────────────────────────────────────────────
-function toggleTheme() {
-  const isDay = document.body.classList.toggle('day');
-  localStorage.setItem('st_theme', isDay ? 'day' : 'night');
-}
-
-function applyStoredTheme() {
-  const stored = localStorage.getItem('st_theme');
-  if (stored === 'day') document.body.classList.add('day');
 }
 
 // ── INIT ──────────────────────────────────────────────────────────────────
