@@ -2,596 +2,864 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Monthly Salary Tracker</title>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Salary Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
-  :root {
-    --bg: #0d0f14;
-    --surface: #161921;
-    --surface2: #1e2230;
-    --border: #2a2f3f;
-    --accent: #4ade80;
-    --accent2: #38bdf8;
-    --accent3: #f472b6;
-    --warn: #fb923c;
-    --text: #e8eaf0;
-    --muted: #6b7280;
-    --danger: #f87171;
-    --card-radius: 16px;
-    --font-head: 'Syne', sans-serif;
-    --font-body: 'DM Sans', sans-serif;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: var(--bg); color: var(--text); font-family: var(--font-body); min-height: 100vh; overflow-x: hidden; }
+:root {
+  --bg: #0d0f14;
+  --surface: #161a22;
+  --surface2: #1e2433;
+  --border: #2a3045;
+  --accent: #00e5a0;
+  --accent2: #ff6b35;
+  --accent3: #7b61ff;
+  --text: #e8eaf0;
+  --muted: #6b7280;
+  --paid: #00e5a0;
+  --pending: #ff6b35;
+  --delayed: #f59e0b;
+  --radius: 12px;
+  --font-head: 'Syne', sans-serif;
+  --font-mono: 'Space Mono', monospace;
+}
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html,body { background:var(--bg); color:var(--text); font-family:var(--font-mono); min-height:100vh; overflow-x:hidden; }
 
-  /* AUTH */
-  #auth-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 2rem; background: radial-gradient(ellipse at 20% 80%, #0d2b1a 0%, transparent 60%), radial-gradient(ellipse at 80% 20%, #0a1f33 0%, transparent 60%), var(--bg); }
-  .auth-logo { font-family: var(--font-head); font-size: 2.4rem; font-weight: 800; letter-spacing: -0.04em; margin-bottom: 0.3rem; background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-  .auth-sub { color: var(--muted); font-size: 0.95rem; margin-bottom: 3rem; text-align: center; }
-  .auth-card { background: var(--surface); border: 1px solid var(--border); border-radius: 24px; padding: 2rem; width: 100%; max-width: 380px; }
-  .auth-card h2 { font-family: var(--font-head); font-size: 1.3rem; font-weight: 700; margin-bottom: 0.5rem; }
-  .auth-card p { color: var(--muted); font-size: 0.88rem; line-height: 1.6; margin-bottom: 1.5rem; }
-  .btn-google { display: flex; align-items: center; justify-content: center; gap: 0.75rem; width: 100%; padding: 0.85rem 1.5rem; background: #fff; color: #1a1a1a; border: none; border-radius: 12px; font-size: 0.95rem; font-weight: 500; font-family: var(--font-body); cursor: pointer; transition: transform 0.15s, box-shadow 0.15s; }
-  .btn-google:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
-  .btn-google svg { width: 20px; height: 20px; flex-shrink: 0; }
-  .setup-note { margin-top: 1.5rem; padding: 1rem; background: rgba(56,189,248,0.08); border: 1px solid rgba(56,189,248,0.2); border-radius: 10px; font-size: 0.8rem; color: var(--accent2); line-height: 1.6; }
+/* SPLASH */
+#splash {
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  min-height:100vh; padding:2rem;
+  background: radial-gradient(ellipse at 30% 20%,rgba(0,229,160,.09) 0%,transparent 60%),
+              radial-gradient(ellipse at 80% 80%,rgba(123,97,255,.09) 0%,transparent 60%), var(--bg);
+  text-align:center;
+}
+.logo-mark { width:72px;height:72px;border-radius:20px;background:linear-gradient(135deg,var(--accent),var(--accent3));display:flex;align-items:center;justify-content:center;font-size:2rem;margin-bottom:1.5rem;box-shadow:0 0 40px rgba(0,229,160,.3); }
+.splash-title { font-family:var(--font-head);font-size:2.4rem;font-weight:800;letter-spacing:-1px;background:linear-gradient(135deg,var(--text),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:.5rem; }
+.splash-sub { color:var(--muted);font-size:.8rem;margin-bottom:2.5rem;line-height:1.7; }
+.btn-google { display:flex;align-items:center;gap:.75rem;background:white;color:#1a1a1a;border:none;border-radius:var(--radius);padding:.9rem 1.8rem;font-size:.95rem;font-weight:700;font-family:var(--font-head);cursor:pointer;transition:all .2s;box-shadow:0 4px 24px rgba(0,0,0,.4);margin-bottom:1.25rem; }
+.btn-google:active { transform:scale(.97); }
+.splash-note { font-size:.72rem;color:var(--muted);max-width:300px;line-height:1.7; }
+.splash-note a { color:var(--accent);text-decoration:none; }
 
-  /* SETUP */
-  #setup-screen { display: none; padding: 1.5rem; padding-bottom: 4rem; }
-  .setup-title { font-family: var(--font-head); font-size: 1.8rem; font-weight: 800; margin-bottom: 0.4rem; }
-  .setup-sub { color: var(--muted); font-size: 0.9rem; margin-bottom: 2rem; line-height: 1.6; }
-  .step-indicator { display: flex; gap: 0.4rem; margin-bottom: 2rem; }
-  .step-dot { height: 4px; border-radius: 2px; background: var(--border); flex: 1; transition: background 0.3s; }
-  .step-dot.active { background: var(--accent); }
-  .form-group { margin-bottom: 1.25rem; }
-  .form-label { display: block; font-size: 0.8rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; }
-  .form-input { width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 0.8rem 1rem; color: var(--text); font-family: var(--font-body); font-size: 0.95rem; outline: none; transition: border-color 0.15s; }
-  .form-input:focus { border-color: var(--accent2); }
-  .form-hint { font-size: 0.75rem; color: var(--muted); margin-top: 0.4rem; line-height: 1.5; }
-  .month-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; margin-bottom: 1rem; }
-  .month-pill { padding: 0.6rem; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; text-align: center; font-size: 0.85rem; cursor: pointer; transition: all 0.15s; color: var(--muted); font-family: var(--font-body); }
-  .month-pill:hover { border-color: var(--accent2); color: var(--text); }
-  .month-pill.selected { background: rgba(74,222,128,0.15); border-color: var(--accent); color: var(--accent); font-weight: 600; }
-  .year-row { display: flex; align-items: center; justify-content: center; gap: 1rem; margin-bottom: 1rem; }
-  .year-btn { background: var(--surface2); border: 1px solid var(--border); color: var(--text); width: 36px; height: 36px; border-radius: 8px; font-size: 1.1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-  .year-display { font-family: var(--font-head); font-weight: 700; font-size: 1.2rem; }
+/* APP */
+#app { display:none; min-height:100vh; flex-direction:column; padding-bottom:80px; }
+#app.visible { display:flex; }
+.app-header { background:var(--surface);border-bottom:1px solid var(--border);padding:1rem 1rem 0;position:sticky;top:0;z-index:100; }
+.header-top { display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem; }
+.header-logo { font-family:var(--font-head);font-weight:800;font-size:1.1rem;background:linear-gradient(135deg,var(--text),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text; }
+.header-actions { display:flex;gap:.5rem; }
+.icon-btn { width:38px;height:38px;border-radius:10px;background:var(--surface2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text);font-size:1rem;transition:all .2s;user-select:none; }
+.icon-btn:active { background:var(--border); }
+.month-bar { display:flex;align-items:center;justify-content:space-between;padding-bottom:0; }
+.month-display { font-family:var(--font-head);font-size:1.4rem;font-weight:700; }
+.file-status { font-size:.65rem;color:var(--muted);display:flex;align-items:center;gap:.3rem;max-width:160px;overflow:hidden; }
+.file-status.linked { color:var(--accent); }
+.dot { width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0; }
+.tab-nav { display:flex;gap:0;overflow-x:auto;scrollbar-width:none;margin-top:.75rem; }
+.tab-nav::-webkit-scrollbar { display:none; }
+.tab-btn { flex-shrink:0;padding:.6rem .9rem;font-family:var(--font-mono);font-size:.7rem;color:var(--muted);background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;transition:all .2s;white-space:nowrap; }
+.tab-btn.active { color:var(--accent);border-bottom-color:var(--accent); }
+.content { flex:1; padding:1rem; }
 
-  /* APP */
-  #app-screen { display: none; padding-bottom: 2rem; }
-  .topbar { position: sticky; top: 0; z-index: 100; background: rgba(13,15,20,0.92); backdrop-filter: blur(20px); border-bottom: 1px solid var(--border); padding: 1rem 1.25rem; display: flex; align-items: center; justify-content: space-between; }
-  .topbar-title { font-family: var(--font-head); font-size: 1.1rem; font-weight: 700; }
-  .topbar-month { font-size: 0.8rem; color: var(--accent); background: rgba(74,222,128,0.1); border: 1px solid rgba(74,222,128,0.25); padding: 0.3rem 0.75rem; border-radius: 999px; }
-  .user-avatar { width: 34px; height: 34px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), var(--accent2)); display: flex; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 700; cursor: pointer; flex-shrink: 0; }
-  .summary-strip { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.75rem; padding: 1rem 1.25rem; background: var(--surface); border-bottom: 1px solid var(--border); }
-  .summary-item { text-align: center; }
-  .summary-label { font-size: 0.68rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
-  .summary-val { font-family: var(--font-head); font-size: 1.05rem; font-weight: 700; margin-top: 0.15rem; }
-  .summary-val.green { color: var(--accent); }
-  .summary-val.red { color: var(--danger); }
-  .summary-val.blue { color: var(--accent2); }
-  .drive-status { display: flex; align-items: center; gap: 0.5rem; padding: 0.6rem 1rem; border-radius: 8px; font-size: 0.82rem; margin: 0.75rem 1.25rem 0; }
-  .drive-status.linked { background: rgba(74,222,128,0.1); color: var(--accent); border: 1px solid rgba(74,222,128,0.2); }
-  .drive-status.unlinked { background: rgba(248,113,113,0.1); color: var(--danger); border: 1px solid rgba(248,113,113,0.2); }
-  .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+/* DASHBOARD */
+.dashboard-grid { display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:1rem; }
+.stat-card { background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;position:relative;overflow:hidden; }
+.stat-card::before { content:'';position:absolute;top:0;left:0;right:0;height:2px; }
+.stat-card.income::before { background:var(--accent); }
+.stat-card.expenses::before { background:var(--accent2); }
+.stat-card.balance::before { background:var(--accent3); }
+.stat-card.pending::before { background:var(--delayed); }
+.stat-label { font-size:.63rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.4rem; }
+.stat-value { font-family:var(--font-head);font-size:1.2rem;font-weight:700; }
+.stat-value.income { color:var(--accent); }
+.stat-value.expenses { color:var(--accent2); }
+.stat-value.balance-pos { color:var(--accent); }
+.stat-value.balance-neg { color:var(--accent2); }
+.section-head { font-family:var(--font-head);font-size:.82rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:1.25rem 0 .6rem; }
+.progress-bar { height:4px;background:var(--border);border-radius:2px;overflow:hidden;margin-top:.5rem; }
+.progress-fill { height:100%;background:linear-gradient(90deg,var(--accent),var(--accent3));border-radius:2px;transition:width .5s ease; }
 
-  /* SECTIONS */
-  .section-wrap { padding: 0.75rem 1.25rem; }
-  .section { background: var(--surface); border: 1px solid var(--border); border-radius: var(--card-radius); margin-bottom: 0.85rem; overflow: hidden; }
-  .section-header { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.25rem; cursor: pointer; user-select: none; -webkit-tap-highlight-color: transparent; }
-  .section-header-left { display: flex; align-items: center; gap: 0.75rem; }
-  .section-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0; }
-  .icon-income { background: rgba(74,222,128,0.15); }
-  .icon-fixed { background: rgba(248,113,113,0.15); }
-  .icon-variable { background: rgba(251,146,60,0.15); }
-  .icon-savings { background: rgba(56,189,248,0.15); }
-  .icon-emi { background: rgba(244,114,182,0.15); }
-  .section-title { font-family: var(--font-head); font-size: 0.95rem; font-weight: 700; }
-  .section-total { font-size: 0.8rem; color: var(--muted); margin-top: 0.1rem; }
-  .chevron { transition: transform 0.25s; color: var(--muted); font-size: 0.9rem; }
-  .section.open .chevron { transform: rotate(180deg); }
-  .section-body { display: none; padding: 0 1.25rem 1.25rem; border-top: 1px solid var(--border); }
-  .section.open .section-body { display: block; }
-  .row-item { display: grid; grid-template-columns: 1fr auto; gap: 0.5rem; align-items: center; padding: 0.6rem 0; border-bottom: 1px solid rgba(255,255,255,0.04); }
-  .row-item:last-child { border-bottom: none; }
-  .row-label-input { background: transparent; border: none; color: var(--text); font-family: var(--font-body); font-size: 0.88rem; outline: none; width: 100%; border-bottom: 1px dashed transparent; transition: border-color 0.15s; }
-  .row-label-input:focus { border-color: var(--accent2); }
-  .row-input { width: 110px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 0.5rem 0.65rem; color: var(--text); font-family: var(--font-body); font-size: 0.9rem; text-align: right; outline: none; transition: border-color 0.15s; -webkit-appearance: none; }
-  .row-input:focus { border-color: var(--accent2); }
-  .add-row-btn { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.75rem; padding: 0.5rem 0.75rem; background: rgba(255,255,255,0.05); border: 1px dashed var(--border); border-radius: 8px; color: var(--muted); font-size: 0.82rem; cursor: pointer; width: 100%; font-family: var(--font-body); transition: all 0.15s; }
-  .add-row-btn:hover { background: rgba(255,255,255,0.08); color: var(--text); border-color: var(--accent2); }
-  .section-subtotal { display: flex; justify-content: space-between; align-items: center; margin-top: 0.75rem; padding: 0.65rem 0.9rem; background: var(--surface2); border-radius: 8px; font-size: 0.88rem; }
-  .section-subtotal span:last-child { font-weight: 700; font-family: var(--font-head); }
-  .notes-area { width: 100%; min-height: 80px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 0.65rem; color: var(--text); font-family: var(--font-body); font-size: 0.85rem; outline: none; resize: vertical; margin-top: 0.5rem; }
-  .notes-area:focus { border-color: var(--accent2); }
+/* TABLES */
+.sheet-table { background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden; }
+.table-scroll { overflow-x:auto;-webkit-overflow-scrolling:touch; }
+table { width:100%;border-collapse:collapse;font-size:.72rem;min-width:600px; }
+th { background:var(--surface2);padding:.55rem .7rem;text-align:left;font-size:.62rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);white-space:nowrap;font-family:var(--font-head);font-weight:600;border-bottom:1px solid var(--border); }
+td { padding:.65rem .7rem;border-bottom:1px solid rgba(42,48,69,.5);vertical-align:middle;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+tr:last-child td { border-bottom:none; }
+tr:hover td { background:rgba(255,255,255,.02); }
+.inline-input { background:none;border:none;color:var(--text);font-family:var(--font-mono);font-size:.72rem;width:100%;outline:none;padding:0; }
+.inline-input:focus { background:var(--surface2);padding:2px 4px;border-radius:4px;outline:1px solid var(--accent); }
+.inline-select { background:none;border:none;font-family:var(--font-mono);font-size:.72rem;outline:none;cursor:pointer;padding:0;width:100%; }
+.delete-btn { background:none;border:none;color:var(--muted);cursor:pointer;padding:.2rem .4rem;border-radius:4px;font-size:.85rem;transition:all .15s; }
+.delete-btn:hover { color:var(--accent2);background:rgba(255,107,53,.1); }
+.add-row-btn { width:100%;padding:.75rem;background:none;border:1px dashed var(--border);border-top:none;border-radius:0 0 var(--radius) var(--radius);color:var(--muted);font-size:.75rem;font-family:var(--font-mono);cursor:pointer;transition:all .2s; }
+.add-row-btn:hover { background:var(--surface2);color:var(--accent);border-color:var(--accent); }
 
-  /* ACTION BAR */
-  .action-bar { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(13,15,20,0.95); backdrop-filter: blur(20px); border-top: 1px solid var(--border); padding: 0.9rem 1.25rem; display: flex; gap: 0.75rem; z-index: 200; }
-  .btn { flex: 1; padding: 0.85rem 1rem; border: none; border-radius: 12px; font-family: var(--font-head); font-size: 0.9rem; font-weight: 700; cursor: pointer; transition: transform 0.15s, opacity 0.15s; display: flex; align-items: center; justify-content: center; gap: 0.4rem; }
-  .btn:active { transform: scale(0.97); }
-  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
-  .btn-primary { background: linear-gradient(135deg, var(--accent), #22c55e); color: #0d0f14; }
-  .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
-  .btn-setup { background: var(--surface2); color: var(--text); border: 1px solid var(--border); width: 100%; margin-top: 1rem; }
+/* SYNC BAR */
+.sync-bar { position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--border);padding:.75rem 1rem;display:flex;gap:.75rem;z-index:200;transform:translateY(100%);transition:transform .3s cubic-bezier(.34,1.56,.64,1); }
+.sync-bar.visible { transform:translateY(0); }
+.btn { flex:1;padding:.8rem;border-radius:var(--radius);border:none;font-family:var(--font-head);font-size:.85rem;font-weight:700;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:.4rem; }
+.btn:active { transform:scale(.97); }
+.btn:disabled { opacity:.6;cursor:not-allowed; }
+.btn-primary { background:var(--accent);color:#0d0f14; }
+.btn-secondary { background:var(--surface2);color:var(--text);border:1px solid var(--border); }
 
-  /* LOADING & TOAST */
-  .loading-overlay { position: fixed; inset: 0; background: rgba(13,15,20,0.9); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 999; }
-  .loading-overlay.show { display: flex; }
-  .spinner { width: 48px; height: 48px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 1rem; }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .loading-msg { font-family: var(--font-head); font-size: 1rem; color: var(--muted); text-align: center; padding: 0 2rem; }
-  .toast { position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 0.75rem 1.25rem; font-size: 0.88rem; white-space: nowrap; opacity: 0; transition: all 0.3s; z-index: 999; pointer-events: none; max-width: 90vw; white-space: normal; text-align: center; }
-  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-  .toast.success { border-color: var(--accent); color: var(--accent); }
-  .toast.error { border-color: var(--danger); color: var(--danger); }
-  .toast.info { border-color: var(--accent2); color: var(--accent2); }
+/* MODALS */
+.modal-overlay { position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(4px);z-index:300;display:flex;align-items:flex-end;opacity:0;pointer-events:none;transition:opacity .25s; }
+.modal-overlay.open { opacity:1;pointer-events:all; }
+.modal { width:100%;background:var(--surface);border-radius:20px 20px 0 0;border:1px solid var(--border);border-bottom:none;padding:1.25rem;transform:translateY(100%);transition:transform .3s cubic-bezier(.34,1.56,.64,1);max-height:88vh;overflow-y:auto; }
+.modal-overlay.open .modal { transform:translateY(0); }
+.modal-handle { width:40px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 1.25rem; }
+.modal-title { font-family:var(--font-head);font-size:1.1rem;font-weight:700;margin-bottom:1.25rem; }
+.form-group { margin-bottom:.9rem; }
+.form-label { display:block;font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.35rem;font-family:var(--font-head); }
+.form-input,.form-select { width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.7rem .85rem;color:var(--text);font-family:var(--font-mono);font-size:.85rem;outline:none;transition:border-color .2s;appearance:none;-webkit-appearance:none; }
+.form-input:focus,.form-select:focus { border-color:var(--accent); }
+.form-hint { font-size:.68rem;color:var(--muted);margin-top:.35rem;line-height:1.5; }
+.month-grid { display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;margin-bottom:1rem; }
+.month-chip { padding:.6rem;background:var(--surface2);border:1px solid var(--border);border-radius:8px;text-align:center;font-size:.8rem;cursor:pointer;transition:all .2s;font-family:var(--font-mono);color:var(--text); }
+.month-chip.selected,.month-chip:hover { background:rgba(0,229,160,.15);border-color:var(--accent);color:var(--accent); }
+.year-selector { display:flex;align-items:center;justify-content:center;gap:1rem;margin-bottom:1rem; }
+.year-btn { width:36px;height:36px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1rem; }
+.year-display { font-family:var(--font-head);font-size:1.1rem;font-weight:700; }
 
-  @media (max-width: 360px) { .row-input { width: 95px; font-size: 0.85rem; } }
+/* TOAST */
+.toast { position:fixed;top:1rem;left:50%;transform:translateX(-50%) translateY(-80px);background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:.7rem 1.2rem;font-size:.78rem;z-index:500;transition:transform .3s cubic-bezier(.34,1.56,.64,1);white-space:nowrap;display:flex;align-items:center;gap:.5rem;max-width:90vw;overflow:hidden;text-overflow:ellipsis; }
+.toast.show { transform:translateX(-50%) translateY(0); }
+.toast.success { border-color:var(--accent);color:var(--accent); }
+.toast.error { border-color:var(--accent2);color:var(--accent2); }
+.toast.info { border-color:var(--accent3);color:var(--accent3); }
+.spinner { width:16px;height:16px;border:2px solid rgba(0,229,160,.3);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;flex-shrink:0; }
+@keyframes spin { to { transform:rotate(360deg); } }
+.load-card { background:rgba(123,97,255,.1);border:1px solid rgba(123,97,255,.4);border-radius:var(--radius);padding:1.1rem;margin-bottom:1rem; }
+.load-card-title { font-family:var(--font-head);font-weight:700;margin-bottom:.4rem;color:var(--accent3);font-size:.9rem; }
+.load-card-sub { color:var(--muted);font-size:.75rem;margin-bottom:.85rem;line-height:1.5; }
+
+@media(min-width:600px) {
+  .content { max-width:720px; margin:0 auto; }
+  .app-header { padding:1rem 1.5rem 0; }
+  .content { padding:1.25rem 1.5rem; }
+}
 </style>
 </head>
 <body>
 
-<!-- ══════════ AUTH ══════════ -->
-<div id="auth-screen">
-  <div class="auth-logo">SalaryTracker</div>
-  <div class="auth-sub">Monthly finances · From your phone</div>
-  <div class="auth-card">
-    <h2>Connect Google Drive</h2>
-    <p>Sign in with Google to copy your master Excel template and fill it from this page every month.</p>
-    <button class="btn-google" onclick="signInWithGoogle()">
-      <svg viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
-      Continue with Google
-    </button>
-    <div class="setup-note">💡 First time? After sign-in you'll enter your Master File ID once. Every month one tap creates your copy in Drive.</div>
+<!-- SPLASH -->
+<div id="splash">
+  <div class="logo-mark">💰</div>
+  <h1 class="splash-title">Salary Tracker</h1>
+  <p class="splash-sub">Monthly finances · From your phone</p>
+  <button class="btn-google" onclick="handleGoogleSignIn()">
+    <svg width="20" height="20" viewBox="0 0 48 48">
+      <path fill="#FFC107" d="M43.6 20H24v8h11.3C33.7 34.1 29.4 37 24 37c-7.2 0-13-5.8-13-13s5.8-13 13-13c3.1 0 6 1.1 8.2 3L38 8.3C34.4 5 29.4 3 24 3 12.4 3 3 12.4 3 24s9.4 21 21 21c11 0 20-8 20-21 0-1.3-.1-2.7-.4-4z"/>
+      <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.3 18.9 12 24 12c3.1 0 6 1.1 8.2 3L38 8.3C34.4 5 29.4 3 24 3 16.3 3 9.7 7.9 6.3 14.7z"/>
+      <path fill="#4CAF50" d="M24 45c5.2 0 10-1.9 13.7-5.1l-6.3-5.3C29.6 36.3 26.9 37 24 37c-5.3 0-9.7-3-11.3-7.1l-6.5 5C9.6 41.1 16.3 45 24 45z"/>
+      <path fill="#1976D2" d="M43.6 20H24v8h11.3c-.8 2.4-2.3 4.5-4.3 5.9l6.3 5.3C41.4 35.6 44 30.2 44 24c0-1.3-.1-2.7-.4-4z"/>
+    </svg>
+    Continue with Google
+  </button>
+  <p class="splash-note">
+    💡 First time? After sign-in you'll enter your<br>
+    Master File ID once. Every month one tap<br>
+    creates your copy in Drive.<br><br>
+    <a href="#" onclick="openSetupFromSplash();return false">⚙️ Configure settings →</a>
+  </p>
+</div>
+
+<!-- MAIN APP -->
+<div id="app">
+  <header class="app-header">
+    <div class="header-top">
+      <div class="header-logo">💰 Salary Tracker</div>
+      <div class="header-actions">
+        <div class="icon-btn" onclick="showMonthPicker()" title="Change Month">📅</div>
+        <div class="icon-btn" onclick="openSettingsModal()" title="Settings">⚙️</div>
+        <div class="icon-btn" onclick="signOut()" title="Sign Out">👤</div>
+      </div>
+    </div>
+    <div class="month-bar">
+      <div class="month-display" id="monthDisplay">Loading...</div>
+      <div class="file-status" id="fileStatus"><div class="dot"></div><span>No file</span></div>
+    </div>
+    <nav class="tab-nav">
+      <button class="tab-btn active"  onclick="switchTab('dashboard')">Dashboard</button>
+      <button class="tab-btn"         onclick="switchTab('income')">Income</button>
+      <button class="tab-btn"         onclick="switchTab('fixed')">Fixed Exp</button>
+      <button class="tab-btn"         onclick="switchTab('semifixed')">Semi Fixed</button>
+      <button class="tab-btn"         onclick="switchTab('variable')">Variable</button>
+      <button class="tab-btn"         onclick="switchTab('unexpected')">Unexpected</button>
+      <button class="tab-btn"         onclick="switchTab('lending')">Lending</button>
+    </nav>
+  </header>
+  <div class="content" id="content"></div>
+  <div class="sync-bar" id="syncBar">
+    <button class="btn btn-secondary" onclick="discardChanges()">✕ Discard</button>
+    <button class="btn btn-primary" id="saveBtn" onclick="saveToGDrive()">☁️ Save to Drive</button>
   </div>
 </div>
 
-<!-- ══════════ SETUP ══════════ -->
-<div id="setup-screen">
-  <div class="step-indicator">
-    <div class="step-dot active" id="step1"></div>
-    <div class="step-dot" id="step2"></div>
-    <div class="step-dot" id="step3"></div>
-  </div>
-
-  <!-- Step 1: Pick Month -->
-  <div id="setup-step-1">
-    <div class="setup-title">Pick Month</div>
-    <div class="setup-sub">Which month are you creating the tracker for?</div>
-    <div class="year-row">
-      <button class="year-btn" onclick="changeYear(-1)">‹</button>
-      <div class="year-display" id="year-display">2026</div>
-      <button class="year-btn" onclick="changeYear(1)">›</button>
+<!-- SETTINGS MODAL -->
+<div class="modal-overlay" id="settingsModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h2 class="modal-title">⚙️ Settings</h2>
+    <div class="form-group">
+      <label class="form-label">Google OAuth Client ID</label>
+      <input type="text" class="form-input" id="cfgClientId" placeholder="xxxxx.apps.googleusercontent.com">
     </div>
-    <div class="month-grid">
-      <div class="month-pill" onclick="selectMonth(0)">Jan</div><div class="month-pill" onclick="selectMonth(1)">Feb</div><div class="month-pill" onclick="selectMonth(2)">Mar</div>
-      <div class="month-pill" onclick="selectMonth(3)">Apr</div><div class="month-pill" onclick="selectMonth(4)">May</div><div class="month-pill" onclick="selectMonth(5)">Jun</div>
-      <div class="month-pill" onclick="selectMonth(6)">Jul</div><div class="month-pill" onclick="selectMonth(7)">Aug</div><div class="month-pill" onclick="selectMonth(8)">Sep</div>
-      <div class="month-pill" onclick="selectMonth(9)">Oct</div><div class="month-pill" onclick="selectMonth(10)">Nov</div><div class="month-pill" onclick="selectMonth(11)">Dec</div>
-    </div>
-    <button class="btn btn-primary" style="width:100%;margin-top:0.5rem" onclick="goSetupStep(2)">Next →</button>
-  </div>
-
-  <!-- Step 2: Drive setup -->
-  <div id="setup-step-2" style="display:none">
-    <div class="setup-title">Master File</div>
-    <div class="setup-sub">Tell us where your master Excel file lives in Google Drive.</div>
     <div class="form-group">
       <label class="form-label">Master File ID</label>
-      <input class="form-input" id="master-file-id" type="text" placeholder="1BxiMVs0XRA5nFMdKvBdBZjg..." />
-      <div class="form-hint">Open your master file in Drive → click Share → Copy link. The ID is the long code between /d/ and /view in the URL.</div>
+      <input type="text" class="form-input" id="cfgMasterId" placeholder="1HVNQDFpcYlt...">
+      <p class="form-hint">From share link — the part between /d/ and /edit</p>
     </div>
     <div class="form-group">
-      <label class="form-label">Save To Folder ID (optional)</label>
-      <input class="form-input" id="dest-folder-id" type="text" placeholder="Leave blank for Drive root" />
-      <div class="form-hint">Open the destination folder in Drive. The folder ID is the code after /folders/ in the URL.</div>
+      <label class="form-label">Destination Folder ID</label>
+      <input type="text" class="form-input" id="cfgFolderId" placeholder="1FpSq1CK...">
+      <p class="form-hint">From folder URL — the part after /folders/</p>
     </div>
-    <div style="display:flex;gap:0.75rem;margin-top:0.5rem">
-      <button class="btn btn-secondary" onclick="goSetupStep(1)">← Back</button>
-      <button class="btn btn-primary" onclick="createMonthFile()">Create Sheet →</button>
+    <div style="display:flex;gap:.75rem;margin-top:1rem">
+      <button class="btn btn-secondary" onclick="closeModal('settingsModal')">Cancel</button>
+      <button class="btn btn-primary"   onclick="saveSettings()">💾 Save</button>
     </div>
-  </div>
-
-  <!-- Step 3: Success -->
-  <div id="setup-step-3" style="display:none">
-    <div style="font-size:3rem;margin-bottom:1rem">✅</div>
-    <div class="setup-title">Sheet Created!</div>
-    <div class="setup-sub">Your monthly tracker is ready in Google Drive. Now fill in your numbers below.</div>
-    <div class="form-group">
-      <label class="form-label">File name in Drive</label>
-      <div class="form-input" id="created-file-name" style="color:var(--accent)">—</div>
-    </div>
-    <a id="drive-link" href="#" target="_blank" style="display:none">
-      <button class="btn btn-secondary" style="width:100%;margin-bottom:0.75rem">📂 Open in Drive</button>
-    </a>
-    <button class="btn btn-primary" style="width:100%" onclick="openApp()">Start Filling In →</button>
   </div>
 </div>
 
-<!-- ══════════ APP ══════════ -->
-<div id="app-screen">
-  <div class="topbar">
-    <div class="topbar-title">SalaryTracker</div>
-    <div class="topbar-month" id="topbar-month">Mar 2026</div>
-    <div class="user-avatar" id="user-avatar" onclick="showUserMenu()">U</div>
-  </div>
-
-  <div class="summary-strip">
-    <div class="summary-item"><div class="summary-label">Income</div><div class="summary-val green" id="sum-income">₹0</div></div>
-    <div class="summary-item"><div class="summary-label">Expenses</div><div class="summary-val red" id="sum-expenses">₹0</div></div>
-    <div class="summary-item"><div class="summary-label">Balance</div><div class="summary-val blue" id="sum-balance">₹0</div></div>
-  </div>
-
-  <div class="drive-status linked" id="drive-status">
-    <div class="dot"></div>
-    <span id="drive-status-text">Drive connected</span>
-  </div>
-
-  <div class="section-wrap">
-    <!-- INCOME -->
-    <div class="section open" id="sec-income">
-      <div class="section-header" onclick="toggleSection('sec-income')">
-        <div class="section-header-left">
-          <div class="section-icon icon-income">💰</div>
-          <div><div class="section-title">Income</div><div class="section-total" id="lbl-income">₹0</div></div>
-        </div>
-        <span class="chevron">▼</span>
-      </div>
-      <div class="section-body" id="body-income"></div>
+<!-- MONTH PICKER MODAL -->
+<div class="modal-overlay" id="monthModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h2 class="modal-title">Select Month</h2>
+    <div class="year-selector">
+      <button class="year-btn" onclick="changeYear(-1)">&#8249;</button>
+      <div class="year-display" id="yearDisplay">2026</div>
+      <button class="year-btn" onclick="changeYear(1)">&#8250;</button>
     </div>
-
-    <!-- FIXED EXPENSES -->
-    <div class="section" id="sec-fixed">
-      <div class="section-header" onclick="toggleSection('sec-fixed')">
-        <div class="section-header-left">
-          <div class="section-icon icon-fixed">🏠</div>
-          <div><div class="section-title">Fixed Expenses</div><div class="section-total" id="lbl-fixed">₹0</div></div>
-        </div>
-        <span class="chevron">▼</span>
-      </div>
-      <div class="section-body" id="body-fixed"></div>
-    </div>
-
-    <!-- VARIABLE EXPENSES -->
-    <div class="section" id="sec-variable">
-      <div class="section-header" onclick="toggleSection('sec-variable')">
-        <div class="section-header-left">
-          <div class="section-icon icon-variable">🛍️</div>
-          <div><div class="section-title">Variable Expenses</div><div class="section-total" id="lbl-variable">₹0</div></div>
-        </div>
-        <span class="chevron">▼</span>
-      </div>
-      <div class="section-body" id="body-variable"></div>
-    </div>
-
-    <!-- EMI -->
-    <div class="section" id="sec-emi">
-      <div class="section-header" onclick="toggleSection('sec-emi')">
-        <div class="section-header-left">
-          <div class="section-icon icon-emi">💳</div>
-          <div><div class="section-title">EMI / Loans</div><div class="section-total" id="lbl-emi">₹0</div></div>
-        </div>
-        <span class="chevron">▼</span>
-      </div>
-      <div class="section-body" id="body-emi"></div>
-    </div>
-
-    <!-- SAVINGS -->
-    <div class="section" id="sec-savings">
-      <div class="section-header" onclick="toggleSection('sec-savings')">
-        <div class="section-header-left">
-          <div class="section-icon icon-savings">📈</div>
-          <div><div class="section-title">Savings & Investments</div><div class="section-total" id="lbl-savings">₹0</div></div>
-        </div>
-        <span class="chevron">▼</span>
-      </div>
-      <div class="section-body" id="body-savings"></div>
-    </div>
-
-    <!-- NOTES -->
-    <div class="section" id="sec-notes">
-      <div class="section-header" onclick="toggleSection('sec-notes')">
-        <div class="section-header-left">
-          <div class="section-icon" style="background:rgba(255,255,255,0.06)">📝</div>
-          <div><div class="section-title">Notes</div></div>
-        </div>
-        <span class="chevron">▼</span>
-      </div>
-      <div class="section-body">
-        <textarea class="notes-area" id="notes-field" placeholder="Any notes for this month..."></textarea>
-      </div>
-    </div>
-
-    <div style="height:85px"></div>
-  </div>
-
-  <div class="action-bar">
-    <button class="btn btn-secondary" onclick="previewData()">👁 Preview</button>
-    <button class="btn btn-primary" onclick="saveToGoogleSheets()" id="save-btn">☁ Save to Drive</button>
+    <div class="month-grid" id="monthGrid"></div>
+    <button class="btn btn-primary" onclick="applyMonth()" style="width:100%">Apply</button>
   </div>
 </div>
 
-<!-- LOADING -->
-<div class="loading-overlay" id="loading">
-  <div class="spinner"></div>
-  <div class="loading-msg" id="loading-msg">Working...</div>
+<!-- ADD ROW MODAL -->
+<div class="modal-overlay" id="addRowModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h2 class="modal-title" id="addRowTitle">Add Entry</h2>
+    <div id="addRowForm"></div>
+    <div style="display:flex;gap:.75rem;margin-top:1rem">
+      <button class="btn btn-secondary" onclick="closeModal('addRowModal')">Cancel</button>
+      <button class="btn btn-primary"   onclick="submitAddRow()">Add</button>
+    </div>
+  </div>
 </div>
 
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
 
 <script>
-/* ══ CONFIG ══
-   Replace YOUR_GOOGLE_CLIENT_ID_HERE with your actual OAuth client ID
-   Instructions in SETUP.md (included with this file) */
-const GOOGLE_CLIENT_ID = 'YOUR_GOOGLE_CLIENT_ID_HERE.apps.googleusercontent.com';
-const SCOPES = 'https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/spreadsheets';
+// ── DEFAULTS ─────────────────────────────────────────────────────────────
+const DEFAULT_CLIENT_ID = '802226109271-praqff3gi21a2i90mp78bmn6a7999s9m.apps.googleusercontent.com';
+const DEFAULT_MASTER_ID = '1HVNQDFpcYltYSfN3neH1xA1p_tMlGnyT';
+const DEFAULT_FOLDER_ID = '1FpSq1CKfMec2P3p15C8U7HFYgK-HLiNE';
 
-/* ══ STATE ══ */
-const S = {
-  token: null,
-  email: '',
-  name: '',
-  month: new Date().getMonth(),
-  year: new Date().getFullYear(),
-  masterFileId: localStorage.getItem('masterFileId') || '',
-  destFolderId: localStorage.getItem('destFolderId') || '',
-  fileId: localStorage.getItem('currentFileId') || null,
-  data: { income:[], fixed:[], variable:[], emi:[], savings:[] }
+let CLIENT_ID      = localStorage.getItem('st_client_id')  || DEFAULT_CLIENT_ID;
+let MASTER_FILE_ID = localStorage.getItem('st_master_id')  || DEFAULT_MASTER_ID;
+let DEST_FOLDER_ID = localStorage.getItem('st_folder_id')  || DEFAULT_FOLDER_ID;
+
+const SCOPES = 'https://www.googleapis.com/auth/drive';
+const MONTHS = ['January','February','March','April','May','June',
+                'July','August','September','October','November','December'];
+
+let tokenClient, accessToken;
+let currentMonth  = { month: new Date().getMonth(), year: new Date().getFullYear() };
+let pickerMonth   = { ...currentMonth };
+let currentTab    = 'dashboard';
+let currentFileId = null;
+let hasChanges    = false;
+let addRowContext  = null;
+let gisLoaded     = false;
+
+let data = { income:[], fixed:[], semifixed:[], variable:[], unexpected:[], lending:[] };
+
+// ── SCHEMAS (mirrors Excel columns exactly) ───────────────────────────────
+const SCHEMAS = {
+  income:[
+    {key:'sno',        label:'#',             type:'sno'},
+    {key:'source',     label:'Source',         type:'text'},
+    {key:'category',   label:'Category',       type:'text'},
+    {key:'paymentMode',label:'Mode',            type:'select', opts:['Bank Transfer','Cash','Auto-Debit','UPI','Credit Card']},
+    {key:'accountReceived',label:'Account',    type:'text'},
+    {key:'dateReceived',   label:'Date Recv',  type:'date'},
+    {key:'amount',     label:'Amount (₹)',     type:'number'},
+    {key:'status',     label:'Status',         type:'select', opts:['Paid','Pending','Delayed']},
+    {key:'month',      label:'Month',          type:'text'},
+    {key:'remarks',    label:'Remarks',        type:'text'}
+  ],
+  fixed:[
+    {key:'sno',             label:'#',           type:'sno'},
+    {key:'source',          label:'Source',      type:'text'},
+    {key:'loanNumber',      label:'Loan No.',    type:'text'},
+    {key:'totalLoanAmount', label:'Total Loan',  type:'number'},
+    {key:'category',        label:'Category',    type:'text'},
+    {key:'paymentMode',     label:'Mode',        type:'select', opts:['Bank Transfer','Auto-Debit','Cash','SBI Bank','ICICI Bank','BOI Bank','UPI']},
+    {key:'dateToPay',       label:'Due Day',     type:'text'},
+    {key:'dateStart',       label:'Start',       type:'date'},
+    {key:'dateEnd',         label:'End',         type:'date'},
+    {key:'datePaid',        label:'Paid On',     type:'date'},
+    {key:'amount',          label:'Amount (₹)',  type:'number'},
+    {key:'status',          label:'Status',      type:'select', opts:['Paid','Pending','Delayed']},
+    {key:'pendingAmount',   label:'Pending (₹)', type:'number'},
+    {key:'interestRate',    label:'Interest',    type:'text'},
+    {key:'remarks',         label:'Remarks',     type:'text'}
+  ],
+  semifixed:[
+    {key:'sno',           label:'#',           type:'sno'},
+    {key:'source',        label:'Source',      type:'text'},
+    {key:'loanNumber',    label:'Ref No.',     type:'text'},
+    {key:'category',      label:'Category',    type:'text'},
+    {key:'paymentMode',   label:'Mode',        type:'select', opts:['Bank Transfer','Auto-Debit','Cash','UPI','RBL CC']},
+    {key:'dateToPay',     label:'Due Day',     type:'text'},
+    {key:'dateStart',     label:'Start',       type:'date'},
+    {key:'dateEnd',       label:'End',         type:'date'},
+    {key:'datePaid',      label:'Paid On',     type:'date'},
+    {key:'amount',        label:'Amount (₹)',  type:'number'},
+    {key:'status',        label:'Status',      type:'select', opts:['Paid','Pending','Delayed']},
+    {key:'pendingAmount', label:'Pending (₹)', type:'number'},
+    {key:'interestRate',  label:'Interest',    type:'text'},
+    {key:'remarks',       label:'Remarks',     type:'text'}
+  ],
+  variable:[
+    {key:'sno',         label:'#',           type:'sno'},
+    {key:'source',      label:'Source',      type:'text'},
+    {key:'date',        label:'Date',        type:'date'},
+    {key:'category',    label:'Category',    type:'text'},
+    {key:'subcategory', label:'Subcategory', type:'text'},
+    {key:'paymentMode', label:'Mode',        type:'select', opts:['Bank Transfer','Cash','Auto-Debit','UPI','RBL CC','ICICI CC']},
+    {key:'accountUsed', label:'Account',     type:'text'},
+    {key:'description', label:'Description', type:'text'},
+    {key:'amount',      label:'Amount (₹)',  type:'number'},
+    {key:'month',       label:'Month',       type:'text'},
+    {key:'status',      label:'Status',      type:'select', opts:['Paid','Pending','Delayed']},
+    {key:'remarks',     label:'Remarks',     type:'text'}
+  ],
+  unexpected:[
+    {key:'sno',         label:'#',           type:'sno'},
+    {key:'source',      label:'Source',      type:'text'},
+    {key:'date',        label:'Date',        type:'date'},
+    {key:'category',    label:'Category',    type:'text'},
+    {key:'subcategory', label:'Subcategory', type:'text'},
+    {key:'paymentMode', label:'Mode',        type:'select', opts:['Bank Transfer','Cash','Auto-Debit','UPI','RBL CC','ICICI CC']},
+    {key:'accountUsed', label:'Account',     type:'text'},
+    {key:'description', label:'Description', type:'text'},
+    {key:'amount',      label:'Amount (₹)',  type:'number'},
+    {key:'month',       label:'Month',       type:'text'},
+    {key:'status',      label:'Status',      type:'select', opts:['Paid','Pending','Delayed']},
+    {key:'remarks',     label:'Remarks',     type:'text'}
+  ],
+  lending:[
+    {key:'sno',         label:'#',            type:'sno'},
+    {key:'personName',  label:'Person',        type:'text'},
+    {key:'contact',     label:'Contact',       type:'text'},
+    {key:'type',        label:'Type',          type:'select', opts:['Lent','Borrowed']},
+    {key:'mode',        label:'Mode',          type:'select', opts:['Bank Transfer','Cash','UPI','IDFC CC','RBL CC','ICICI CC']},
+    {key:'dateGiven',   label:'Date Given',    type:'date'},
+    {key:'dueDate',     label:'Due Date',      type:'date'},
+    {key:'interestRate',label:'Interest',      type:'text'},
+    {key:'amount',      label:'Amount (₹)',    type:'number'},
+    {key:'returned',    label:'Returned (₹)',  type:'number'},
+    {key:'balance',     label:'Balance (₹)',   type:'number'},
+    {key:'status',      label:'Status',        type:'select', opts:['Fully Paid','Partially Paid','Pending']},
+    {key:'accountUsed', label:'Account',       type:'text'},
+    {key:'remarks',     label:'Remarks',       type:'text'}
+  ]
 };
 
-const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-const MSHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+// ── SIGN IN ───────────────────────────────────────────────────────────────
+function handleGoogleSignIn() {
+  if (!CLIENT_ID) { openSettingsModal(); return; }
+  loadGIS();
+}
 
-const DEFAULTS = {
-  income:   [{l:'Basic Salary',v:''},{l:'HRA',v:''},{l:'Special Allowance',v:''},{l:'Bonus / Incentive',v:''},{l:'Other Income',v:''}],
-  fixed:    [{l:'House Rent',v:''},{l:'Electricity Bill',v:''},{l:'Mobile Bill',v:''},{l:'Internet / DTH',v:''},{l:'Insurance Premium',v:''}],
-  variable: [{l:'Groceries',v:''},{l:'Dining / Swiggy / Zomato',v:''},{l:'Petrol / Transport',v:''},{l:'Shopping / Clothes',v:''},{l:'Medical / Pharmacy',v:''},{l:'Entertainment',v:''},{l:'Miscellaneous',v:''}],
-  emi:      [{l:'Home Loan EMI',v:''},{l:'Car Loan EMI',v:''},{l:'Personal Loan EMI',v:''},{l:'Credit Card',v:''}],
-  savings:  [{l:'EPF / PF',v:''},{l:'PPF',v:''},{l:'Mutual Fund SIP',v:''},{l:'RD / FD',v:''},{l:'Stocks / Equity',v:''},{l:'Emergency Fund',v:''}]
-};
-
-/* ══ OAUTH ══ */
-function signInWithGoogle() {
-  if (!GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID.includes('YOUR_GOOGLE')) {
-    alert('SETUP NEEDED\n\nThis app needs a Google Client ID to work.\n\nSee SETUP.md (included) for step-by-step instructions to get one for free from Google Cloud Console.');
-    return;
+function loadGIS() {
+  if (typeof google !== 'undefined' && google.accounts && google.accounts.oauth2) {
+    initTokenClient(); return;
   }
-  const p = new URLSearchParams({
-    client_id: GOOGLE_CLIENT_ID,
-    redirect_uri: location.origin + location.pathname,
-    response_type: 'token',
-    scope: SCOPES,
-    prompt: 'select_account'
-  });
-  location.href = `https://accounts.google.com/o/oauth2/v2/auth?${p}`;
+  if (gisLoaded) return;
+  gisLoaded = true;
+  showToast('Loading Google Sign-In...', 'info');
+  const s = document.createElement('script');
+  s.src   = 'https://accounts.google.com/gsi/client';
+  s.async = true;
+  s.defer = true;
+  s.onload  = initTokenClient;
+  s.onerror = () => { gisLoaded = false; showToast('Network error loading Google API', 'error'); };
+  document.head.appendChild(s);
 }
 
-function handleOAuthReturn() {
-  const hash = new URLSearchParams(location.hash.slice(1));
-  const token = hash.get('access_token');
-  if (!token) return false;
-  S.token = token;
-  history.replaceState(null,'',location.pathname);
-  fetchMe();
-  return true;
-}
-
-async function fetchMe() {
-  const r = await apiFetch('https://www.googleapis.com/oauth2/v3/userinfo');
-  S.email = r.email; S.name = r.name;
-  document.getElementById('user-avatar').textContent = (r.name||'U')[0].toUpperCase();
-  showSetup();
-}
-
-/* ══ MONTH PICKER ══ */
-function changeYear(d) { S.year += d; document.getElementById('year-display').textContent = S.year; }
-function selectMonth(i) {
-  S.month = i;
-  document.querySelectorAll('.month-pill').forEach((el,j) => el.classList.toggle('selected', i===j));
-}
-
-/* ══ SETUP NAV ══ */
-function showSetup() {
-  hide('auth-screen'); show('setup-screen');
-  const now = new Date();
-  selectMonth(now.getMonth()); S.year = now.getFullYear();
-  document.getElementById('year-display').textContent = S.year;
-  if (S.masterFileId) document.getElementById('master-file-id').value = S.masterFileId;
-  if (S.destFolderId) document.getElementById('dest-folder-id').value = S.destFolderId;
-  goSetupStep(1);
-}
-
-function goSetupStep(n) {
-  [1,2,3].forEach(i => {
-    document.getElementById(`setup-step-${i}`).style.display = i===n ? 'block' : 'none';
-    document.getElementById(`step${i}`).classList.toggle('active', i<=n);
-  });
-}
-
-/* ══ CREATE FILE IN DRIVE ══ */
-async function createMonthFile() {
-  const mid = document.getElementById('master-file-id').value.trim();
-  const fid = document.getElementById('dest-folder-id').value.trim();
-  if (!mid) { showToast('Enter the Master File ID', 'error'); return; }
-  S.masterFileId = mid; S.destFolderId = fid;
-  localStorage.setItem('masterFileId', mid);
-  localStorage.setItem('destFolderId', fid);
-
-  const name = `${MONTHS[S.month]}-${S.year}_Salary_Tracker`;
-  showLoading(`Creating "${name}" in Drive...`);
+function initTokenClient() {
   try {
-    const body = { name };
-    if (fid) body.parents = [fid];
-    const res = await apiFetch(`https://www.googleapis.com/drive/v3/files/${mid}/copy`, {
-      method: 'POST', body: JSON.stringify(body)
+    tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: CLIENT_ID,
+      scope:     SCOPES,
+      callback:  onTokenResponse
     });
-    S.fileId = res.id;
-    localStorage.setItem('currentFileId', res.id);
-    document.getElementById('created-file-name').textContent = name;
-    const link = document.getElementById('drive-link');
-    link.href = `https://docs.google.com/spreadsheets/d/${res.id}/edit`;
-    link.style.display = 'block';
-    hideLoading();
-    goSetupStep(3);
-    showToast('✅ File created!', 'success');
-  } catch(e) { hideLoading(); showToast(`Error: ${e.message}`, 'error'); }
-}
-
-/* ══ OPEN APP ══ */
-function openApp() {
-  hide('setup-screen'); show('app-screen');
-  document.getElementById('topbar-month').textContent = `${MSHORT[S.month]} ${S.year}`;
-  document.getElementById('drive-status-text').textContent = `Drive connected · ${MONTHS[S.month]} ${S.year}`;
-  Object.keys(DEFAULTS).forEach(k => {
-    S.data[k] = DEFAULTS[k].map(r => ({l:r.l, v:r.v}));
-    renderSection(k);
-  });
-  updateSummary();
-}
-
-/* ══ SECTIONS ══ */
-function toggleSection(id) { document.getElementById(id).classList.toggle('open'); }
-
-function renderSection(k) {
-  const body = document.getElementById(`body-${k}`);
-  body.innerHTML = S.data[k].map((r,i) => `
-    <div class="row-item">
-      <input class="row-label-input" type="text" value="${esc(r.l)}" onchange="S.data['${k}'][${i}].l=this.value" />
-      <input class="row-input" type="number" inputmode="decimal" placeholder="0" value="${r.v}"
-        oninput="S.data['${k}'][${i}].v=this.value; refreshSub('${k}'); updateSummary();" />
-    </div>`).join('') +
-  `<div class="section-subtotal"><span>Subtotal</span><span id="sub-${k}">₹${fmt(total(k))}</span></div>
-   <button class="add-row-btn" onclick="addRow('${k}')">＋ Add item</button>`;
-}
-
-function addRow(k) { S.data[k].push({l:'New item',v:''}); renderSection(k); updateSummary(); }
-function total(k) { return S.data[k].reduce((s,r)=>s+(parseFloat(r.v)||0),0); }
-function refreshSub(k) {
-  const el = document.getElementById(`sub-${k}`);
-  if (el) el.textContent = `₹${fmt(total(k))}`;
-  document.getElementById(`lbl-${k}`).textContent = `₹${fmt(total(k))}`;
-}
-function updateSummary() {
-  const inc = total('income');
-  const exp = total('fixed')+total('variable')+total('emi');
-  const sav = total('savings');
-  document.getElementById('sum-income').textContent = `₹${fmt(inc)}`;
-  document.getElementById('sum-expenses').textContent = `₹${fmt(exp)}`;
-  document.getElementById('sum-balance').textContent = `₹${fmt(inc-exp-sav)}`;
-  ['income','fixed','variable','emi','savings'].forEach(k => document.getElementById(`lbl-${k}`).textContent = `₹${fmt(total(k))}`);
-}
-
-/* ══ SAVE TO GOOGLE SHEETS ══ */
-async function saveToGoogleSheets() {
-  if (!S.fileId) { showToast('No Drive file linked. Please create a monthly sheet first.', 'error'); return; }
-  showLoading('Saving data to Google Drive...');
-  try {
-    const rows = buildRows();
-    await apiFetch(`https://sheets.googleapis.com/v4/spreadsheets/${S.fileId}/values:batchUpdate`, {
-      method: 'POST',
-      body: JSON.stringify({
-        valueInputOption: 'USER_ENTERED',
-        data: [{ range: 'Sheet1!A1', values: rows }]
-      })
-    });
-    hideLoading();
-    showToast('✅ Saved to Google Drive!', 'success');
+    tokenClient.requestAccessToken({ prompt:'' });
   } catch(e) {
-    hideLoading();
-    // If not a Sheets file, show helpful error
-    if (e.message.includes('not found') || e.message.includes('Unable to parse')) {
-      showToast('Saved! (If your master is .xlsx, open the Drive file and save as Google Sheets first)', 'info');
-    } else {
-      showToast(`Error: ${e.message}`, 'error');
-    }
+    gisLoaded = false;
+    showToast('Error: ' + e.message, 'error');
   }
 }
 
-function buildRows() {
-  const rows = [];
-  const push = (...args) => rows.push(args);
-  push(`${MONTHS[S.month]} ${S.year} — Salary Tracker`);
-  push();
-  push('INCOME','','Amount (₹)');
-  S.data.income.forEach(r => push(r.l,'',parseFloat(r.v)||0));
-  push('','Total Income →', total('income'));
-  push();
-  push('FIXED EXPENSES','','Amount (₹)');
-  S.data.fixed.forEach(r => push(r.l,'',parseFloat(r.v)||0));
-  push('','Total Fixed →', total('fixed'));
-  push();
-  push('VARIABLE EXPENSES','','Amount (₹)');
-  S.data.variable.forEach(r => push(r.l,'',parseFloat(r.v)||0));
-  push('','Total Variable →', total('variable'));
-  push();
-  push('EMI / LOANS','','Amount (₹)');
-  S.data.emi.forEach(r => push(r.l,'',parseFloat(r.v)||0));
-  push('','Total EMI →', total('emi'));
-  push();
-  push('SAVINGS & INVESTMENTS','','Amount (₹)');
-  S.data.savings.forEach(r => push(r.l,'',parseFloat(r.v)||0));
-  push('','Total Savings →', total('savings'));
-  push();
-  const exp = total('fixed')+total('variable')+total('emi');
-  push('SUMMARY');
-  push('Total Income','', total('income'));
-  push('Total Expenses','', exp);
-  push('Total Savings','', total('savings'));
-  push('Net Balance','', total('income')-exp-total('savings'));
-  const notes = document.getElementById('notes-field')?.value;
-  if (notes) { push(); push('NOTES'); push(notes); }
-  return rows;
-}
-
-/* ══ PREVIEW ══ */
-function previewData() {
-  const inc = total('income'), fix = total('fixed'), vrb = total('variable'), emi = total('emi'), sav = total('savings');
-  const exp = fix+vrb+emi;
-  alert(`📊 ${MONTHS[S.month]} ${S.year}\n\n` +
-    `💰 Income:       ₹${fmt(inc)}\n` +
-    `🏠 Fixed:        ₹${fmt(fix)}\n` +
-    `🛍️  Variable:     ₹${fmt(vrb)}\n` +
-    `💳 EMI:          ₹${fmt(emi)}\n` +
-    `📈 Savings:      ₹${fmt(sav)}\n` +
-    `────────────────────\n` +
-    `🏦 Net Balance:  ₹${fmt(inc-exp-sav)}`);
-}
-
-/* ══ USER MENU ══ */
-function showUserMenu() {
-  if (confirm(`Signed in as:\n${S.email}\n\nSign out?`)) {
-    S.token = null;
-    hide('app-screen'); hide('setup-screen'); show('auth-screen');
+function onTokenResponse(resp) {
+  if (resp.error) {
+    showToast('Sign-in failed: ' + resp.error, 'error');
+    gisLoaded = false; return;
   }
+  accessToken = resp.access_token;
+  onSignedIn();
 }
 
-/* ══ HELPERS ══ */
-async function apiFetch(url, opts={}) {
-  const r = await fetch(url, {
-    ...opts,
-    headers: { 'Authorization': `Bearer ${S.token}`, 'Content-Type': 'application/json', ...(opts.headers||{}) }
+function onSignedIn() {
+  document.getElementById('splash').style.display = 'none';
+  document.getElementById('app').classList.add('visible');
+  updateMonthDisplay();
+  switchTab('dashboard');
+  showToast('✓ Signed in!', 'success');
+}
+
+function signOut() {
+  if (!confirm('Sign out?')) return;
+  if (accessToken && typeof google !== 'undefined') google.accounts.oauth2.revoke(accessToken, ()=>{});
+  accessToken = null; currentFileId = null; gisLoaded = false;
+  resetData();
+  document.getElementById('splash').style.display = 'flex';
+  document.getElementById('app').classList.remove('visible');
+}
+
+// ── DRIVE REST API (OAuth token only, no API key needed) ──────────────────
+const driveHdrs = () => ({ 'Authorization': 'Bearer ' + accessToken });
+
+async function driveList(q) {
+  const p = new URLSearchParams({ q, fields:'files(id,name)', pageSize:'10' });
+  const r = await fetch('https://www.googleapis.com/drive/v3/files?' + p, { headers: driveHdrs() });
+  if (!r.ok) { const t = await r.text(); throw new Error('Drive list: ' + r.status + ' ' + t); }
+  return (await r.json()).files || [];
+}
+
+async function driveCopy(fileId, name, folderId) {
+  const body = { name };
+  if (folderId) body.parents = [folderId];
+  const r = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}/copy?fields=id,name`, {
+    method: 'POST',
+    headers: { ...driveHdrs(), 'Content-Type':'application/json' },
+    body: JSON.stringify(body)
   });
-  if (!r.ok) { const e = await r.json(); throw new Error(e.error?.message || r.statusText); }
+  if (!r.ok) { const t = await r.text(); throw new Error('Drive copy: ' + r.status + ' ' + t); }
   return r.json();
 }
-function fmt(n) { return Math.round(n||0).toLocaleString('en-IN'); }
-function esc(s) { return String(s).replace(/"/g,'&quot;'); }
-function show(id) { document.getElementById(id).style.display = 'block'; }
-function hide(id) { document.getElementById(id).style.display = 'none'; }
-function showLoading(msg) { document.getElementById('loading-msg').textContent = msg||'Working...'; document.getElementById('loading').classList.add('show'); }
-function hideLoading() { document.getElementById('loading').classList.remove('show'); }
-function showToast(msg, type='info') {
-  const t = document.getElementById('toast');
-  t.textContent = msg; t.className = `toast ${type} show`;
-  setTimeout(() => t.className='toast', 4000);
+
+async function driveDownload(fileId) {
+  const r = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, { headers: driveHdrs() });
+  if (!r.ok) { const t = await r.text(); throw new Error('Download: ' + r.status + ' ' + t); }
+  return r.arrayBuffer();
 }
 
-/* ══ INIT ══ */
-window.addEventListener('load', () => {
-  if (location.hash.includes('access_token')) { handleOAuthReturn(); return; }
-  document.getElementById('auth-screen').style.display = 'flex';
+async function driveUpload(fileId, blob, name) {
+  const form = new FormData();
+  form.append('metadata', new Blob([JSON.stringify({name})], {type:'application/json'}));
+  form.append('file', blob);
+  const r = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`, {
+    method: 'PATCH',
+    headers: driveHdrs(),
+    body: form
+  });
+  if (!r.ok) { const t = await r.text(); throw new Error('Upload: ' + r.status + ' ' + t); }
+  return r.json();
+}
+
+// ── FILE OPERATIONS ───────────────────────────────────────────────────────
+function getFileName() {
+  return MONTHS[currentMonth.month] + '-' + currentMonth.year + '_Salary_Tracker.xlsx';
+}
+
+async function loadOrCreateCurrentMonth() {
+  if (!accessToken)     { showToast('Please sign in first', 'error'); return; }
+  if (!MASTER_FILE_ID)  { showToast('Set Master File ID in ⚙️ Settings', 'error'); openSettingsModal(); return; }
+
+  const name = getFileName();
+  showToast('🔍 Looking for ' + name + '...', 'info');
+  try {
+    let q = "name='" + name + "' and trashed=false";
+    if (DEST_FOLDER_ID) q += " and '" + DEST_FOLDER_ID + "' in parents";
+    const files = await driveList(q);
+    if (files.length > 0) {
+      currentFileId = files[0].id;
+      showToast('✓ File found! Loading...', 'success');
+      await loadFileData();
+    } else {
+      await createFromMaster(name);
+    }
+  } catch(e) {
+    showToast('❌ ' + e.message, 'error');
+    console.error(e);
+  }
+}
+
+async function createFromMaster(name) {
+  showToast('📋 Creating from master template...', 'info');
+  try {
+    const result = await driveCopy(MASTER_FILE_ID, name, DEST_FOLDER_ID);
+    currentFileId = result.id;
+    showToast('✓ New file created! Loading...', 'success');
+    await loadFileData();
+  } catch(e) {
+    showToast('❌ Create error: ' + e.message, 'error');
+    console.error(e);
+  }
+}
+
+async function loadFileData() {
+  try {
+    const ab = await driveDownload(currentFileId);
+    const wb = XLSX.read(ab, { type:'array', cellDates:true });
+    parseWorkbook(wb);
+    setFileStatus(true);
+    switchTab(currentTab);
+    showToast('✓ Data loaded!', 'success');
+  } catch(e) {
+    showToast('❌ Load error: ' + e.message, 'error');
+    console.error(e);
+  }
+}
+
+function parseWorkbook(wb) {
+  const sheetMap = {
+    'Income':'income', 'Fixed Expenses':'fixed', 'Semi Fixed Exp':'semifixed',
+    'Varaible Exp':'variable', 'Unexpected Exp':'unexpected', 'Lending & Borrowing':'lending'
+  };
+  Object.entries(sheetMap).forEach(([sn, key]) => {
+    const ws = wb.Sheets[sn];
+    if (!ws) return;
+    const rows = XLSX.utils.sheet_to_json(ws, { header:1, defval:null });
+    data[key] = parseRows(rows, key);
+  });
+}
+
+function parseRows(rows, key) {
+  const schema = SCHEMAS[key];
+  const result = [];
+  rows.slice(3).forEach((row, i) => {
+    if (!row || row.every(c => c===null||c===undefined||c==='')) return;
+    const obj = { _id: i + '_' + Date.now() };
+    schema.forEach((col, ci) => {
+      let v = row[1 + ci];
+      if (v instanceof Date) v = v.toISOString().split('T')[0];
+      obj[col.key] = (v === null || v === undefined) ? '' : String(v);
+    });
+    if (!obj.sno) obj.sno = String(result.length + 1);
+    result.push(obj);
+  });
+  return result;
+}
+
+// ── SAVE ─────────────────────────────────────────────────────────────────
+async function saveToGDrive() {
+  if (!currentFileId) { await loadOrCreateCurrentMonth(); if (!currentFileId) return; }
+  const btn = document.getElementById('saveBtn');
+  btn.innerHTML = '<div class="spinner"></div> Saving...';
+  btn.disabled = true;
+  try {
+    const wb  = buildWorkbook();
+    const buf = XLSX.write(wb, { bookType:'xlsx', type:'array' });
+    const blob = new Blob([buf], { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    await driveUpload(currentFileId, blob, getFileName());
+    showToast('✓ Saved to Google Drive!', 'success');
+    hasChanges = false;
+    document.getElementById('syncBar').classList.remove('visible');
+  } catch(e) {
+    showToast('❌ Save error: ' + e.message, 'error');
+  } finally {
+    btn.innerHTML = '☁️ Save to Drive';
+    btn.disabled = false;
+  }
+}
+
+function buildWorkbook() {
+  const wb = XLSX.utils.book_new();
+  const fi = sumIf(data.fixed,    'amount','status','Paid');
+  const si = sumIf(data.semifixed,'amount','status','Paid');
+  const vi = sumIf(data.variable, 'amount','status','Paid');
+  const ui = sumIf(data.unexpected,'amount','status','Paid');
+  const ti = sum(data.income,'amount');
+  const pi = sumIf(data.income,'amount','status','Paid');
+  const te = fi+si+vi+ui;
+
+  const dash = [
+    [null,null,'Total Income',null,null,'Paid Income',null,null,'Pending Income',null,null],
+    [null,null,ti,null,null,pi,null,null,ti-pi,null,null],
+    [null,null,null,null,null,null,null,null,'Fixed Expenses',null,null],
+    [null,null,null,null,null,null,null,null,fi,null,null],
+    [null,null,null,null,null,null,null,null,'Semi Fixed Expenses',null,null],
+    [null,null,null,null,null,null,null,null,si,null,null],
+    [null,null,'Total Expenses',null,null,null,null,null,null,null,null],
+    [null,null,te,null,null,null,null,null,null,null,null],
+    [null,null,null,null,null,null,null,null,'Variable Expenses',null,null],
+    [null,null,null,null,null,null,null,null,vi,null,null],
+    [null,null,null,null,null,null,null,null,'Unexpected Expenses',null,null],
+    [null,null,null,null,null,null,null,null,ui,null,null],
+    [null,'Net Balance',null,null,null,null,null,null,null,null,null],
+    [null,pi-te,null,null,null,null,null,null,null,null,null]
+  ];
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(dash), 'Dashboard Main');
+
+  addSheet(wb,'Income',       'income',   'Income',
+    ['S. No','Source','Category','Payment Mode','Account Received','Date Received','Amount (₹)','Status','Month','Remarks']);
+  addSheet(wb,'Fixed Expenses','fixed',   "Fixed Expenses (EMI's, Bank Loans and etc)",
+    ['S. No','Source','Loan Number','Total Loan Amount','Category','Payment Mode','Date to Pay','Date of Start','Date of End','Date of Paid','Amount (₹)','Status','Pending Amount (₹)','Interest Rate (%)','Remarks']);
+  addSheet(wb,'Semi Fixed Exp','semifixed','Semi Fixed',
+    ['S. No','Source','Loan Number','Category','Payment Mode','Date to Pay','Date of Start','Date of End','Date of Paid','Amount (₹)','Status','Pending Amount (₹)','Interest Rate (%)','Remarks']);
+  addSheet(wb,'Varaible Exp', 'variable', 'Variable Expenses',
+    ['S. No','Source','Date','Category','Subcategory','Payment Mode','Account Used','Description','Amount (₹)','Month','Status','Remarks']);
+  addSheet(wb,'Unexpected Exp','unexpected','Unexpected Expenses',
+    ['S. No','Source','Date','Category','Subcategory','Payment Mode','Account Used','Description','Amount (₹)','Month','Status','Remarks']);
+  addSheet(wb,'Lending & Borrowing','lending','Lending / Borrowing',
+    ['S. No','Person Name','Contact/Relation','Type','Mode','Date Given / Borrowed','Due Date','Interest Rate','Amount (₹)','Returned / Paid (₹)','Balance (₹)','Status','Account Used','Remarks']);
+
+  return wb;
+}
+
+function addSheet(wb, sheetName, key, title, headers) {
+  const schema = SCHEMAS[key];
+  const aoa = [
+    [null, title],
+    [null, ...headers],
+    [],
+    ...data[key].map(row => [null, ...schema.map(c => row[c.key] || '')])
+  ];
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), sheetName);
+}
+
+function sum(arr, f)        { return arr.reduce((s,r)=>s+(parseFloat(r[f])||0),0); }
+function sumIf(arr,f,cf,cv) { return arr.filter(r=>r[cf]===cv).reduce((s,r)=>s+(parseFloat(r[f])||0),0); }
+function fmt(n)             { return '₹'+parseFloat(n||0).toLocaleString('en-IN',{maximumFractionDigits:0}); }
+
+// ── TABS ──────────────────────────────────────────────────────────────────
+function switchTab(tab) {
+  currentTab = tab;
+  const tabs = ['dashboard','income','fixed','semifixed','variable','unexpected','lending'];
+  document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',tabs[i]===tab));
+  const c = document.getElementById('content');
+  const titles = {income:'Income',fixed:'Fixed Expenses',semifixed:'Semi Fixed Expenses',variable:'Variable Expenses',unexpected:'Unexpected Expenses',lending:'Lending & Borrowing'};
+  if (tab==='dashboard') renderDashboard(c); else renderSheet(c, tab, titles[tab]);
+}
+
+function renderDashboard(c) {
+  const ti = sum(data.income,'amount');
+  const pi = sumIf(data.income,'amount','status','Paid');
+  const fi = sumIf(data.fixed,'amount','status','Paid');
+  const si = sumIf(data.semifixed,'amount','status','Paid');
+  const vi = sumIf(data.variable,'amount','status','Paid');
+  const ui = sumIf(data.unexpected,'amount','status','Paid');
+  const te = fi+si+vi+ui;
+  const nb = pi - te;
+  const pct = pi > 0 ? Math.min(100,(te/pi)*100) : 0;
+
+  const noFile = !currentFileId ? `<div class="load-card">
+    <div class="load-card-title">📂 ${MONTHS[currentMonth.month]} ${currentMonth.year}</div>
+    <div class="load-card-sub">No file loaded. Tap below to load your existing file or create a new one from the master template.</div>
+    <button class="btn btn-primary" style="width:100%" onclick="loadOrCreateCurrentMonth()">📋 Load / Create Month File</button>
+  </div>` : '';
+
+  c.innerHTML = noFile + `
+    <div class="dashboard-grid">
+      <div class="stat-card income"><div class="stat-label">Total Income</div><div class="stat-value income">${fmt(ti)}</div></div>
+      <div class="stat-card expenses"><div class="stat-label">Total Paid Exp</div><div class="stat-value expenses">${fmt(te)}</div></div>
+      <div class="stat-card balance"><div class="stat-label">Net Balance</div><div class="stat-value ${nb>=0?'balance-pos':'balance-neg'}">${fmt(nb)}</div></div>
+      <div class="stat-card pending"><div class="stat-label">Pending Income</div><div class="stat-value" style="color:var(--delayed)">${fmt(ti-pi)}</div></div>
+    </div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;margin-bottom:1rem">
+      <div style="display:flex;justify-content:space-between;margin-bottom:.5rem;font-size:.73rem">
+        <span style="color:var(--muted)">Spend vs Paid Income</span>
+        <span style="color:var(--accent2);font-family:var(--font-head);font-weight:700">${pct.toFixed(1)}%</span>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+    </div>
+    <div class="section-head">Breakdown by Category</div>
+    <div class="sheet-table">
+      <table style="min-width:unset;width:100%">
+        <thead><tr><th>Category</th><th style="text-align:right">Paid</th><th style="text-align:right">Pending</th></tr></thead>
+        <tbody>
+          ${[['Fixed Exp',fi,sumIf(data.fixed,'amount','status','Pending')],
+             ['Semi Fixed',si,sumIf(data.semifixed,'amount','status','Pending')],
+             ['Variable',vi,sumIf(data.variable,'amount','status','Pending')],
+             ['Unexpected',ui,sumIf(data.unexpected,'amount','status','Pending')]
+           ].map(([cat,p,pnd])=>`<tr>
+             <td>${cat}</td>
+             <td style="text-align:right;color:var(--accent);font-family:var(--font-mono)">${fmt(p)}</td>
+             <td style="text-align:right;color:var(--accent2);font-family:var(--font-mono)">${fmt(pnd)}</td>
+           </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+function renderSheet(c, key, title) {
+  const schema = SCHEMAS[key];
+  const rows   = data[key];
+  const stCls  = {Paid:'var(--paid)',Pending:'var(--pending)',Delayed:'var(--delayed)','Partially Paid':'var(--accent3)','Fully Paid':'var(--paid)'};
+
+  const thead = schema.map(col=>`<th>${col.label}</th>`).join('') + '<th></th>';
+  const tbody = rows.length === 0
+    ? `<tr><td colspan="${schema.length+1}" style="text-align:center;color:var(--muted);padding:2rem;font-size:.8rem">No entries. Tap + Add below.</td></tr>`
+    : rows.map((row,ri) => `<tr>${schema.map(col=>{
+        const v = (row[col.key] ?? '').toString().replace(/"/g,'&quot;');
+        if (col.type==='sno') return `<td style="color:var(--muted);font-size:.68rem;min-width:20px">${ri+1}</td>`;
+        if (col.type==='select') return `<td><select class="inline-select" style="color:${stCls[row[col.key]]||'var(--text)'}" onchange="updateCell('${key}',${ri},'${col.key}',this.value)">${col.opts.map(o=>`<option ${o===row[col.key]?'selected':''}>${o}</option>`).join('')}</select></td>`;
+        if (col.type==='number') return `<td><input class="inline-input" type="number" step="0.01" value="${v}" onchange="updateCell('${key}',${ri},'${col.key}',this.value)" style="width:80px;text-align:right"></td>`;
+        if (col.type==='date')   return `<td><input class="inline-input" type="date" value="${v}" onchange="updateCell('${key}',${ri},'${col.key}',this.value)" style="width:120px"></td>`;
+        return `<td><input class="inline-input" type="text" value="${v}" onchange="updateCell('${key}',${ri},'${col.key}',this.value)" style="min-width:65px"></td>`;
+      }).join('')}<td><button class="delete-btn" onclick="deleteRow('${key}',${ri})">✕</button></td></tr>`
+    ).join('');
+
+  c.innerHTML = `
+    <div class="section-head">${title}</div>
+    <div class="sheet-table">
+      <div class="table-scroll"><table><thead><tr>${thead}</tr></thead><tbody>${tbody}</tbody></table></div>
+    </div>
+    <button class="add-row-btn" onclick="showAddRow('${key}','${title}')">+ Add Entry</button>`;
+}
+
+// ── EDIT / DELETE ─────────────────────────────────────────────────────────
+function updateCell(key, ri, field, value) {
+  data[key][ri][field] = value;
+  if (key==='lending') {
+    const r = data[key][ri];
+    r.balance = String((parseFloat(r.amount)||0)-(parseFloat(r.returned)||0));
+  }
+  markDirty();
+}
+
+function deleteRow(key, ri) {
+  if (!confirm('Delete this row?')) return;
+  data[key].splice(ri, 1);
+  markDirty();
+  switchTab(currentTab);
+}
+
+function markDirty() { hasChanges=true; document.getElementById('syncBar').classList.add('visible'); }
+
+function discardChanges() {
+  if (!confirm('Discard all unsaved changes?')) return;
+  hasChanges = false;
+  document.getElementById('syncBar').classList.remove('visible');
+  if (currentFileId) loadFileData(); else { resetData(); switchTab(currentTab); }
+}
+
+// ── ADD ROW ───────────────────────────────────────────────────────────────
+function showAddRow(key, title) {
+  addRowContext = key;
+  document.getElementById('addRowTitle').textContent = 'Add ' + title;
+  const schema = SCHEMAS[key].filter(c=>c.type!=='sno');
+  document.getElementById('addRowForm').innerHTML = schema.map(col=>{
+    let inp='';
+    if (col.type==='select') inp=`<select class="form-select" name="${col.key}"><option value="">Select...</option>${col.opts.map(o=>`<option>${o}</option>`).join('')}</select>`;
+    else if (col.type==='date')   inp=`<input type="date"   class="form-input" name="${col.key}">`;
+    else if (col.type==='number') inp=`<input type="number" class="form-input" name="${col.key}" step="0.01" placeholder="0">`;
+    else                          inp=`<input type="text"   class="form-input" name="${col.key}" placeholder="${col.label}">`;
+    return `<div class="form-group"><label class="form-label">${col.label}</label>${inp}</div>`;
+  }).join('');
+  openModal('addRowModal');
+}
+
+function submitAddRow() {
+  const key = addRowContext;
+  const schema = SCHEMAS[key];
+  const form = document.getElementById('addRowForm');
+  const row = { _id: Date.now() };
+  schema.forEach(col=>{
+    if (col.type==='sno') { row.sno=String(data[key].length+1); return; }
+    const el = form.querySelector('[name="'+col.key+'"]');
+    row[col.key] = el ? el.value : '';
+  });
+  if (key==='lending') row.balance=String((parseFloat(row.amount)||0)-(parseFloat(row.returned)||0));
+  data[key].push(row);
+  closeModal('addRowModal');
+  markDirty();
+  switchTab(currentTab);
+}
+
+// ── MONTH PICKER ──────────────────────────────────────────────────────────
+function showMonthPicker() {
+  pickerMonth = {...currentMonth};
+  document.getElementById('yearDisplay').textContent = pickerMonth.year;
+  renderMonthGrid();
+  openModal('monthModal');
+}
+function renderMonthGrid() {
+  document.getElementById('monthGrid').innerHTML = MONTHS.map((m,i)=>
+    `<div class="month-chip ${i===pickerMonth.month?'selected':''}" onclick="selMonth(${i})">${m.slice(0,3)}</div>`
+  ).join('');
+}
+function selMonth(i)   { pickerMonth.month=i; renderMonthGrid(); }
+function changeYear(d) { pickerMonth.year+=d; document.getElementById('yearDisplay').textContent=pickerMonth.year; }
+function applyMonth() {
+  currentMonth={...pickerMonth};
+  updateMonthDisplay();
+  closeModal('monthModal');
+  currentFileId=null;
+  resetData();
+  setFileStatus(false);
+  switchTab(currentTab);
+}
+function updateMonthDisplay() {
+  document.getElementById('monthDisplay').textContent = MONTHS[currentMonth.month]+' '+currentMonth.year;
+}
+
+// ── SETTINGS ──────────────────────────────────────────────────────────────
+function openSettingsModal() {
+  document.getElementById('cfgClientId').value = CLIENT_ID;
+  document.getElementById('cfgMasterId').value = MASTER_FILE_ID;
+  document.getElementById('cfgFolderId').value = DEST_FOLDER_ID;
+  openModal('settingsModal');
+}
+function openSetupFromSplash() { openSettingsModal(); }
+function saveSettings() {
+  const cid = document.getElementById('cfgClientId').value.trim();
+  const mid = document.getElementById('cfgMasterId').value.trim();
+  const fid = document.getElementById('cfgFolderId').value.trim();
+  if (cid) { CLIENT_ID=cid;      localStorage.setItem('st_client_id',cid); }
+  if (mid) { MASTER_FILE_ID=mid; localStorage.setItem('st_master_id',mid); }
+  if (fid) { DEST_FOLDER_ID=fid; localStorage.setItem('st_folder_id',fid); }
+  closeModal('settingsModal');
+  showToast('✓ Settings saved!','success');
+}
+
+// ── HELPERS ───────────────────────────────────────────────────────────────
+function setFileStatus(linked) {
+  const el = document.getElementById('fileStatus');
+  el.className = 'file-status' + (linked?' linked':'');
+  el.innerHTML = `<div class="dot"></div><span>${linked ? getFileName() : 'No file'}</span>`;
+}
+function resetData() { data={income:[],fixed:[],semifixed:[],variable:[],unexpected:[],lending:[]}; }
+function openModal(id)  { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-overlay').forEach(el=>{
+  el.addEventListener('click', e=>{ if(e.target===el) el.classList.remove('open'); });
 });
+
+let toastTimer;
+function showToast(msg,type='info') {
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.className=`toast ${type} show`;
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>t.classList.remove('show'),3500);
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────
+updateMonthDisplay();
+renderMonthGrid();
 </script>
 </body>
 </html>
