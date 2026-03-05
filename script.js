@@ -179,9 +179,26 @@ async function driveCopy(fileId, name, folderId) {
   if (!r.ok) throw new Error('Copy failed: '+r.status+' '+(await r.text()));
   return r.json();
 }
-async function driveDownloadText(fileId) {
-  const r = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, { headers:H() });
-  if (!r.ok) throw new Error('Download failed: '+r.status);
+async function driveDownloadText(fileId){
+
+  if(!accessToken){
+    throw new Error("User not authenticated");
+  }
+
+  const r = await fetch(
+    `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
+    {
+      headers:{
+        Authorization: "Bearer " + accessToken
+      }
+    }
+  );
+
+  if(!r.ok){
+    const err = await r.text();
+    throw new Error("Drive download failed: " + err);
+  }
+
   return r.text();
 }
 async function driveUploadJson(fileId, obj, name) {
@@ -542,9 +559,30 @@ function renderSheet(c, key, title) {
 </div> 
     <div class="section-head">${title}</div>
     <div class="sheet-table">
-      <div class="table-scroll"><table><thead><tr>${thead}</tr></thead><tbody>${tbody}</tbody></table></div>
+      <div class="table-scroll"><table id="dataTable" ><thead><tr>${thead}</tr></thead><tbody>${tbody}</tbody></table></div>
     </div>
   `;
+  setTimeout(()=>{
+
+    if($.fn.DataTable.isDataTable('#dataTable')){
+    $('#dataTable').DataTable().destroy();
+    }
+    
+    $('#dataTable').DataTable({
+    paging:true,
+    searching:false,
+    ordering:false,
+    pageLength:10,
+    lengthChange:true,
+    
+    scrollX:true,
+    scrollY:"60vh",
+    scrollCollapse:true,
+    
+    fixedHeader:true
+    });
+    
+    },50);
     }
 
 // ── CELL EDIT / DELETE ────────────────────────────────────────────────────
@@ -692,6 +730,58 @@ function showToast(msg,type='info') {
   clearTimeout(toastTimer);
   toastTimer=setTimeout(()=>t.classList.remove('show'),3500);
 }
+
+async function editMasterJson(){
+
+  if(!accessToken){
+    showToast("Please sign in first","error");
+    return;
+  }
+
+  if(!MASTER_FILE_ID){
+    showToast("Master file ID not set","error");
+    return;
+  }
+
+  try{
+
+    const text = await driveDownloadText(MASTER_FILE_ID);
+
+    document.getElementById("masterJsonEditor").value =
+      JSON.stringify(JSON.parse(text), null, 2);
+
+    openModal("masterJsonModal");
+
+  }catch(e){
+    console.error(e);
+    showToast("Failed to load master.json","error");
+  }
+
+}
+
+
+async function saveMasterJson(){
+
+  try{
+
+    const text = document.getElementById("masterJsonEditor").value;
+
+    const json = JSON.parse(text);
+
+    await driveUploadJson(MASTER_FILE_ID, json, "master.json");
+
+    showToast("✓ Master JSON updated","success");
+
+    closeModal("masterJsonModal");
+
+  }catch(e){
+
+    showToast("Invalid JSON or save failed","error");
+
+  }
+
+}
+
 
 // ── INIT ──────────────────────────────────────────────────────────────────
 document.addEventListener("DOMContentLoaded", function () {
