@@ -394,8 +394,9 @@ function exportExcel() {
     const sheetNames = {income:'Income',fixed:'Fixed Expenses',semifixed:'Semi Fixed Exp',
                         variable:'Variable Exp',unexpected:'Unexpected Exp',lending:'Lending & Borrowing'};
     // Match Excel dashboard formulas exactly
-    const ti = sum(data.income||[],'amount');
-    const pi = sumIf(data.income||[],'amount','status','Paid');
+    // Total Income = only Paid entries
+    const ti = sumIf(data.income||[],'amount','status','Paid');
+    const pi = ti;
     const pndI = sumIf(data.income||[],'amount','status','Pending');
     const fi = sumIf(data.fixed||[],'amount','status','Paid');
     const si = sumIf(data.semifixed||[],'amount','status','Paid');
@@ -450,8 +451,9 @@ function renderDashboard(c) {
   // Expense cats  = SUMIF(status="Paid") per category
   // Total Expenses= sum of all four paid expense categories [Excel: =SUM(I9,I13,I17,I21)]
   // Net Balance   = Total Income - Total Expenses [Excel: =C4-C15]
-  const ti = sum(data.income||[],'amount');
-  const pi = sumIf(data.income||[],'amount','status','Paid');
+  // Total Income = only Paid entries (Pending/Delayed not counted)
+  const ti = sumIf(data.income||[],'amount','status','Paid');
+  const pi = ti; // same — ti is already paid-only
   const pndIncome = sumIf(data.income||[],'amount','status','Pending');
   const delIncome = sumIf(data.income||[],'amount','status','Delayed');
 
