@@ -271,20 +271,9 @@ async function createFromMaster(name) {
   try {
     let masterData;
 
-    // Try to download master.json from Drive first (works if file is in same account)
-    if (MASTER_FILE_ID) {
-      try {
-        const masterText = await driveDownloadText(MASTER_FILE_ID);
-        masterData = JSON.parse(masterText);
-        showToast('✓ Master template loaded from Drive','info');
-      } catch(e) {
-        // File not accessible (different account / not shared) — fall back to built-in template
-        console.warn('Master file not accessible, using built-in template:', e.message);
-        masterData = getBuiltInMasterData();
-      }
-    } else {
-      masterData = getBuiltInMasterData();
-    }
+    // Use localStorage master first (user-edited), then built-in hardcoded template
+    const stored = localStorage.getItem('st_master_template');
+    masterData = stored ? JSON.parse(stored) : getBuiltInMasterData();
 
     // Stamp with current month
     const newData = JSON.parse(JSON.stringify(masterData));
@@ -774,28 +763,11 @@ function renderResetPreview() {
   document.getElementById('mjResetPreview').innerHTML = html;
 }
 
-async function editMasterJson() {
-  if (!accessToken)    { showToast('Please sign in first','error'); return; }
-  if (!MASTER_FILE_ID) { showToast('Master file ID not set in Settings','error'); return; }
-
-  showToast('Loading master.json...','info');
-
-  let masterData = null;
-
-  // Try to download from Drive (works when file is accessible via OAuth)
-  if (MASTER_FILE_ID) {
-    try {
-      const text = await driveDownloadText(MASTER_FILE_ID);
-      masterData = JSON.parse(text);
-    } catch(e) {
-      console.warn('Drive download failed, falling back to built-in:', e.message);
-      // Fall back to built-in template so editor still opens
-      masterData = getBuiltInMasterData();
-      showToast('⚠️ Using built-in template (Drive file not accessible)','info');
-    }
-  } else {
-    masterData = getBuiltInMasterData();
-  }
+function editMasterJson() {
+  // Load master from localStorage (saved there on last edit/reset)
+  // Fall back to built-in hardcoded template if never saved before
+  const stored = localStorage.getItem('st_master_template');
+  const masterData = stored ? JSON.parse(stored) : getBuiltInMasterData();
 
   document.getElementById('masterJsonEditor').value = JSON.stringify(masterData, null, 2);
   document.getElementById('mjJsonError').style.display = 'none';
@@ -842,17 +814,14 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-async function saveMasterJson() {
+function saveMasterJson() {
   const obj = validateMasterJson();
   if (!obj) return;
 
-  try {
-    await driveUploadJson(MASTER_FILE_ID, obj, 'master.json');
-    showToast('✓ master.json saved to Drive!', 'success');
-    closeModal('masterJsonModal');
-  } catch(e) {
-    showToast('Save failed: ' + e.message, 'error');
-  }
+  // Save to localStorage — no Drive fetch, no CORS issues
+  localStorage.setItem('st_master_template', JSON.stringify(obj));
+  showToast('✓ Master template saved!', 'success');
+  closeModal('masterJsonModal');
 }
 
 // Reset: produces a completely blank template
@@ -902,13 +871,11 @@ async function confirmResetMaster() {
       });
     });
 
-    // Save to Drive
-    await driveUploadJson(MASTER_FILE_ID, blank, 'master.json');
+    // Save to localStorage only — no Drive upload needed
+    localStorage.setItem('st_master_template', JSON.stringify(blank));
 
-    // Show result in editor
     document.getElementById('masterJsonEditor').value = JSON.stringify(blank, null, 2);
-
-    showToast('✓ master.json is now completely blank!', 'success');
+    showToast('✓ Master reset to blank!', 'success');
     closeModal('masterJsonModal');
   } catch(e) {
     showToast('Reset failed: ' + e.message, 'error');
