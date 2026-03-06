@@ -1,4 +1,3 @@
-
 // ── HARDCODED DEFAULTS ───────────────────────────────────────────────────
 const DEFAULT_CLIENT_ID = '802226109271-praqff3gi21a2i90mp78bmn6a7999s9m.apps.googleusercontent.com';
 const DEFAULT_MASTER_ID = '1G-TZIlJPtSygE7jDmDDbJsuAr8pRGP8T';
@@ -731,55 +730,169 @@ function showToast(msg,type='info') {
   toastTimer=setTimeout(()=>t.classList.remove('show'),3500);
 }
 
-async function editMasterJson(){
+// ── MASTER JSON EDITOR ───────────────────────────────────────────────────
 
-  if(!accessToken){
-    showToast("Please sign in first","error");
-    return;
-  }
+// On reset: every field is cleared to '' except sno (row number stays)
+// Status resets to 'Pending' for income/fixed/semifixed/variable/unexpected
+// Status resets to 'Pending' for lending too
+// No values are preserved — completely blank template
 
-  if(!MASTER_FILE_ID){
-    showToast("Master file ID not set","error");
-    return;
-  }
+let _currentMjTab = 'edit';
 
-  try{
+function switchMjTab(tab) {
+  _currentMjTab = tab;
+  document.getElementById('mjTabEdit').classList.toggle('active',  tab === 'edit');
+  document.getElementById('mjTabReset').classList.toggle('active', tab === 'reset');
+  document.getElementById('mjPanelEdit').style.display  = tab === 'edit'  ? '' : 'none';
+  document.getElementById('mjPanelReset').style.display = tab === 'reset' ? '' : 'none';
 
-    const text = await driveDownloadText(MASTER_FILE_ID);
-
-    document.getElementById("masterJsonEditor").value =
-      JSON.stringify(JSON.parse(text), null, 2);
-
-    openModal("masterJsonModal");
-
-  }catch(e){
-    console.error(e);
-    showToast("Failed to load master.json","error");
-  }
-
+  if (tab === 'reset') renderResetPreview();
 }
 
+function renderResetPreview() {
+  const keys = ['income','fixed','semifixed','variable','unexpected','lending'];
+  const labels = {income:'Income', fixed:'Fixed Expenses', semifixed:'Semi Fixed',
+                  variable:'Variable', unexpected:'Unexpected', lending:'Lending & Borrowing'};
+  let html = '';
+  keys.forEach(k => {
+    const schema = SCHEMAS[k];
+    const fieldNames = schema
+      .filter(c => c.type !== 'sno')
+      .map(c => `<span class="mj-preview-clear">${c.label}</span>`)
+      .join(', ');
+    html += `<div class="mj-preview-section">${labels[k]}</div>`;
+    html += `<div class="mj-preview-fields">${fieldNames}</div>`;
+  });
+  document.getElementById('mjResetPreview').innerHTML = html;
+}
 
-async function saveMasterJson(){
+async function editMasterJson() {
+  if (!accessToken)    { showToast('Please sign in first','error'); return; }
+  if (!MASTER_FILE_ID) { showToast('Master file ID not set in Settings','error'); return; }
 
-  try{
-
-    const text = document.getElementById("masterJsonEditor").value;
-
-    const json = JSON.parse(text);
-
-    await driveUploadJson(MASTER_FILE_ID, json, "master.json");
-
-    showToast("✓ Master JSON updated","success");
-
-    closeModal("masterJsonModal");
-
-  }catch(e){
-
-    showToast("Invalid JSON or save failed","error");
-
+  showToast('Loading master.json...','info');
+  try {
+    const text = await driveDownloadText(MASTER_FILE_ID);
+    document.getElementById('masterJsonEditor').value = JSON.stringify(JSON.parse(text), null, 2);
+    document.getElementById('mjJsonError').style.display = 'none';
+    switchMjTab('edit');
+    openModal('masterJsonModal');
+  } catch(e) {
+    console.error(e);
+    showToast('Failed to load master.json: ' + e.message, 'error');
   }
+}
 
+function validateMasterJson() {
+  const errEl = document.getElementById('mjJsonError');
+  const text  = document.getElementById('masterJsonEditor').value.trim();
+  try {
+    const obj = JSON.parse(text);
+    // Validate required top-level keys
+    const required = ['income','fixed','semifixed','variable','unexpected','lending'];
+    const missing  = required.filter(k => !Array.isArray(obj[k]));
+    if (missing.length) {
+      errEl.textContent = '❌ Missing sections: ' + missing.join(', ');
+      errEl.style.display = '';
+      return null;
+    }
+    errEl.style.display = 'none';
+    return obj;
+  } catch(e) {
+    errEl.textContent = '❌ Invalid JSON: ' + e.message;
+    errEl.style.display = '';
+    return null;
+  }
+}
+
+// Live validation as user types
+document.addEventListener('DOMContentLoaded', () => {
+  const editor = document.getElementById('masterJsonEditor');
+  if (editor) {
+    editor.addEventListener('input', () => {
+      const errEl = document.getElementById('mjJsonError');
+      try {
+        JSON.parse(editor.value);
+        errEl.style.display = 'none';
+      } catch(e) {
+        errEl.textContent = '⚠️ ' + e.message;
+        errEl.style.display = '';
+      }
+    });
+  }
+});
+
+async function saveMasterJson() {
+  const obj = validateMasterJson();
+  if (!obj) return;
+
+  try {
+    await driveUploadJson(MASTER_FILE_ID, obj, 'master.json');
+    showToast('✓ master.json saved to Drive!', 'success');
+    closeModal('masterJsonModal');
+  } catch(e) {
+    showToast('Save failed: ' + e.message, 'error');
+  }
+}
+
+// Reset: produces a completely blank template
+// Every field is empty string except sno (row number) — no values carried forward
+async function confirmResetMaster() {
+  if (!confirm('Reset master.json to completely blank?\n\nEvery field will be emptied.\nOnly the row count and section structure are kept.\n\nExisting monthly files are NOT affected.')) return;
+
+  showToast('Resetting master.json...', 'info');
+  try {
+    // Load current master to know how many rows each section has
+    let masterData;
+    try {
+      const text = await driveDownloadText(MASTER_FILE_ID);
+      masterData = JSON.parse(text);
+    } catch(e) {
+      masterData = getBuiltInMasterData();
+    }
+
+    const sections = ['income','fixed','semifixed','variable','unexpected','lending'];
+
+    // Build blank template: for each section, create same number of rows
+    // with every field = '' and status = 'Pending', only sno preserved
+    const blank = {
+      _version:     1,
+      _description: 'Salary Tracker Master Template - Naveen Somalapuri',
+      _reset_at:    new Date().toISOString()
+    };
+
+    sections.forEach(section => {
+      const schema   = SCHEMAS[section];
+      const srcRows  = masterData[section] || [];
+      // If section had 0 rows (e.g. unexpected), keep it empty
+      blank[section] = srcRows.map((_, i) => {
+        const row = {};
+        schema.forEach(col => {
+          if (col.type === 'sno') {
+            row[col.key] = i + 1;           // keep row number
+          } else if (col.type === 'select') {
+            // For status: default to 'Pending' (first opt or fallback)
+            row[col.key] = col.key === 'status' ? 'Pending' : '';
+          } else {
+            row[col.key] = '';              // everything else blank
+          }
+        });
+        return row;
+      });
+    });
+
+    // Save to Drive
+    await driveUploadJson(MASTER_FILE_ID, blank, 'master.json');
+
+    // Update editor so user can see what was saved
+    document.getElementById('masterJsonEditor').value = JSON.stringify(blank, null, 2);
+
+    showToast('✓ master.json reset to blank & saved!', 'success');
+    closeModal('masterJsonModal');
+  } catch(e) {
+    showToast('Reset failed: ' + e.message, 'error');
+    console.error(e);
+  }
 }
 
 
