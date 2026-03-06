@@ -149,24 +149,53 @@
 
 <div class="modal-overlay" id="masterJsonModal">
   <div class="modal">
-
     <div class="modal-handle"></div>
+    <h2 class="modal-title">📝 Master JSON</h2>
 
-    <h2 class="modal-title">Master JSON Editor</h2>
+    <!-- Tab switcher -->
+    <div class="mj-tabs">
+      <button class="mj-tab active" id="mjTabEdit"  onclick="switchMjTab('edit')">✏️ Edit</button>
+      <button class="mj-tab"        id="mjTabReset" onclick="switchMjTab('reset')">🔄 Reset to Blank</button>
+    </div>
 
-    <textarea
-      id="masterJsonEditor"
-      style="width:100%;height:300px;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:10px;font-family:monospace;font-size:12px;">
-    </textarea>
+    <!-- EDIT PANEL -->
+    <div id="mjPanelEdit">
+      <p style="font-size:.7rem;color:var(--muted);margin-bottom:.6rem;line-height:1.5">
+        Edit the master template directly. This is what gets copied every new month.<br>
+        <strong style="color:var(--accent)">Tip:</strong> Change row sources, amounts, loan numbers here — not in monthly files.
+      </p>
+      <textarea id="masterJsonEditor"
+        style="width:100%;height:320px;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:10px;font-family:monospace;font-size:11.5px;line-height:1.5;resize:vertical;outline:none;">
+      </textarea>
+      <div id="mjJsonError" style="display:none;color:var(--accent2);font-size:.7rem;margin-top:.35rem;padding:.4rem .6rem;background:rgba(255,107,53,.1);border-radius:6px;border:1px solid rgba(255,107,53,.3)"></div>
+      <div style="display:flex;gap:.75rem;margin-top:.9rem">
+        <button class="btn btn-secondary" onclick="closeModal('masterJsonModal')">Cancel</button>
+        <button class="btn btn-primary"   onclick="saveMasterJson()">💾 Save to Drive</button>
+      </div>
+    </div>
 
-    <div style="display:flex;gap:.75rem;margin-top:1rem">
-      <button class="btn btn-secondary" onclick="closeModal('masterJsonModal')">
-        Cancel
-      </button>
+    <!-- RESET PANEL -->
+    <div id="mjPanelReset" style="display:none">
+      <div style="background:rgba(255,107,53,.08);border:1px solid rgba(255,107,53,.3);border-radius:10px;padding:.9rem;margin-bottom:1rem;font-size:.75rem;line-height:1.9;color:var(--muted)">
+        <strong style="color:var(--accent2)">⚠️ What Reset does:</strong><br>
+        🗑️ <strong style="color:var(--text)">Clears every field</strong> — completely blank values<br>
+        ✅ Keeps the same <strong style="color:var(--text)">number of rows</strong> per section<br>
+        ✅ Keeps <strong style="color:var(--text)">row numbers</strong> (S.No only)<br>
+        🔄 Sets all <strong style="color:var(--text)">status → Pending</strong><br>
+        🔒 Does <strong style="color:var(--text)">NOT</strong> affect existing monthly files<br>
+        💡 Use <strong style="color:var(--text)">Edit JSON</strong> tab to re-fill your defaults
+      </div>
 
-      <button class="btn btn-primary" onclick="saveMasterJson()">
-        💾 Save Master JSON
-      </button>
+      <div style="font-size:.75rem;color:var(--muted);margin-bottom:.5rem">
+        <strong style="color:var(--text)">Fields cleared per section:</strong>
+      </div>
+
+      <div id="mjResetPreview" style="font-size:.71rem;line-height:1.8;color:var(--muted);background:var(--surface2);border-radius:8px;padding:.8rem;margin-bottom:1rem;max-height:180px;overflow-y:auto"></div>
+
+      <div style="display:flex;gap:.75rem">
+        <button class="btn btn-secondary" onclick="closeModal('masterJsonModal')">Cancel</button>
+        <button class="btn" style="background:var(--accent2);color:#fff;flex:1" onclick="confirmResetMaster()">🔄 Reset &amp; Save</button>
+      </div>
     </div>
 
   </div>
