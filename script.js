@@ -763,14 +763,38 @@ function renderResetPreview() {
   document.getElementById('mjResetPreview').innerHTML = html;
 }
 
-function editMasterJson() {
-  // Load master from localStorage (saved there on last edit/reset)
-  // Fall back to built-in hardcoded template if never saved before
-  const stored = localStorage.getItem('st_master_template');
-  const masterData = stored ? JSON.parse(stored) : getBuiltInMasterData();
+async function editMasterJson() {
+  // Priority: 1) own Drive file, 2) localStorage, 3) built-in
+  let masterData = null;
+  let source = '';
+
+  // Try own Drive file first (works if MASTER_FILE_ID is a file in your own account)
+  if (MASTER_FILE_ID && accessToken) {
+    try {
+      const text = await driveDownloadText(MASTER_FILE_ID);
+      masterData = JSON.parse(text);
+      source = 'drive';
+    } catch(e) {
+      console.warn('Drive fetch failed:', e.message);
+    }
+  }
+
+  // Fallback to localStorage
+  if (!masterData) {
+    const stored = localStorage.getItem('st_master_template');
+    if (stored) { masterData = JSON.parse(stored); source = 'local'; }
+  }
+
+  // Last resort: built-in
+  if (!masterData) { masterData = getBuiltInMasterData(); source = 'builtin'; }
 
   document.getElementById('masterJsonEditor').value = JSON.stringify(masterData, null, 2);
   document.getElementById('mjJsonError').style.display = 'none';
+
+  // Show source indicator
+  const hint = { drive:'✅ Loaded from your Drive', local:'💾 Loaded from local storage', builtin:'📦 Loaded built-in template' };
+  showToast(hint[source], 'info');
+
   switchMjTab('edit');
   openModal('masterJsonModal');
 }
@@ -814,14 +838,62 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-function saveMasterJson() {
+async function saveMasterJson() {
   const obj = validateMasterJson();
   if (!obj) return;
 
-  // Save to localStorage — no Drive fetch, no CORS issues
+  // Always save to localStorage first
   localStorage.setItem('st_master_template', JSON.stringify(obj));
-  showToast('✓ Master template saved!', 'success');
+
+  // Try to save to own Drive file too
+  if (MASTER_FILE_ID && accessToken) {
+    try {
+      await driveUploadJson(MASTER_FILE_ID, obj, 'master.json');
+      showToast('✓ Saved to Drive + local!', 'success');
+    } catch(e) {
+      // Drive save failed — check if it's a permissions error (file not owned by user)
+      if (e.message.includes('403') || e.message.includes('forbidden') || e.message.includes('permission')) {
+        showToast('⚠️ Saved locally. Copy master to your Drive first!', 'info');
+        document.getElementById('mjCopyToMyDriveBtn').style.display = '';
+      } else {
+        showToast('✓ Saved locally (Drive: ' + e.message + ')', 'success');
+      }
+    }
+  } else {
+    showToast('✓ Master template saved locally!', 'success');
+  }
+
   closeModal('masterJsonModal');
+}
+
+// One-time: copy master template into user's own Drive folder so they can edit it via Drive
+async function copyMasterToMyDrive() {
+  if (!accessToken) { showToast('Please sign in first', 'error'); return; }
+  if (!DEST_FOLDER_ID) { showToast('Set Destination Folder ID in Settings first', 'error'); return; }
+
+  showToast('Copying master.json to your Drive...', 'info');
+  try {
+    // Get current master content (from localStorage or built-in)
+    const stored = localStorage.getItem('st_master_template');
+    const masterData = stored ? JSON.parse(stored) : getBuiltInMasterData();
+
+    // Create a new master.json in user's own folder
+    const result = await driveCreateJson('master.json', masterData, DEST_FOLDER_ID);
+
+    // Update MASTER_FILE_ID to point to the new own file
+    MASTER_FILE_ID = result.id;
+    localStorage.setItem('st_master_id', result.id);
+
+    // Update settings field too
+    const cfgEl = document.getElementById('cfgMasterId');
+    if (cfgEl) cfgEl.value = result.id;
+
+    document.getElementById('mjCopyToMyDriveBtn').style.display = 'none';
+    showToast('✅ master.json copied! ID saved. Now fully editable.', 'success');
+  } catch(e) {
+    showToast('Copy failed: ' + e.message, 'error');
+    console.error(e);
+  }
 }
 
 // Reset: produces a completely blank template
@@ -871,11 +943,22 @@ async function confirmResetMaster() {
       });
     });
 
-    // Save to localStorage only — no Drive upload needed
+    // Save locally
     localStorage.setItem('st_master_template', JSON.stringify(blank));
 
+    // Try Drive upload
+    if (MASTER_FILE_ID && accessToken) {
+      try {
+        await driveUploadJson(MASTER_FILE_ID, blank, 'master.json');
+        showToast('✓ Reset & synced to Drive!', 'success');
+      } catch(e) {
+        showToast('✓ Reset locally (Drive sync failed — use your own File ID)', 'info');
+      }
+    } else {
+      showToast('✓ Master reset to blank!', 'success');
+    }
+
     document.getElementById('masterJsonEditor').value = JSON.stringify(blank, null, 2);
-    showToast('✓ Master reset to blank!', 'success');
     closeModal('masterJsonModal');
   } catch(e) {
     showToast('Reset failed: ' + e.message, 'error');
@@ -883,6 +966,45 @@ async function confirmResetMaster() {
   }
 }
 
+
+
+// ── COPY MASTER TO MY DRIVE ───────────────────────────────────────────────
+// Creates a new master.json in user's destination folder and saves the ID
+async function copyMasterToDrive() {
+  if (!accessToken)    { showToast('Please sign in first','error'); return; }
+  if (!DEST_FOLDER_ID) { showToast('Set Destination Folder ID in Settings first','error'); return; }
+
+  showToast('Creating master.json in your Drive...','info');
+  try {
+    // Get current template (localStorage or built-in)
+    const stored = localStorage.getItem('st_master_template');
+    const masterData = stored ? JSON.parse(stored) : getBuiltInMasterData();
+
+    // Create new file in user's folder
+    const result = await driveCreateJson('master.json', masterData, DEST_FOLDER_ID);
+
+    // Save new file ID as the master ID
+    MASTER_FILE_ID = result.id;
+    localStorage.setItem('st_master_id', result.id);
+
+    // Update settings field if open
+    const cfgField = document.getElementById('cfgMasterId');
+    if (cfgField) cfgField.value = result.id;
+
+    showToast('✓ master.json created! ID saved automatically.','success');
+
+    // Reload editor with fresh Drive copy
+    const driveBtn = document.getElementById('mjDriveStatus');
+    if (driveBtn) driveBtn.textContent = '🟢 Synced from Drive';
+
+    const editor = document.getElementById('masterJsonEditor');
+    if (editor) editor.value = JSON.stringify(masterData, null, 2);
+
+  } catch(e) {
+    showToast('Failed: ' + e.message,'error');
+    console.error(e);
+  }
+}
 
 // ── INIT ──────────────────────────────────────────────────────────────────
 document.addEventListener("DOMContentLoaded", function () {
