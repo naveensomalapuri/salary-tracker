@@ -86,9 +86,7 @@
   <div class="modal">
     <div class="modal-handle"></div>
     <h2 class="modal-title">⚙️ Settings</h2>
-    <button class="btn btn-secondary mb-3" onclick="editMasterJson()">
-      📝 Edit Master JSON
-    </button>
+    <button class="btn btn-secondary mb-3" onclick="editMasterJson()">📝 Edit Master JSON</button>
     <div style="background:rgba(0,229,160,.07);border:1px solid rgba(0,229,160,.2);border-radius:10px;padding:.9rem;margin-bottom:1.1rem;font-size:.75rem;line-height:1.7;color:var(--muted)">
       <strong style="color:var(--accent)">📋 One-time setup:</strong><br>
       1. Upload <code style="color:var(--text)">master.json</code> to your Google Drive folder<br>
@@ -150,16 +148,13 @@
     <div class="modal-handle"></div>
     <h2 class="modal-title">📝 Edit Master JSON</h2>
     <p style="font-size:.72rem;color:var(--muted);margin-bottom:.75rem;line-height:1.6">
-      This is your template — new months are created from this file.<br>
-      Edit rows/amounts then save back to Drive.
+      New months are created from this template. Edit rows/amounts then save back to Drive.
     </p>
     <div style="display:flex;gap:.5rem;margin-bottom:.6rem">
       <button class="btn btn-secondary" style="flex:1;font-size:.72rem;padding:.55rem" onclick="formatMasterJson()">✨ Format</button>
       <button class="btn btn-secondary" style="flex:1;font-size:.72rem;padding:.55rem" onclick="validateMasterJson()">✅ Validate</button>
     </div>
-    <textarea
-      id="masterJsonEditor"
-      spellcheck="false"
+    <textarea id="masterJsonEditor" spellcheck="false"
       style="width:100%;height:340px;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:10px;font-family:monospace;font-size:11.5px;line-height:1.5;resize:vertical;outline:none;"></textarea>
     <div style="display:flex;gap:.75rem;margin-top:1rem">
       <button class="btn btn-secondary" onclick="closeModal('masterJsonModal')">Cancel</button>
