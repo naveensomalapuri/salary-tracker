@@ -845,18 +845,30 @@ async function saveMasterJson() {
   // Always save to localStorage first
   localStorage.setItem('st_master_template', JSON.stringify(obj));
 
-  // Try to save to own Drive file too
-  if (MASTER_FILE_ID && accessToken) {
+  if (accessToken) {
     try {
+      // Try PATCH on existing file first
       await driveUploadJson(MASTER_FILE_ID, obj, 'master.json');
-      showToast('✓ Saved to Drive + local!', 'success');
+      showToast('✓ Saved to Drive & locally!', 'success');
     } catch(e) {
-      // Drive save failed — check if it's a permissions error (file not owned by user)
-      if (e.message.includes('403') || e.message.includes('forbidden') || e.message.includes('permission')) {
-        showToast('⚠️ Saved locally. Copy master to your Drive first!', 'info');
-        document.getElementById('mjCopyToMyDriveBtn').style.display = '';
+      // If 403/forbidden — file is not owned by user (shared file)
+      // Create a brand new master.json in their folder instead
+      if (e.message.includes('403') || e.message.includes('404') || e.message.includes('forbidden')) {
+        try {
+          showToast('Creating master.json in your Drive...', 'info');
+          const folderId = DEST_FOLDER_ID || null;
+          const result = await driveCreateJson('master.json', obj, folderId);
+          // Update MASTER_FILE_ID to the new file they own
+          MASTER_FILE_ID = result.id;
+          localStorage.setItem('st_master_id', result.id);
+          const cfgEl = document.getElementById('cfgMasterId');
+          if (cfgEl) cfgEl.value = result.id;
+          showToast('✅ master.json created in your Drive & saved!', 'success');
+        } catch(e2) {
+          showToast('✓ Saved locally only. (' + e2.message + ')', 'info');
+        }
       } else {
-        showToast('✓ Saved locally (Drive: ' + e.message + ')', 'success');
+        showToast('✓ Saved locally. Drive error: ' + e.message, 'info');
       }
     }
   } else {
