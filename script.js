@@ -1,6 +1,6 @@
 // ── CONFIG ────────────────────────────────────────────────────────────────
 const DEFAULT_CLIENT_ID = '802226109271-praqff3gi21a2i90mp78bmn6a7999s9m.apps.googleusercontent.com';
-const DEFAULT_MASTER_ID = '1G-TZIlJPtSygE7jDmDDbJsuAr8pRGP8T';
+const DEFAULT_MASTER_ID = '1w91ZLfxhFA9yTorZHrVQGSQ9k0U8c0ny';
 const DEFAULT_FOLDER_ID = '1FpSq1CKfMec2P3p15C8U7HFYgK-HLiNE';
 
 let CLIENT_ID      = localStorage.getItem('st_client_id')  || DEFAULT_CLIENT_ID;
@@ -141,15 +141,29 @@ async function driveList(q) {
 }
 async function driveDownloadText(fileId) {
   if (!accessToken) throw new Error('Not authenticated');
-  const r = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, { headers:H() });
-  if (!r.ok) {
-    let msg = 'HTTP '+r.status;
-    try { const e = await r.json(); msg = e.error?.message || msg; } catch(_){}
-    if (r.status===404) throw new Error('File not found — check the Master File ID in Settings.');
-    if (r.status===403) throw new Error('Access denied (403) — file must be owned by your Google account.');
-    throw new Error(msg);
-  }
-  return r.text();
+
+  // Try 1: direct download (works for files YOU own)
+  const r1 = await fetch(
+    `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
+    { headers: H() }
+  );
+  if (r1.ok) return r1.text();
+
+  // Try 2: shared/external file — add acknowledgeAbuse flag
+  const r2 = await fetch(
+    `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&acknowledgeAbuse=true`,
+    { headers: H() }
+  );
+  if (r2.ok) return r2.text();
+
+  // Both failed — get the actual error message from Drive
+  let msg = 'HTTP '+r2.status;
+  try { const e = await r2.json(); msg = e.error?.message || msg; } catch(_){}
+  if (r2.status===404) throw new Error('File not found. Check the Master File ID in Settings.');
+  if (r2.status===403) throw new Error(
+    'Access denied. Go to Google Drive → right-click master.json → Make a copy → use the copy\'s ID in Settings.'
+  );
+  throw new Error(msg);
 }
 async function driveUploadJson(fileId, obj, name) {
   const form = new FormData();
@@ -304,6 +318,25 @@ async function resolveMasterFileId() {
   localStorage.setItem('st_master_id', foundId);
   showToast('✓ Found master.json — ID updated in Settings','success');
   return foundId;
+}
+
+async function testMasterAccess() {
+  console.log('accessToken:', accessToken ? 'OK' : 'NULL');
+  console.log('MASTER_FILE_ID:', MASTER_FILE_ID);
+  if (!accessToken) { alert('Not signed in!'); return; }
+  var url1 = 'https://www.googleapis.com/drive/v3/files/' + MASTER_FILE_ID + '?fields=id,name';
+  var url2 = 'https://www.googleapis.com/drive/v3/files/' + MASTER_FILE_ID + '?alt=media';
+  try {
+    var r1 = await fetch(url1, { headers: { Authorization: 'Bearer ' + accessToken } });
+    var b1 = await r1.text();
+    console.log('Metadata:', r1.status, b1.substring(0,200));
+    if (!r1.ok) { alert('Metadata FAILED ' + r1.status + ': ' + b1.substring(0,300)); return; }
+    var r2 = await fetch(url2, { headers: { Authorization: 'Bearer ' + accessToken } });
+    var b2 = await r2.text();
+    console.log('Download:', r2.status, b2.substring(0,200));
+    if (!r2.ok) alert('Download FAILED ' + r2.status + ': ' + b2.substring(0,300));
+    else alert('SUCCESS! Loaded ' + b2.length + ' bytes');
+  } catch(e) { alert('fetch threw: ' + e.message); console.error(e); }
 }
 
 async function editMasterJson() {
