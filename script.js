@@ -208,7 +208,8 @@ async function loadOrCreateCurrentMonth() {
 async function createFromMaster(name) {
   showToast('📋 Loading master.json from Drive...','info');
   try {
-    const masterText = await driveDownloadText(MASTER_FILE_ID);
+    const masterFileId = await resolveMasterFileId();
+    const masterText = await driveDownloadText(masterFileId);
     const masterData = JSON.parse(masterText);
 
     // Build schemas from master structure
@@ -283,20 +284,40 @@ async function saveToGDrive() {
 }
 
 // ── MASTER JSON EDITOR ────────────────────────────────────────────────────
+async function resolveMasterFileId() {
+  // Try stored ID first — same direct download the month files use
+  if (MASTER_FILE_ID) {
+    const r = await fetch(
+      `https://www.googleapis.com/drive/v3/files/${MASTER_FILE_ID}?fields=id,name`,
+      { headers: H() }
+    );
+    if (r.ok) return MASTER_FILE_ID; // ID is valid, use it
+  }
+  // Stored ID failed — search Drive by filename, same as loadOrCreateCurrentMonth does
+  showToast('Searching Drive for master.json...','info');
+  const q = `name='master.json' and trashed=false and mimeType='application/json'`;
+  const files = await driveList(q);
+  if (files.length === 0) throw new Error('master.json not found in Drive. Upload it first.');
+  const foundId = files[0].id;
+  // Auto-save the correct ID so it works next time
+  MASTER_FILE_ID = foundId;
+  localStorage.setItem('st_master_id', foundId);
+  showToast('✓ Found master.json — ID updated in Settings','success');
+  return foundId;
+}
+
 async function editMasterJson() {
-  if (!accessToken)    { showToast('Please sign in first','error'); return; }
-  if (!MASTER_FILE_ID) { showToast('Master file ID not set — check ⚙️ Settings','error'); return; }
-
+  if (!accessToken) { showToast('Please sign in first','error'); return; }
   closeModal('settingsModal');
-
   showToast('Loading master.json...','info');
   try {
-    const text = await driveDownloadText(MASTER_FILE_ID);
+    const fileId = await resolveMasterFileId();
+    const text   = await driveDownloadText(fileId);
     document.getElementById('masterJsonEditor').value = JSON.stringify(JSON.parse(text), null, 2);
-    showToast('✓ Loaded','success');
+    showToast('✓ master.json loaded','success');
     openModal('masterJsonModal');
   } catch(e) {
-    console.error(e);
+    console.error('editMasterJson error:', e);
     showToast('❌ '+e.message,'error');
   }
 }
