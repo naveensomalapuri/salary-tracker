@@ -25,71 +25,105 @@ let data    = {};
 let SCHEMAS = {};
 
 // ── SCHEMA BUILDER ────────────────────────────────────────────────────────
-// Looks at the keys of the first row in each section of master.json
-// and decides the column type based on key name patterns.
+// Schemas are fixed to match the Excel file exactly.
+// Each section's columns mirror the Excel sheet columns 1-to-1.
 function buildSchemasFromData(masterObj) {
-  const sections = ['income','fixed','semifixed','variable','unexpected','lending'];
+  function collectOpts(section, key) {
+    const rows = (masterObj[section] || []);
+    return [...new Set(rows.map(r => r[key]).filter(v => v && v !== ''))];
+  }
 
-  // Key-name → type hints (date keys, number keys, select keys)
-  const dateKeys   = ['date','dateReceived','datePaid','dateStart','dateEnd','dateGiven','dueDate'];
-  const numberKeys = ['amount','totalLoanAmount','pendingAmount','returned','balance'];
-  const textareaKeys = ['description'];
-
-  // Select field options — only the field name matters, options come from all unique values in data
-  const selectKeys = ['paymentMode','status','type','mode','accountUsed','accountReceived'];
-
-  SCHEMAS = {};
-
-  sections.forEach(section => {
-    const rows = masterObj[section] || [];
-    if (rows.length === 0) {
-      // No rows — build schema from empty object structure or skip
-      SCHEMAS[section] = [{key:'sno', label:'#', type:'sno'}];
-      return;
-    }
-
-    // Collect all unique keys across all rows (in case rows differ)
-    const allKeys = [];
-    rows.forEach(row => {
-      Object.keys(row).forEach(k => {
-        if (!allKeys.includes(k) && !k.startsWith('_')) allKeys.push(k);
-      });
-    });
-
-    // Build schema entry for each key
-    const schema = allKeys.map(key => {
-      if (key === 'sno') return { key, label: '#', type: 'sno' };
-
-      // Pretty label: camelCase → Title Case words
-      const label = key
-        .replace(/([A-Z])/g, ' $1')
-        .replace(/^./, s => s.toUpperCase())
-        .replace('Amount', 'Amount (₹)')
-        .trim();
-
-      if (dateKeys.includes(key))    return { key, label, type: 'date' };
-      if (numberKeys.includes(key))  return { key, label, type: 'number' };
-      if (textareaKeys.includes(key))return { key, label, type: 'textarea' };
-
-      if (selectKeys.includes(key)) {
-        let opts;
-        if (key === 'status') {
-          // Status options are fixed per section — never derived from data
-          opts = section === 'lending'
-            ? ['Fully Paid', 'Partially Paid', 'Delayed']
-            : ['Paid', 'Pending', 'Delayed'];
-        } else {
-          // Other select fields: collect unique non-empty values from all rows
-          opts = [...new Set(rows.map(r => r[key]).filter(v => v && v !== ''))];
-        }
-        return { key, label, type: 'select', opts };
-      }
-
-      return { key, label, type: 'text' };
-    });
-
-    SCHEMAS[section] = schema;
-  });
+  SCHEMAS = {
+    income: [
+      { key:'sno',             label:'#',                  type:'sno'    },
+      { key:'source',          label:'Source',             type:'text'   },
+      { key:'category',        label:'Category',           type:'text'   },
+      { key:'paymentMode',     label:'Payment Mode',       type:'select', opts: collectOpts('income','paymentMode').length ? collectOpts('income','paymentMode') : ['Bank Transfer','Cash','UPI','Auto-Debit'] },
+      { key:'accountReceived', label:'Account Received',   type:'text'   },
+      { key:'dateReceived',    label:'Date Received',      type:'date'   },
+      { key:'amount',          label:'Amount (₹)',         type:'number' },
+      { key:'status',          label:'Status',             type:'select', opts:['Paid','Pending','Delayed'] },
+      { key:'month',           label:'Month',              type:'text'   },
+      { key:'remarks',         label:'Remarks',            type:'text'   },
+    ],
+    fixed: [
+      { key:'sno',             label:'#',                  type:'sno'    },
+      { key:'source',          label:'Source',             type:'text'   },
+      { key:'loanNumber',      label:'Loan Number',        type:'text'   },
+      { key:'totalLoanAmount', label:'Total Loan Amount (₹)', type:'number' },
+      { key:'category',        label:'Category',           type:'text'   },
+      { key:'paymentMode',     label:'Payment Mode',       type:'select', opts: collectOpts('fixed','paymentMode').length ? collectOpts('fixed','paymentMode') : ['Bank Transfer','Cash','UPI','Auto-Debit'] },
+      { key:'dateToPay',       label:'Date to Pay',        type:'text'   },
+      { key:'dateStart',       label:'Date of Start',      type:'date'   },
+      { key:'dateEnd',         label:'Date of End',        type:'date'   },
+      { key:'datePaid',        label:'Date of Paid',       type:'date'   },
+      { key:'amount',          label:'Amount (₹)',         type:'number' },
+      { key:'status',          label:'Status',             type:'select', opts:['Paid','Pending','Delayed'] },
+      { key:'pendingAmount',   label:'Pending Amount (₹)', type:'number' },
+      { key:'interestRate',    label:'Interest Rate (%)',  type:'text'   },
+      { key:'remarks',         label:'Remarks',            type:'text'   },
+    ],
+    semifixed: [
+      { key:'sno',             label:'#',                  type:'sno'    },
+      { key:'source',          label:'Source',             type:'text'   },
+      { key:'loanNumber',      label:'Loan Number',        type:'text'   },
+      { key:'category',        label:'Category',           type:'text'   },
+      { key:'paymentMode',     label:'Payment Mode',       type:'select', opts: collectOpts('semifixed','paymentMode').length ? collectOpts('semifixed','paymentMode') : ['Bank Transfer','Cash','UPI','Auto-Debit'] },
+      { key:'dateToPay',       label:'Date to Pay',        type:'text'   },
+      { key:'dateStart',       label:'Date of Start',      type:'date'   },
+      { key:'dateEnd',         label:'Date of End',        type:'date'   },
+      { key:'datePaid',        label:'Date of Paid',       type:'date'   },
+      { key:'amount',          label:'Amount (₹)',         type:'number' },
+      { key:'status',          label:'Status',             type:'select', opts:['Paid','Pending','Delayed'] },
+      { key:'pendingAmount',   label:'Pending Amount (₹)', type:'number' },
+      { key:'interestRate',    label:'Interest Rate (%)',  type:'text'   },
+      { key:'remarks',         label:'Remarks',            type:'text'   },
+    ],
+    variable: [
+      { key:'sno',         label:'#',              type:'sno'      },
+      { key:'source',      label:'Source',         type:'text'     },
+      { key:'date',        label:'Date',           type:'date'     },
+      { key:'category',    label:'Category',       type:'text'     },
+      { key:'subcategory', label:'Subcategory',    type:'text'     },
+      { key:'paymentMode', label:'Payment Mode',   type:'select', opts: collectOpts('variable','paymentMode').length ? collectOpts('variable','paymentMode') : ['Bank Transfer','Cash','UPI','Auto-Debit','RBL CC','ICICI CC'] },
+      { key:'accountUsed', label:'Account Used',   type:'text'     },
+      { key:'description', label:'Description',    type:'textarea' },
+      { key:'amount',      label:'Amount (₹)',     type:'number'   },
+      { key:'month',       label:'Month',          type:'text'     },
+      { key:'status',      label:'Status',         type:'select', opts:['Paid','Pending','Delayed'] },
+      { key:'remarks',     label:'Remarks',        type:'text'     },
+    ],
+    unexpected: [
+      { key:'sno',         label:'#',              type:'sno'      },
+      { key:'source',      label:'Source',         type:'text'     },
+      { key:'date',        label:'Date',           type:'date'     },
+      { key:'category',    label:'Category',       type:'text'     },
+      { key:'subcategory', label:'Subcategory',    type:'text'     },
+      { key:'paymentMode', label:'Payment Mode',   type:'select', opts: collectOpts('unexpected','paymentMode').length ? collectOpts('unexpected','paymentMode') : ['Bank Transfer','Cash','UPI','Auto-Debit','RBL CC','ICICI CC'] },
+      { key:'accountUsed', label:'Account Used',   type:'text'     },
+      { key:'description', label:'Description',    type:'textarea' },
+      { key:'amount',      label:'Amount (₹)',     type:'number'   },
+      { key:'month',       label:'Month',          type:'text'     },
+      { key:'status',      label:'Status',         type:'select', opts:['Paid','Pending','Delayed'] },
+      { key:'remarks',     label:'Remarks',        type:'text'     },
+    ],
+    lending: [
+      { key:'sno',             label:'#',                    type:'sno'    },
+      { key:'personName',      label:'Person Name',          type:'text'   },
+      { key:'contactRelation', label:'Contact / Relation',   type:'text'   },
+      { key:'type',            label:'Type',                 type:'select', opts: collectOpts('lending','type').length ? collectOpts('lending','type') : ['Lent','Borrowed'] },
+      { key:'mode',            label:'Mode',                 type:'select', opts: collectOpts('lending','mode').length ? collectOpts('lending','mode') : ['Bank Transfer','Cash','UPI','IDFC CC','RBL CC','ICICI CC'] },
+      { key:'dateGiven',       label:'Date Given / Borrowed',type:'date'   },
+      { key:'dueDate',         label:'Due Date',             type:'date'   },
+      { key:'interestRate',    label:'Interest Rate (%)',    type:'text'   },
+      { key:'amount',          label:'Amount (₹)',           type:'number' },
+      { key:'returned',        label:'Returned / Paid (₹)', type:'number' },
+      { key:'balance',         label:'Balance (₹)',          type:'number' },
+      { key:'status',          label:'Status',               type:'select', opts:['Fully Paid','Partially Paid','Delayed'] },
+      { key:'accountUsed',     label:'Account Used',         type:'text'   },
+      { key:'remarks',         label:'Remarks',              type:'text'   },
+    ],
+  };
 }
 
 // ── SIGN IN ───────────────────────────────────────────────────────────────
@@ -385,23 +419,35 @@ function exportExcel() {
   try {
     const wb = XLSX.utils.book_new();
     const sections = ['income','fixed','semifixed','variable','unexpected','lending'];
-    const fi=sumIf(data.fixed||[],'amount','status','Paid'), si=sumIf(data.semifixed||[],'amount','status','Paid');
-    const vi=sumIf(data.variable||[],'amount','status','Paid'), ui=sumIf(data.unexpected||[],'amount','status','Paid');
-    const ti=sum(data.income||[],'amount'), pi=sumIf(data.income||[],'amount','status','Paid'), te=fi+si+vi+ui;
+    const sheetNames = {income:'Income',fixed:'Fixed Expenses',semifixed:'Semi Fixed Exp',
+                        variable:'Variable Exp',unexpected:'Unexpected Exp',lending:'Lending & Borrowing'};
+    // Match Excel dashboard formulas exactly
+    const ti = sum(data.income||[],'amount');
+    const pi = sumIf(data.income||[],'amount','status','Paid');
+    const pndI = sumIf(data.income||[],'amount','status','Pending');
+    const fi = sumIf(data.fixed||[],'amount','status','Paid');
+    const si = sumIf(data.semifixed||[],'amount','status','Paid');
+    const vi = sumIf(data.variable||[],'amount','status','Paid');
+    const ui = sumIf(data.unexpected||[],'amount','status','Paid');
+    const te = fi + si + vi + ui;
+    const nb = ti - te; // Net Balance = Total Income - Total Paid Expenses
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
       ['Salary Tracker — '+MONTHS[currentMonth.month]+' '+currentMonth.year],[''],
-      ['Total Income',ti,'Paid Income',pi,'Pending Income',ti-pi],
-      ['Total Expenses',te,'','','Net Balance',pi-te],[''],
-      ['Fixed (Paid)',fi],['Semi Fixed (Paid)',si],['Variable (Paid)',vi],['Unexpected (Paid)',ui]
+      ['Total Income', ti, '', 'Paid Income', pi, '', 'Pending Income', pndI],[''],
+      ['Total Expenses (Paid)', te, '', '', '', '', 'Net Balance', nb],[''],
+      ['Fixed Expenses (Paid)', fi],
+      ['Semi Fixed Expenses (Paid)', si],
+      ['Variable Expenses (Paid)', vi],
+      ['Unexpected Expenses (Paid)', ui]
     ]), 'Dashboard');
     sections.forEach(key => {
       const schema = SCHEMAS[key] || [];
       const headers = schema.map(c => c.label);
       XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
-        [key+' — '+MONTHS[currentMonth.month]+' '+currentMonth.year],
+        [sheetNames[key]+' — '+MONTHS[currentMonth.month]+' '+currentMonth.year],
         headers,
         ...(data[key]||[]).map((row,i)=>schema.map(c=>c.type==='sno'?i+1:(row[c.key]||'')))
-      ]), key);
+      ]), sheetNames[key]);
     });
     XLSX.writeFile(wb, MONTHS[currentMonth.month]+'-'+currentMonth.year+'_Salary_Tracker.xlsx');
     showToast('📊 Excel downloaded!','success');
@@ -425,10 +471,27 @@ function switchTab(tab) {
 }
 
 function renderDashboard(c) {
-  const ti=sum(data.income||[],'amount'), pi=sumIf(data.income||[],'amount','status','Paid');
-  const fi=sumIf(data.fixed||[],'amount','status','Paid'),    si=sumIf(data.semifixed||[],'amount','status','Paid');
-  const vi=sumIf(data.variable||[],'amount','status','Paid'), ui=sumIf(data.unexpected||[],'amount','status','Paid');
-  const te=fi+si+vi+ui, nb=pi-te, pct=pi>0?Math.min(100,(te/pi)*100):0;
+  // ── Calculations match Excel formulas exactly ──────────────────────────
+  // Total Income  = SUM(Income.amount)           [Excel: =SUM(Income!H4:H6)]
+  // Paid Income   = SUMIF(Income.status="Paid")  [Excel: =SUMIF(Income!I4:I6,"Paid",Income!H4:H6)]
+  // Pending Income= SUMIF(Income.status="Pending")[Excel: =SUMIF(Income!I4:I6,"Pending",Income!H4:H6)]
+  // Expense cats  = SUMIF(status="Paid") per category
+  // Total Expenses= sum of all four paid expense categories [Excel: =SUM(I9,I13,I17,I21)]
+  // Net Balance   = Total Income - Total Expenses [Excel: =C4-C15]
+  const ti = sum(data.income||[],'amount');
+  const pi = sumIf(data.income||[],'amount','status','Paid');
+  const pndIncome = sumIf(data.income||[],'amount','status','Pending');
+  const delIncome = sumIf(data.income||[],'amount','status','Delayed');
+
+  const fi = sumIf(data.fixed||[],'amount','status','Paid');
+  const si = sumIf(data.semifixed||[],'amount','status','Paid');
+  const vi = sumIf(data.variable||[],'amount','status','Paid');
+  const ui = sumIf(data.unexpected||[],'amount','status','Paid');
+  const te = fi + si + vi + ui;
+
+  // Net Balance = Total Income - Total Paid Expenses (matches Excel =C4-C15)
+  const nb = ti - te;
+  const pct = ti > 0 ? Math.min(100, (te / ti) * 100) : 0;
 
   const noFile = !currentFileId ? `<div class="load-card">
     <div class="load-card-title">📂 ${MONTHS[currentMonth.month]} ${currentMonth.year}</div>
@@ -438,19 +501,34 @@ function renderDashboard(c) {
 
   c.innerHTML = noFile + `
     <div class="dashboard-grid">
-      <div class="stat-card income"><div class="stat-label">Paid Income</div><div class="stat-value income">${fmt(pi)}</div></div>
-      <div class="stat-card expenses"><div class="stat-label">Paid Expenses</div><div class="stat-value expenses">${fmt(te)}</div></div>
-      <div class="stat-card balance"><div class="stat-label">Net Balance</div><div class="stat-value ${nb>=0?'balance-pos':'balance-neg'}">${fmt(nb)}</div></div>
-      <div class="stat-card pending"><div class="stat-label">Unpaid Income</div><div class="stat-value" style="color:var(--delayed)">${fmt(ti-pi)}</div></div>
+      <div class="stat-card income">
+        <div class="stat-label">Total Income</div>
+        <div class="stat-value income">${fmt(ti)}</div>
+        <div style="font-size:.68rem;margin-top:.3rem;color:var(--muted)">Paid: <span style="color:var(--paid)">${fmt(pi)}</span> &nbsp; Pending: <span style="color:var(--pending)">${fmt(pndIncome)}</span></div>
+      </div>
+      <div class="stat-card expenses">
+        <div class="stat-label">Total Expenses (Paid)</div>
+        <div class="stat-value expenses">${fmt(te)}</div>
+      </div>
+      <div class="stat-card balance">
+        <div class="stat-label">Net Balance</div>
+        <div class="stat-value ${nb>=0?'balance-pos':'balance-neg'}">${fmt(nb)}</div>
+        <div style="font-size:.68rem;margin-top:.3rem;color:var(--muted)">Total Income − Paid Expenses</div>
+      </div>
+      <div class="stat-card pending">
+        <div class="stat-label">Pending Income</div>
+        <div class="stat-value" style="color:var(--pending)">${fmt(pndIncome)}</div>
+        ${delIncome>0?`<div style="font-size:.68rem;margin-top:.3rem;color:var(--delayed)">Delayed: ${fmt(delIncome)}</div>`:''}
+      </div>
     </div>
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;margin-bottom:1rem">
       <div style="display:flex;justify-content:space-between;margin-bottom:.45rem;font-size:.73rem">
-        <span style="color:var(--muted)">Spend vs Paid Income</span>
+        <span style="color:var(--muted)">Expenses vs Total Income</span>
         <span style="color:var(--accent2);font-family:var(--font-head);font-weight:700">${pct.toFixed(1)}%</span>
       </div>
       <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
     </div>
-    <div class="section-head">Breakdown</div>
+    <div class="section-head">Expense Breakdown</div>
     <div class="sheet-table">
       <table style="min-width:unset;width:100%">
         <thead><tr><th>Category</th><th style="text-align:right">Paid</th><th style="text-align:right">Pending</th><th style="text-align:right">Delayed</th></tr></thead>
@@ -462,10 +540,16 @@ function renderDashboard(c) {
             ['Unexpected', ui, sumIf(data.unexpected||[],'amount','status','Pending'),sumIf(data.unexpected||[],'amount','status','Delayed')]
           ].map(([cat,p,pnd,del])=>`<tr>
             <td>${cat}</td>
-            <td style="text-align:right;color:var(--accent);font-family:var(--font-mono)">${fmt(p)}</td>
-            <td style="text-align:right;color:var(--accent2);font-family:var(--font-mono)">${fmt(pnd)}</td>
+            <td style="text-align:right;color:var(--paid);font-family:var(--font-mono)">${p>0?fmt(p):'-'}</td>
+            <td style="text-align:right;color:var(--pending);font-family:var(--font-mono)">${pnd>0?fmt(pnd):'-'}</td>
             <td style="text-align:right;color:var(--delayed);font-family:var(--font-mono)">${del>0?fmt(del):'-'}</td>
           </tr>`).join('')}
+          <tr style="border-top:1px solid var(--border);font-weight:700">
+            <td>Total</td>
+            <td style="text-align:right;color:var(--paid);font-family:var(--font-mono)">${fmt(te)}</td>
+            <td style="text-align:right;color:var(--pending);font-family:var(--font-mono)">${fmt(sumIf(data.fixed||[],'amount','status','Pending')+sumIf(data.semifixed||[],'amount','status','Pending')+sumIf(data.variable||[],'amount','status','Pending')+sumIf(data.unexpected||[],'amount','status','Pending'))}</td>
+            <td style="text-align:right;color:var(--delayed);font-family:var(--font-mono)">${fmt(sumIf(data.fixed||[],'amount','status','Delayed')+sumIf(data.semifixed||[],'amount','status','Delayed')+sumIf(data.variable||[],'amount','status','Delayed')+sumIf(data.unexpected||[],'amount','status','Delayed'))}</td>
+          </tr>
         </tbody>
       </table>
     </div>`;
@@ -474,24 +558,25 @@ function renderDashboard(c) {
 function renderSheet(c, key, title) {
   const schema  = SCHEMAS[key] || [];
   const rows    = data[key]    || [];
-  const stColor = {Paid:'var(--paid)',Pending:'var(--pending)',Delayed:'var(--delayed)',
-                   'Partially Paid':'var(--accent3)','Fully Paid':'var(--paid)'};
-  const statusOpts = key === 'lending'
-    ? ['Fully Paid','Partially Paid','Delayed']
-    : ['Paid','Pending','Delayed'];
+  // Status colour coding matches Excel status values
+  const stColor = {
+    'Paid':         'var(--paid)',
+    'Pending':      'var(--pending)',
+    'Delayed':      'var(--delayed)',
+    'Partially Paid':'var(--accent3)',
+    'Fully Paid':   'var(--paid)'
+  };
 
   const thead = schema.map(col=>`<th>${col.label}</th>`).join('')+'<th></th>';
   const tbody = rows.length===0
     ? `<tr><td colspan="${schema.length+1}" style="color:var(--muted);padding:2rem;font-size:.8rem">No entries yet. Tap + to add.</td></tr>`
     : rows.map((row,ri)=>`<tr>${schema.map(col=>{
         const v=(row[col.key]??'').toString().replace(/"/g,'&quot;');
-        if (col.type==='sno')    return `<td style="color:var(--muted);font-size:.68rem;min-width:22px">${ri+1}</td>`;
-        if (col.type==='select') {
-          const opts = col.key === 'status' ? statusOpts : (col.opts||[]);
-          return `<td><select class="inline-select" style="color:${stColor[row[col.key]]||'var(--text)'}" onchange="updateCell('${key}',${ri},'${col.key}',this.value)">${opts.map(o=>`<option ${o===row[col.key]?'selected':''}>${o}</option>`).join('')}</select></td>`;
-        }
-        if (col.type==='number') return `<td><input class="inline-input" type="number" step="0.01" value="${v}" onchange="updateCell('${key}',${ri},'${col.key}',this.value)" style="width:78px;text-align:right"></td>`;
-        if (col.type==='date')   return `<td><input class="inline-input" type="date" value="${v}" onchange="updateCell('${key}',${ri},'${col.key}',this.value)" style="width:118px"></td>`;
+        if (col.type==='sno')      return `<td style="color:var(--muted);font-size:.68rem;min-width:22px">${ri+1}</td>`;
+        if (col.type==='select')   return `<td><select class="inline-select" style="color:${stColor[row[col.key]]||'var(--text)'}" onchange="updateCell('${key}',${ri},'${col.key}',this.value)">${(col.opts||[]).map(o=>`<option ${o===row[col.key]?'selected':''}>${o}</option>`).join('')}</select></td>`;
+        if (col.type==='number')   return `<td><input class="inline-input" type="number" step="0.01" value="${v}" onchange="updateCell('${key}',${ri},'${col.key}',this.value)" style="width:90px;text-align:right"></td>`;
+        if (col.type==='date')     return `<td><input class="inline-input" type="date" value="${v}" onchange="updateCell('${key}',${ri},'${col.key}',this.value)" style="width:118px"></td>`;
+        if (col.type==='textarea') return `<td><input class="inline-input" type="text" value="${v}" onchange="updateCell('${key}',${ri},'${col.key}',this.value)" style="min-width:120px"></td>`;
         return `<td><input class="inline-input" type="text" value="${v}" onchange="updateCell('${key}',${ri},'${col.key}',this.value)" style="min-width:65px"></td>`;
       }).join('')}<td><button class="delete-btn" onclick="deleteRow('${key}',${ri})">✕</button></td></tr>`
     ).join('');
@@ -540,20 +625,15 @@ function discardChanges() {
 function showAddRow(key, title) {
   addRowContext = key;
   document.getElementById('addRowTitle').textContent = 'Add '+title;
+  // Schema already has correct opts for every field (including status) from buildSchemasFromData
   const schema = (SCHEMAS[key] || []).filter(c=>c.type!=='sno');
-  const statusOpts = key === 'lending'
-    ? ['Fully Paid','Partially Paid','Delayed']
-    : ['Paid','Pending','Delayed'];
   document.getElementById('addRowForm').innerHTML = '<div class="form-grid">' +
     schema.map(col => {
       let input = '';
-      if (col.type==='select') {
-        const opts = col.key === 'status' ? statusOpts : (col.opts||[]);
-        input = `<select class="form-select" name="${col.key}"><option value="">Select...</option>${opts.map(o=>`<option>${o}</option>`).join('')}</select>`;
-      }
+      if      (col.type==='select')   input = `<select class="form-select" name="${col.key}"><option value="">Select...</option>${(col.opts||[]).map(o=>`<option>${o}</option>`).join('')}</select>`;
       else if (col.type==='date')     input = `<input type="date" class="form-input" name="${col.key}">`;
       else if (col.type==='number')   input = `<input type="number" class="form-input" name="${col.key}" step="0.01">`;
-      else if (col.type==='textarea') input = `<textarea class="form-input" name="${col.key}" rows="1" placeholder="${col.label}"></textarea>`;
+      else if (col.type==='textarea') input = `<textarea class="form-input" name="${col.key}" rows="2" placeholder="${col.label}"></textarea>`;
       else                            input = `<input type="text" class="form-input" name="${col.key}" placeholder="${col.label}">`;
       return `<div class="form-group"><label class="form-label">${col.label}</label>${input}</div>`;
     }).join('') + '</div>';
