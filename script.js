@@ -1,4 +1,4 @@
-// ── CONFIG (IDs only — zero data hardcoded) ───────────────────────────────
+// ── CONFIG ────────────────────────────────────────────────────────────────
 const DEFAULT_CLIENT_ID = '802226109271-praqff3gi21a2i90mp78bmn6a7999s9m.apps.googleusercontent.com';
 const DEFAULT_MASTER_ID = '1G-TZIlJPtSygE7jDmDDbJsuAr8pRGP8T';
 const DEFAULT_FOLDER_ID = '1FpSq1CKfMec2P3p15C8U7HFYgK-HLiNE';
@@ -20,100 +20,69 @@ let hasChanges    = false;
 let addRowContext  = null;
 let gisLoaded     = false;
 
-let data = { income:[], fixed:[], semifixed:[], variable:[], unexpected:[], lending:[] };
+// All data and schemas come from Drive — nothing hardcoded here
+let data    = {};
+let SCHEMAS = {};
 
-// ── SCHEMAS ───────────────────────────────────────────────────────────────
-const SCHEMAS = {
-  income:[
-    {key:'sno',            label:'#',          type:'sno'},
-    {key:'source',         label:'Source',     type:'text'},
-    {key:'category',       label:'Category',   type:'text'},
-    {key:'paymentMode',    label:'Mode',       type:'select', opts:['Bank Transfer','Cash','Auto-Debit','UPI','Credit Card']},
-    {key:'accountReceived',label:'Account',    type:'text'},
-    {key:'dateReceived',   label:'Date Recv',  type:'date'},
-    {key:'amount',         label:'Amount (₹)', type:'number'},
-    {key:'status',         label:'Status',     type:'select', opts:['Paid','Pending','Delayed']},
-    {key:'month',          label:'Month',      type:'text'},
-    {key:'remarks',        label:'Remarks',    type:'text'}
-  ],
-  fixed:[
-    {key:'sno',             label:'#',           type:'sno'},
-    {key:'source',          label:'Source',      type:'text'},
-    {key:'loanNumber',      label:'Loan No.',    type:'text'},
-    {key:'totalLoanAmount', label:'Total Loan',  type:'number'},
-    {key:'category',        label:'Category',    type:'text'},
-    {key:'paymentMode',     label:'Mode',        type:'select', opts:['Bank Transfer','Auto-Debit','Cash','SBI Bank','ICICI Bank','BOI Bank','UPI']},
-    {key:'dateToPay',       label:'Due Day',     type:'text'},
-    {key:'dateStart',       label:'Start',       type:'date'},
-    {key:'dateEnd',         label:'End',         type:'date'},
-    {key:'datePaid',        label:'Paid On',     type:'date'},
-    {key:'amount',          label:'Amount (₹)',  type:'number'},
-    {key:'status',          label:'Status',      type:'select', opts:['Paid','Pending','Delayed']},
-    {key:'pendingAmount',   label:'Pending (₹)', type:'number'},
-    {key:'interestRate',    label:'Interest',    type:'text'},
-    {key:'remarks',         label:'Remarks',     type:'text'}
-  ],
-  semifixed:[
-    {key:'sno',           label:'#',           type:'sno'},
-    {key:'source',        label:'Source',      type:'text'},
-    {key:'loanNumber',    label:'Ref No.',     type:'text'},
-    {key:'category',      label:'Category',    type:'text'},
-    {key:'paymentMode',   label:'Mode',        type:'select', opts:['Bank Transfer','Auto-Debit','Cash','UPI','RBL CC']},
-    {key:'dateToPay',     label:'Due Day',     type:'text'},
-    {key:'dateStart',     label:'Start',       type:'date'},
-    {key:'dateEnd',       label:'End',         type:'date'},
-    {key:'datePaid',      label:'Paid On',     type:'date'},
-    {key:'amount',        label:'Amount (₹)',  type:'number'},
-    {key:'status',        label:'Status',      type:'select', opts:['Paid','Pending','Delayed']},
-    {key:'pendingAmount', label:'Pending (₹)', type:'number'},
-    {key:'interestRate',  label:'Interest',    type:'text'},
-    {key:'remarks',       label:'Remarks',     type:'text'}
-  ],
-  variable:[
-    {key:'sno',         label:'#',           type:'sno'},
-    {key:'source',      label:'Source',      type:'text'},
-    {key:'date',        label:'Date',        type:'date'},
-    {key:'category',    label:'Category',    type:'text'},
-    {key:'subcategory', label:'Subcategory', type:'text'},
-    {key:'paymentMode', label:'Mode',        type:'select', opts:['Bank Transfer','Cash','Auto-Debit','UPI','RBL CC','ICICI CC']},
-    {key:'accountUsed', label:'Account',     type:'text'},
-    {key:'description', label:'Description', type:'textarea'},
-    {key:'amount',      label:'Amount (₹)',  type:'number'},
-    {key:'month',       label:'Month',       type:'text'},
-    {key:'status',      label:'Status',      type:'select', opts:['Paid','Pending','Delayed']},
-    {key:'remarks',     label:'Remarks',     type:'text'}
-  ],
-  unexpected:[
-    {key:'sno',         label:'#',           type:'sno'},
-    {key:'source',      label:'Source',      type:'text'},
-    {key:'date',        label:'Date',        type:'date'},
-    {key:'category',    label:'Category',    type:'text'},
-    {key:'subcategory', label:'Subcategory', type:'text'},
-    {key:'paymentMode', label:'Mode',        type:'select', opts:['Bank Transfer','Cash','Auto-Debit','UPI','RBL CC','ICICI CC']},
-    {key:'accountUsed', label:'Account',     type:'text'},
-    {key:'description', label:'Description', type:'text'},
-    {key:'amount',      label:'Amount (₹)',  type:'number'},
-    {key:'month',       label:'Month',       type:'text'},
-    {key:'status',      label:'Status',      type:'select', opts:['Paid','Pending','Delayed']},
-    {key:'remarks',     label:'Remarks',     type:'text'}
-  ],
-  lending:[
-    {key:'sno',         label:'#',            type:'sno'},
-    {key:'personName',  label:'Person',       type:'text'},
-    {key:'contact',     label:'Contact',      type:'text'},
-    {key:'type',        label:'Type',         type:'select', opts:['Lent','Borrowed']},
-    {key:'mode',        label:'Mode',         type:'select', opts:['Bank Transfer','Cash','UPI','IDFC CC','RBL CC','ICICI CC']},
-    {key:'dateGiven',   label:'Date Given',   type:'date'},
-    {key:'dueDate',     label:'Due Date',     type:'date'},
-    {key:'interestRate',label:'Interest',     type:'text'},
-    {key:'amount',      label:'Amount (₹)',   type:'number'},
-    {key:'returned',    label:'Returned (₹)', type:'number'},
-    {key:'balance',     label:'Balance (₹)',  type:'number'},
-    {key:'status',      label:'Status',       type:'select', opts:['Fully Paid','Partially Paid','Pending']},
-    {key:'accountUsed', label:'Account',      type:'text'},
-    {key:'remarks',     label:'Remarks',      type:'text'}
-  ]
-};
+// ── SCHEMA BUILDER ────────────────────────────────────────────────────────
+// Looks at the keys of the first row in each section of master.json
+// and decides the column type based on key name patterns.
+function buildSchemasFromData(masterObj) {
+  const sections = ['income','fixed','semifixed','variable','unexpected','lending'];
+
+  // Key-name → type hints (date keys, number keys, select keys)
+  const dateKeys   = ['date','dateReceived','datePaid','dateStart','dateEnd','dateGiven','dueDate'];
+  const numberKeys = ['amount','totalLoanAmount','pendingAmount','returned','balance'];
+  const textareaKeys = ['description'];
+
+  // Select field options — only the field name matters, options come from all unique values in data
+  const selectKeys = ['paymentMode','status','type','mode','accountUsed','accountReceived'];
+
+  SCHEMAS = {};
+
+  sections.forEach(section => {
+    const rows = masterObj[section] || [];
+    if (rows.length === 0) {
+      // No rows — build schema from empty object structure or skip
+      SCHEMAS[section] = [{key:'sno', label:'#', type:'sno'}];
+      return;
+    }
+
+    // Collect all unique keys across all rows (in case rows differ)
+    const allKeys = [];
+    rows.forEach(row => {
+      Object.keys(row).forEach(k => {
+        if (!allKeys.includes(k) && !k.startsWith('_')) allKeys.push(k);
+      });
+    });
+
+    // Build schema entry for each key
+    const schema = allKeys.map(key => {
+      if (key === 'sno') return { key, label: '#', type: 'sno' };
+
+      // Pretty label: camelCase → Title Case words
+      const label = key
+        .replace(/([A-Z])/g, ' $1')
+        .replace(/^./, s => s.toUpperCase())
+        .replace('Amount', 'Amount (₹)')
+        .trim();
+
+      if (dateKeys.includes(key))    return { key, label, type: 'date' };
+      if (numberKeys.includes(key))  return { key, label, type: 'number' };
+      if (textareaKeys.includes(key))return { key, label, type: 'textarea' };
+
+      if (selectKeys.includes(key)) {
+        // Collect unique non-empty values from all rows as options
+        const opts = [...new Set(rows.map(r => r[key]).filter(v => v && v !== ''))];
+        return { key, label, type: 'select', opts };
+      }
+
+      return { key, label, type: 'text' };
+    });
+
+    SCHEMAS[section] = schema;
+  });
+}
 
 // ── SIGN IN ───────────────────────────────────────────────────────────────
 function handleGoogleSignIn() {
@@ -173,7 +142,13 @@ async function driveList(q) {
 async function driveDownloadText(fileId) {
   if (!accessToken) throw new Error('Not authenticated');
   const r = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, { headers:H() });
-  if (!r.ok) throw new Error('Download failed: '+(await r.text()));
+  if (!r.ok) {
+    let msg = 'HTTP '+r.status;
+    try { const e = await r.json(); msg = e.error?.message || msg; } catch(_){}
+    if (r.status===404) throw new Error('File not found — check the Master File ID in Settings.');
+    if (r.status===403) throw new Error('Access denied (403) — file must be owned by your Google account.');
+    throw new Error(msg);
+  }
   return r.text();
 }
 async function driveUploadJson(fileId, obj, name) {
@@ -236,6 +211,9 @@ async function createFromMaster(name) {
     const masterText = await driveDownloadText(MASTER_FILE_ID);
     const masterData = JSON.parse(masterText);
 
+    // Build schemas from master structure
+    buildSchemasFromData(masterData);
+
     const newData = JSON.parse(JSON.stringify(masterData));
     newData._month   = MONTHS[currentMonth.month];
     newData._year    = currentMonth.year;
@@ -257,7 +235,10 @@ async function createFromMaster(name) {
 async function loadJsonData() {
   try {
     const text = await driveDownloadText(currentFileId);
-    loadDataFromObject(JSON.parse(text));
+    const obj  = JSON.parse(text);
+    // Rebuild schemas from the loaded file's actual keys
+    buildSchemasFromData(obj);
+    loadDataFromObject(obj);
     setFileStatus(true);
     switchTab(currentTab);
     showToast('✓ Data loaded!','success');
@@ -268,8 +249,9 @@ async function loadJsonData() {
 }
 
 function loadDataFromObject(obj) {
-  const keys = ['income','fixed','semifixed','variable','unexpected','lending'];
-  keys.forEach(k => {
+  const sections = ['income','fixed','semifixed','variable','unexpected','lending'];
+  data = {};
+  sections.forEach(k => {
     data[k] = (obj[k] || []).map((row, i) => ({
       ...row,
       _id: row._id || (k+'_'+i+'_'+Date.now())
@@ -284,18 +266,9 @@ async function saveToGDrive() {
   btn.innerHTML = '<div class="spinner"></div>';
   btn.disabled = true;
   try {
-    const payload = {
-      _version:   1,
-      _month:     MONTHS[currentMonth.month],
-      _year:      currentMonth.year,
-      _saved:     new Date().toISOString(),
-      income:     data.income,
-      fixed:      data.fixed,
-      semifixed:  data.semifixed,
-      variable:   data.variable,
-      unexpected: data.unexpected,
-      lending:    data.lending
-    };
+    const sections = ['income','fixed','semifixed','variable','unexpected','lending'];
+    const payload = { _version:1, _month:MONTHS[currentMonth.month], _year:currentMonth.year, _saved:new Date().toISOString() };
+    sections.forEach(k => payload[k] = data[k] || []);
     await driveUploadJson(currentFileId, payload, getFileName());
     showToast('✓ Saved to Google Drive!','success');
     hasChanges = false;
@@ -310,63 +283,37 @@ async function saveToGDrive() {
 }
 
 // ── MASTER JSON EDITOR ────────────────────────────────────────────────────
-// Loads from Drive, editable in textarea, saves back to Drive
 async function editMasterJson() {
   if (!accessToken)    { showToast('Please sign in first','error'); return; }
   if (!MASTER_FILE_ID) { showToast('Master file ID not set — check ⚙️ Settings','error'); return; }
 
-  closeModal('settingsModal'); // must close first so editor appears on top
+  closeModal('settingsModal');
 
-  showToast('Loading master.json from Drive...','info');
+  showToast('Loading master.json...','info');
   try {
     const text = await driveDownloadText(MASTER_FILE_ID);
     document.getElementById('masterJsonEditor').value = JSON.stringify(JSON.parse(text), null, 2);
-    showToast('✓ master.json loaded','success');
+    showToast('✓ Loaded','success');
     openModal('masterJsonModal');
   } catch(e) {
     console.error(e);
-    // Don't open editor with stale data — show exact error so user knows what's wrong
-    showToast('❌ Cannot load master.json: '+e.message,'error');
+    showToast('❌ '+e.message,'error');
   }
 }
 
-function formatMasterJson() {
-  const ta = document.getElementById('masterJsonEditor');
-  try {
-    ta.value = JSON.stringify(JSON.parse(ta.value), null, 2);
-    showToast('✨ Formatted!','success');
-  } catch(e) { showToast('❌ Invalid JSON: '+e.message,'error'); }
-}
-
-function validateMasterJson() {
-  try {
-    const json = JSON.parse(document.getElementById('masterJsonEditor').value);
-    const req  = ['income','fixed','semifixed','variable','unexpected','lending'];
-    const miss = req.filter(k => !Array.isArray(json[k]));
-    if (miss.length) { showToast('⚠️ Missing sections: '+miss.join(', '),'error'); return; }
-    showToast('✅ Valid! '+req.map(k=>k+':'+json[k].length).join(' · '),'success');
-  } catch(e) { showToast('❌ '+e.message,'error'); }
-}
-
 async function saveMasterJson() {
-  // Step 1: validate JSON syntax
   let json;
   try { json = JSON.parse(document.getElementById('masterJsonEditor').value); }
   catch(e) { showToast('❌ Invalid JSON: '+e.message,'error'); return; }
-
-  // Step 2: validate required sections present
-  const req  = ['income','fixed','semifixed','variable','unexpected','lending'];
-  const miss = req.filter(k => !Array.isArray(json[k]));
-  if (miss.length) { showToast('❌ Missing sections: '+miss.join(', '),'error'); return; }
-
-  // Step 3: save to Drive
   try {
-    showToast('Saving master.json to Drive...','info');
+    showToast('Saving...','info');
     await driveUploadJson(MASTER_FILE_ID, json, 'master.json');
-    showToast('✓ master.json saved to Drive!','success');
+    // Rebuild schemas from updated master
+    buildSchemasFromData(json);
+    showToast('✓ master.json saved!','success');
     closeModal('masterJsonModal');
   } catch(e) {
-    showToast('❌ Save failed: '+e.message,'error');
+    showToast('❌ '+e.message,'error');
     console.error(e);
   }
 }
@@ -375,30 +322,24 @@ async function saveMasterJson() {
 function exportExcel() {
   try {
     const wb = XLSX.utils.book_new();
-    const fi=sumIf(data.fixed,'amount','status','Paid'), si=sumIf(data.semifixed,'amount','status','Paid');
-    const vi=sumIf(data.variable,'amount','status','Paid'), ui=sumIf(data.unexpected,'amount','status','Paid');
-    const ti=sum(data.income,'amount'), pi=sumIf(data.income,'amount','status','Paid'), te=fi+si+vi+ui;
+    const sections = ['income','fixed','semifixed','variable','unexpected','lending'];
+    const fi=sumIf(data.fixed||[],'amount','status','Paid'), si=sumIf(data.semifixed||[],'amount','status','Paid');
+    const vi=sumIf(data.variable||[],'amount','status','Paid'), ui=sumIf(data.unexpected||[],'amount','status','Paid');
+    const ti=sum(data.income||[],'amount'), pi=sumIf(data.income||[],'amount','status','Paid'), te=fi+si+vi+ui;
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
       ['Salary Tracker — '+MONTHS[currentMonth.month]+' '+currentMonth.year],[''],
       ['Total Income',ti,'Paid Income',pi,'Pending Income',ti-pi],
       ['Total Expenses',te,'','','Net Balance',pi-te],[''],
-      ['Fixed Expenses (Paid)',fi],['Semi Fixed Expenses (Paid)',si],
-      ['Variable Expenses (Paid)',vi],['Unexpected Expenses (Paid)',ui]
+      ['Fixed (Paid)',fi],['Semi Fixed (Paid)',si],['Variable (Paid)',vi],['Unexpected (Paid)',ui]
     ]), 'Dashboard');
-    const sheets = [
-      {key:'income',    name:'Income',    headers:['S.No','Source','Category','Mode','Account','Date Received','Amount (₹)','Status','Month','Remarks']},
-      {key:'fixed',     name:'Fixed Exp', headers:['S.No','Source','Loan No.','Total Loan','Category','Mode','Due Day','Start','End','Paid On','Amount (₹)','Status','Pending (₹)','Interest','Remarks']},
-      {key:'semifixed', name:'Semi Fixed',headers:['S.No','Source','Ref No.','Category','Mode','Due Day','Start','End','Paid On','Amount (₹)','Status','Pending (₹)','Interest','Remarks']},
-      {key:'variable',  name:'Variable',  headers:['S.No','Source','Date','Category','Subcategory','Mode','Account','Description','Amount (₹)','Month','Status','Remarks']},
-      {key:'unexpected',name:'Unexpected',headers:['S.No','Source','Date','Category','Subcategory','Mode','Account','Description','Amount (₹)','Month','Status','Remarks']},
-      {key:'lending',   name:'Lending',   headers:['S.No','Person','Contact','Type','Mode','Date Given','Due Date','Interest','Amount (₹)','Returned (₹)','Balance (₹)','Status','Account','Remarks']}
-    ];
-    sheets.forEach(({key,name,headers}) => {
-      const schema = SCHEMAS[key];
+    sections.forEach(key => {
+      const schema = SCHEMAS[key] || [];
+      const headers = schema.map(c => c.label);
       XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
-        [name+' — '+MONTHS[currentMonth.month]+' '+currentMonth.year], headers,
-        ...data[key].map((row,i)=>schema.map(c=>c.type==='sno'?i+1:(row[c.key]||'')))
-      ]), name);
+        [key+' — '+MONTHS[currentMonth.month]+' '+currentMonth.year],
+        headers,
+        ...(data[key]||[]).map((row,i)=>schema.map(c=>c.type==='sno'?i+1:(row[c.key]||'')))
+      ]), key);
     });
     XLSX.writeFile(wb, MONTHS[currentMonth.month]+'-'+currentMonth.year+'_Salary_Tracker.xlsx');
     showToast('📊 Excel downloaded!','success');
@@ -422,14 +363,14 @@ function switchTab(tab) {
 }
 
 function renderDashboard(c) {
-  const ti=sum(data.income,'amount'), pi=sumIf(data.income,'amount','status','Paid');
-  const fi=sumIf(data.fixed,'amount','status','Paid'),    si=sumIf(data.semifixed,'amount','status','Paid');
-  const vi=sumIf(data.variable,'amount','status','Paid'), ui=sumIf(data.unexpected,'amount','status','Paid');
+  const ti=sum(data.income||[],'amount'), pi=sumIf(data.income||[],'amount','status','Paid');
+  const fi=sumIf(data.fixed||[],'amount','status','Paid'),    si=sumIf(data.semifixed||[],'amount','status','Paid');
+  const vi=sumIf(data.variable||[],'amount','status','Paid'), ui=sumIf(data.unexpected||[],'amount','status','Paid');
   const te=fi+si+vi+ui, nb=pi-te, pct=pi>0?Math.min(100,(te/pi)*100):0;
 
   const noFile = !currentFileId ? `<div class="load-card">
     <div class="load-card-title">📂 ${MONTHS[currentMonth.month]} ${currentMonth.year}</div>
-    <div class="load-card-sub">No file loaded. Tap below to load existing or create new from master template.</div>
+    <div class="load-card-sub">No file loaded. Tap below to load or create from master template.</div>
     <button class="btn btn-primary" style="width:100%" onclick="loadOrCreateCurrentMonth()">📋 Load / Create Month File</button>
   </div>` : '';
 
@@ -453,10 +394,10 @@ function renderDashboard(c) {
         <thead><tr><th>Category</th><th style="text-align:right">Paid</th><th style="text-align:right">Pending</th><th style="text-align:right">Delayed</th></tr></thead>
         <tbody>
           ${[
-            ['Fixed Exp',  fi, sumIf(data.fixed,    'amount','status','Pending'), sumIf(data.fixed,    'amount','status','Delayed')],
-            ['Semi Fixed', si, sumIf(data.semifixed,'amount','status','Pending'), sumIf(data.semifixed,'amount','status','Delayed')],
-            ['Variable',   vi, sumIf(data.variable, 'amount','status','Pending'), sumIf(data.variable, 'amount','status','Delayed')],
-            ['Unexpected', ui, sumIf(data.unexpected,'amount','status','Pending'),sumIf(data.unexpected,'amount','status','Delayed')]
+            ['Fixed',      fi, sumIf(data.fixed||[],    'amount','status','Pending'), sumIf(data.fixed||[],    'amount','status','Delayed')],
+            ['Semi Fixed', si, sumIf(data.semifixed||[],'amount','status','Pending'), sumIf(data.semifixed||[],'amount','status','Delayed')],
+            ['Variable',   vi, sumIf(data.variable||[], 'amount','status','Pending'), sumIf(data.variable||[], 'amount','status','Delayed')],
+            ['Unexpected', ui, sumIf(data.unexpected||[],'amount','status','Pending'),sumIf(data.unexpected||[],'amount','status','Delayed')]
           ].map(([cat,p,pnd,del])=>`<tr>
             <td>${cat}</td>
             <td style="text-align:right;color:var(--accent);font-family:var(--font-mono)">${fmt(p)}</td>
@@ -469,8 +410,8 @@ function renderDashboard(c) {
 }
 
 function renderSheet(c, key, title) {
-  const schema  = SCHEMAS[key];
-  const rows    = data[key];
+  const schema  = SCHEMAS[key] || [];
+  const rows    = data[key]    || [];
   const stColor = {Paid:'var(--paid)',Pending:'var(--pending)',Delayed:'var(--delayed)',
                    'Partially Paid':'var(--accent3)','Fully Paid':'var(--paid)'};
 
@@ -480,7 +421,7 @@ function renderSheet(c, key, title) {
     : rows.map((row,ri)=>`<tr>${schema.map(col=>{
         const v=(row[col.key]??'').toString().replace(/"/g,'&quot;');
         if (col.type==='sno')    return `<td style="color:var(--muted);font-size:.68rem;min-width:22px">${ri+1}</td>`;
-        if (col.type==='select') return `<td><select class="inline-select" style="color:${stColor[row[col.key]]||'var(--text)'}" onchange="updateCell('${key}',${ri},'${col.key}',this.value)">${col.opts.map(o=>`<option ${o===row[col.key]?'selected':''}>${o}</option>`).join('')}</select></td>`;
+        if (col.type==='select') return `<td><select class="inline-select" style="color:${stColor[row[col.key]]||'var(--text)'}" onchange="updateCell('${key}',${ri},'${col.key}',this.value)">${(col.opts||[]).map(o=>`<option ${o===row[col.key]?'selected':''}>${o}</option>`).join('')}</select></td>`;
         if (col.type==='number') return `<td><input class="inline-input" type="number" step="0.01" value="${v}" onchange="updateCell('${key}',${ri},'${col.key}',this.value)" style="width:78px;text-align:right"></td>`;
         if (col.type==='date')   return `<td><input class="inline-input" type="date" value="${v}" onchange="updateCell('${key}',${ri},'${col.key}',this.value)" style="width:118px"></td>`;
         return `<td><input class="inline-input" type="text" value="${v}" onchange="updateCell('${key}',${ri},'${col.key}',this.value)" style="min-width:65px"></td>`;
@@ -531,11 +472,11 @@ function discardChanges() {
 function showAddRow(key, title) {
   addRowContext = key;
   document.getElementById('addRowTitle').textContent = 'Add '+title;
-  const schema = SCHEMAS[key].filter(c=>c.type!=='sno');
+  const schema = (SCHEMAS[key] || []).filter(c=>c.type!=='sno');
   document.getElementById('addRowForm').innerHTML = '<div class="form-grid">' +
     schema.map(col => {
       let input = '';
-      if      (col.type==='select')   input = `<select class="form-select" name="${col.key}"><option value="">Select...</option>${col.opts.map(o=>`<option>${o}</option>`).join('')}</select>`;
+      if      (col.type==='select')   input = `<select class="form-select" name="${col.key}"><option value="">Select...</option>${(col.opts||[]).map(o=>`<option>${o}</option>`).join('')}</select>`;
       else if (col.type==='date')     input = `<input type="date" class="form-input" name="${col.key}">`;
       else if (col.type==='number')   input = `<input type="number" class="form-input" name="${col.key}" step="0.01">`;
       else if (col.type==='textarea') input = `<textarea class="form-input" name="${col.key}" rows="1" placeholder="${col.label}"></textarea>`;
@@ -545,14 +486,15 @@ function showAddRow(key, title) {
   openModal('addRowModal');
 }
 function submitAddRow() {
-  const key=addRowContext, schema=SCHEMAS[key], form=document.getElementById('addRowForm');
+  const key=addRowContext, schema=SCHEMAS[key]||[], form=document.getElementById('addRowForm');
   const row={_id:key+'_'+Date.now()};
   schema.forEach(col=>{
-    if (col.type==='sno') { row.sno=data[key].length+1; return; }
+    if (col.type==='sno') { row.sno=(data[key]||[]).length+1; return; }
     const el=form.querySelector('[name="'+col.key+'"]');
     row[col.key]=el?el.value:'';
   });
   if (key==='lending') row.balance=String((parseFloat(row.amount)||0)-(parseFloat(row.returned)||0));
+  if (!data[key]) data[key]=[];
   data[key].push(row);
   closeModal('addRowModal'); markDirty(); switchTab(currentTab);
 }
@@ -612,7 +554,7 @@ function setFileStatus(linked) {
   el.className='file-status'+(linked?' linked':'');
   el.innerHTML=`<div class="dot"></div><span>${linked?getFileName():'No file'}</span>`;
 }
-function resetData() { data={income:[],fixed:[],semifixed:[],variable:[],unexpected:[],lending:[]}; }
+function resetData() { data={}; SCHEMAS={}; }
 function openModal(id)  { document.getElementById(id).classList.add('open'); }
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 
