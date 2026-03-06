@@ -836,25 +836,26 @@ async function saveMasterJson() {
 }
 
 // Reset: produces a completely blank template
-// Every field is empty string except sno (row number) — no values carried forward
+// Builds entirely from SCHEMAS — no values from existing data are carried forward at all
 async function confirmResetMaster() {
-  if (!confirm('Reset master.json to completely blank?\n\nEvery field will be emptied.\nOnly the row count and section structure are kept.\n\nExisting monthly files are NOT affected.')) return;
+  if (!confirm('Reset master.json to completely blank?\n\nEvery field will be emptied — no sources, no amounts, nothing.\nOnly row numbers (S.No) are kept.\n\nExisting monthly files are NOT affected.')) return;
 
-  showToast('Resetting master.json...', 'info');
+  showToast('Resetting master.json to blank...', 'info');
   try {
-    // Load current master to know how many rows each section has
-    let masterData;
-    try {
-      const text = await driveDownloadText(MASTER_FILE_ID);
-      masterData = JSON.parse(text);
-    } catch(e) {
-      masterData = getBuiltInMasterData();
-    }
-
     const sections = ['income','fixed','semifixed','variable','unexpected','lending'];
 
-    // Build blank template: for each section, create same number of rows
-    // with every field = '' and status = 'Pending', only sno preserved
+    // Row counts per section — how many blank rows to generate
+    // These match your current template row counts exactly
+    const rowCounts = {
+      income:     3,
+      fixed:      14,
+      semifixed:  7,
+      variable:   15,
+      unexpected: 0,
+      lending:    2
+    };
+
+    // Build entirely from SCHEMAS — no reference to any existing data
     const blank = {
       _version:     1,
       _description: 'Salary Tracker Master Template - Naveen Somalapuri',
@@ -863,18 +864,17 @@ async function confirmResetMaster() {
 
     sections.forEach(section => {
       const schema   = SCHEMAS[section];
-      const srcRows  = masterData[section] || [];
-      // If section had 0 rows (e.g. unexpected), keep it empty
-      blank[section] = srcRows.map((_, i) => {
+      const rowCount = rowCounts[section] || 0;
+
+      blank[section] = Array.from({ length: rowCount }, (_, i) => {
         const row = {};
         schema.forEach(col => {
           if (col.type === 'sno') {
-            row[col.key] = i + 1;           // keep row number
-          } else if (col.type === 'select') {
-            // For status: default to 'Pending' (first opt or fallback)
-            row[col.key] = col.key === 'status' ? 'Pending' : '';
+            row[col.key] = i + 1;   // only S.No is set
+          } else if (col.key === 'status') {
+            row[col.key] = 'Pending';
           } else {
-            row[col.key] = '';              // everything else blank
+            row[col.key] = '';      // EVERYTHING else is blank
           }
         });
         return row;
@@ -884,10 +884,10 @@ async function confirmResetMaster() {
     // Save to Drive
     await driveUploadJson(MASTER_FILE_ID, blank, 'master.json');
 
-    // Update editor so user can see what was saved
+    // Show result in editor
     document.getElementById('masterJsonEditor').value = JSON.stringify(blank, null, 2);
 
-    showToast('✓ master.json reset to blank & saved!', 'success');
+    showToast('✓ master.json is now completely blank!', 'success');
     closeModal('masterJsonModal');
   } catch(e) {
     showToast('Reset failed: ' + e.message, 'error');
