@@ -731,98 +731,53 @@ function showToast(msg,type='info') {
 }
 
 async function editMasterJson(){
-
-  if(!accessToken){
-    showToast("Please sign in first","error");
-    return;
-  }
-
-  if(!MASTER_FILE_ID){
-    showToast("Master file ID not set in Settings","error");
-    return;
-  }
-
-  // Close settings modal before opening master editor
+  if(!accessToken){ showToast("Please sign in first","error"); return; }
+  if(!MASTER_FILE_ID){ showToast("Master file ID not set in Settings","error"); return; }
+  // CRITICAL: close settings modal BEFORE opening master editor
   closeModal('settingsModal');
-
-  showToast("Loading master.json from Drive...","info");
-
+  showToast("Loading master.json...","info");
   try{
     const text = await driveDownloadText(MASTER_FILE_ID);
-    document.getElementById("masterJsonEditor").value =
-      JSON.stringify(JSON.parse(text), null, 2);
-    showToast("✓ Master JSON loaded","success");
+    document.getElementById("masterJsonEditor").value = JSON.stringify(JSON.parse(text), null, 2);
+    showToast("✓ Loaded from Drive","success");
   } catch(e){
-    console.warn("Drive download failed, loading built-in template:", e.message);
-    // Fallback: show built-in master data so user can still edit & save
-    document.getElementById("masterJsonEditor").value =
-      JSON.stringify(getBuiltInMasterData(), null, 2);
-    showToast("⚠️ Loaded built-in template (Drive file inaccessible)","info");
+    console.warn("Drive load failed, using built-in template:", e.message);
+    document.getElementById("masterJsonEditor").value = JSON.stringify(getBuiltInMasterData(), null, 2);
+    showToast("⚠️ Using built-in template (Drive unavailable)","info");
   }
-
   openModal("masterJsonModal");
-
 }
 
-
-function formatMasterJson() {
-  const ta = document.getElementById("masterJsonEditor");
-  try {
-    ta.value = JSON.stringify(JSON.parse(ta.value), null, 2);
-    showToast("✨ Formatted!", "success");
-  } catch(e) {
-    showToast("❌ Cannot format — invalid JSON: " + e.message, "error");
-  }
+function formatMasterJson(){
+  const ta=document.getElementById("masterJsonEditor");
+  try{ ta.value=JSON.stringify(JSON.parse(ta.value),null,2); showToast("✨ Formatted!","success"); }
+  catch(e){ showToast("❌ Invalid JSON: "+e.message,"error"); }
 }
-
-function validateMasterJson() {
-  const text = document.getElementById("masterJsonEditor").value;
-  try {
-    const json = JSON.parse(text);
-    const required = ['income','fixed','semifixed','variable','unexpected','lending'];
-    const missing = required.filter(k => !Array.isArray(json[k]));
-    if (missing.length > 0) {
-      showToast("⚠️ Missing sections: " + missing.join(', '), "error");
-    } else {
-      const counts = required.map(k => `${k}:${json[k].length}`).join(', ');
-      showToast("✅ Valid! " + counts, "success");
-    }
-  } catch(e) {
-    showToast("❌ Invalid JSON: " + e.message, "error");
-  }
-}
-
-
-
-  const text = document.getElementById("masterJsonEditor").value;
-
-  // Validate JSON first with helpful error
-  let json;
-  try {
-    json = JSON.parse(text);
-  } catch(e) {
-    showToast("❌ Invalid JSON: " + e.message, "error");
-    return;
-  }
-
-  // Validate required sections exist
-  const required = ['income','fixed','semifixed','variable','unexpected','lending'];
-  const missing = required.filter(k => !Array.isArray(json[k]));
-  if (missing.length > 0) {
-    showToast("❌ Missing sections: " + missing.join(', '), "error");
-    return;
-  }
-
+function validateMasterJson(){
   try{
-    showToast("Saving master.json to Drive...","info");
+    const json=JSON.parse(document.getElementById("masterJsonEditor").value);
+    const req=['income','fixed','semifixed','variable','unexpected','lending'];
+    const miss=req.filter(k=>!Array.isArray(json[k]));
+    if(miss.length>0){ showToast("⚠️ Missing: "+miss.join(', '),"error"); return; }
+    showToast("✅ Valid! "+req.map(k=>k+":"+json[k].length).join(', '),"success");
+  }catch(e){ showToast("❌ "+e.message,"error"); }
+}
+
+
+async function saveMasterJson(){
+  const text=document.getElementById("masterJsonEditor").value;
+  let json;
+  try{ json=JSON.parse(text); }
+  catch(e){ showToast("❌ Invalid JSON: "+e.message,"error"); return; }
+  const req=['income','fixed','semifixed','variable','unexpected','lending'];
+  const miss=req.filter(k=>!Array.isArray(json[k]));
+  if(miss.length>0){ showToast("❌ Missing sections: "+miss.join(', '),"error"); return; }
+  try{
+    showToast("Saving to Drive...","info");
     await driveUploadJson(MASTER_FILE_ID, json, "master.json");
     showToast("✓ master.json saved to Drive!","success");
     closeModal("masterJsonModal");
-  } catch(e) {
-    console.error(e);
-    showToast("❌ Save failed: " + e.message, "error");
-  }
-
+  }catch(e){ showToast("❌ Save failed: "+e.message,"error"); }
 }
 
 
