@@ -72,8 +72,16 @@ function buildSchemasFromData(masterObj) {
       if (textareaKeys.includes(key))return { key, label, type: 'textarea' };
 
       if (selectKeys.includes(key)) {
-        // Collect unique non-empty values from all rows as options
-        const opts = [...new Set(rows.map(r => r[key]).filter(v => v && v !== ''))];
+        let opts;
+        if (key === 'status') {
+          // Status options are fixed per section — never derived from data
+          opts = section === 'lending'
+            ? ['Fully Paid', 'Partially Paid', 'Delayed']
+            : ['Paid', 'Pending', 'Delayed'];
+        } else {
+          // Other select fields: collect unique non-empty values from all rows
+          opts = [...new Set(rows.map(r => r[key]).filter(v => v && v !== ''))];
+        }
         return { key, label, type: 'select', opts };
       }
 
@@ -468,6 +476,9 @@ function renderSheet(c, key, title) {
   const rows    = data[key]    || [];
   const stColor = {Paid:'var(--paid)',Pending:'var(--pending)',Delayed:'var(--delayed)',
                    'Partially Paid':'var(--accent3)','Fully Paid':'var(--paid)'};
+  const statusOpts = key === 'lending'
+    ? ['Fully Paid','Partially Paid','Delayed']
+    : ['Paid','Pending','Delayed'];
 
   const thead = schema.map(col=>`<th>${col.label}</th>`).join('')+'<th></th>';
   const tbody = rows.length===0
@@ -475,7 +486,10 @@ function renderSheet(c, key, title) {
     : rows.map((row,ri)=>`<tr>${schema.map(col=>{
         const v=(row[col.key]??'').toString().replace(/"/g,'&quot;');
         if (col.type==='sno')    return `<td style="color:var(--muted);font-size:.68rem;min-width:22px">${ri+1}</td>`;
-        if (col.type==='select') return `<td><select class="inline-select" style="color:${stColor[row[col.key]]||'var(--text)'}" onchange="updateCell('${key}',${ri},'${col.key}',this.value)">${(col.opts||[]).map(o=>`<option ${o===row[col.key]?'selected':''}>${o}</option>`).join('')}</select></td>`;
+        if (col.type==='select') {
+          const opts = col.key === 'status' ? statusOpts : (col.opts||[]);
+          return `<td><select class="inline-select" style="color:${stColor[row[col.key]]||'var(--text)'}" onchange="updateCell('${key}',${ri},'${col.key}',this.value)">${opts.map(o=>`<option ${o===row[col.key]?'selected':''}>${o}</option>`).join('')}</select></td>`;
+        }
         if (col.type==='number') return `<td><input class="inline-input" type="number" step="0.01" value="${v}" onchange="updateCell('${key}',${ri},'${col.key}',this.value)" style="width:78px;text-align:right"></td>`;
         if (col.type==='date')   return `<td><input class="inline-input" type="date" value="${v}" onchange="updateCell('${key}',${ri},'${col.key}',this.value)" style="width:118px"></td>`;
         return `<td><input class="inline-input" type="text" value="${v}" onchange="updateCell('${key}',${ri},'${col.key}',this.value)" style="min-width:65px"></td>`;
@@ -527,10 +541,16 @@ function showAddRow(key, title) {
   addRowContext = key;
   document.getElementById('addRowTitle').textContent = 'Add '+title;
   const schema = (SCHEMAS[key] || []).filter(c=>c.type!=='sno');
+  const statusOpts = key === 'lending'
+    ? ['Fully Paid','Partially Paid','Delayed']
+    : ['Paid','Pending','Delayed'];
   document.getElementById('addRowForm').innerHTML = '<div class="form-grid">' +
     schema.map(col => {
       let input = '';
-      if      (col.type==='select')   input = `<select class="form-select" name="${col.key}"><option value="">Select...</option>${(col.opts||[]).map(o=>`<option>${o}</option>`).join('')}</select>`;
+      if (col.type==='select') {
+        const opts = col.key === 'status' ? statusOpts : (col.opts||[]);
+        input = `<select class="form-select" name="${col.key}"><option value="">Select...</option>${opts.map(o=>`<option>${o}</option>`).join('')}</select>`;
+      }
       else if (col.type==='date')     input = `<input type="date" class="form-input" name="${col.key}">`;
       else if (col.type==='number')   input = `<input type="number" class="form-input" name="${col.key}" step="0.01">`;
       else if (col.type==='textarea') input = `<textarea class="form-input" name="${col.key}" rows="1" placeholder="${col.label}"></textarea>`;
