@@ -731,53 +731,55 @@ function showToast(msg,type='info') {
 }
 
 async function editMasterJson(){
-  if(!accessToken){ showToast("Please sign in first","error"); return; }
-  if(!MASTER_FILE_ID){ showToast("Master file ID not set in Settings","error"); return; }
-  // CRITICAL: close settings modal BEFORE opening master editor
-  closeModal('settingsModal');
-  showToast("Loading master.json...","info");
+  if(!accessToken){ showToast('Please sign in first','error'); return; }
+  if(!MASTER_FILE_ID){ showToast('Master file ID not set in Settings','error'); return; }
+  closeModal('settingsModal');  // close settings first so editor appears on top
+  showToast('Loading master.json...','info');
   try{
     const text = await driveDownloadText(MASTER_FILE_ID);
-    document.getElementById("masterJsonEditor").value = JSON.stringify(JSON.parse(text), null, 2);
-    showToast("✓ Loaded from Drive","success");
-  } catch(e){
-    console.warn("Drive load failed, using built-in template:", e.message);
-    document.getElementById("masterJsonEditor").value = JSON.stringify(getBuiltInMasterData(), null, 2);
-    showToast("⚠️ Using built-in template (Drive unavailable)","info");
+    document.getElementById('masterJsonEditor').value = JSON.stringify(JSON.parse(text), null, 2);
+    showToast('✓ Loaded from Drive','success');
+  }catch(e){
+    console.warn('Drive load failed, using built-in:', e.message);
+    document.getElementById('masterJsonEditor').value = JSON.stringify(getBuiltInMasterData(), null, 2);
+    showToast('⚠️ Drive unavailable – showing built-in template','info');
   }
-  openModal("masterJsonModal");
+  openModal('masterJsonModal');
 }
 
 function formatMasterJson(){
-  const ta=document.getElementById("masterJsonEditor");
-  try{ ta.value=JSON.stringify(JSON.parse(ta.value),null,2); showToast("✨ Formatted!","success"); }
-  catch(e){ showToast("❌ Invalid JSON: "+e.message,"error"); }
+  const ta = document.getElementById('masterJsonEditor');
+  try{
+    ta.value = JSON.stringify(JSON.parse(ta.value), null, 2);
+    showToast('✨ Formatted!','success');
+  }catch(e){ showToast('❌ Invalid JSON: '+e.message,'error'); }
 }
+
 function validateMasterJson(){
   try{
-    const json=JSON.parse(document.getElementById("masterJsonEditor").value);
-    const req=['income','fixed','semifixed','variable','unexpected','lending'];
-    const miss=req.filter(k=>!Array.isArray(json[k]));
-    if(miss.length>0){ showToast("⚠️ Missing: "+miss.join(', '),"error"); return; }
-    showToast("✅ Valid! "+req.map(k=>k+":"+json[k].length).join(', '),"success");
-  }catch(e){ showToast("❌ "+e.message,"error"); }
+    const json = JSON.parse(document.getElementById('masterJsonEditor').value);
+    const req = ['income','fixed','semifixed','variable','unexpected','lending'];
+    const miss = req.filter(k => !Array.isArray(json[k]));
+    if(miss.length){ showToast('⚠️ Missing sections: '+miss.join(', '),'error'); return; }
+    showToast('✅ Valid! '+req.map(k=>k+':'+json[k].length).join(', '),'success');
+  }catch(e){ showToast('❌ '+e.message,'error'); }
 }
 
 
 async function saveMasterJson(){
-  const text=document.getElementById("masterJsonEditor").value;
+  const text = document.getElementById('masterJsonEditor').value;
   let json;
-  try{ json=JSON.parse(text); }
-  catch(e){ showToast("❌ Invalid JSON: "+e.message,"error"); return; }
-  const req=['income','fixed','semifixed','variable','unexpected','lending'];
-  const miss=req.filter(k=>!Array.isArray(json[k]));
-  if(miss.length>0){ showToast("❌ Missing sections: "+miss.join(', '),"error"); return; }
+  try{ json = JSON.parse(text); }
+  catch(e){ showToast('❌ Invalid JSON: '+e.message,'error'); return; }
+  const req = ['income','fixed','semifixed','variable','unexpected','lending'];
+  const miss = req.filter(k => !Array.isArray(json[k]));
+  if(miss.length){ showToast('❌ Missing sections: '+miss.join(', '),'error'); return; }
   try{
-    showToast("Saving to Drive...","info");
-    await driveUploadJson(MASTER_FILE_ID, json, "master.json");
-    showToast("✓ master.json saved to Drive!","success");
-    closeModal("masterJsonModal");
-  }catch(e){ showToast("❌ Save failed: "+e.message,"error"); }
+    showToast('Saving to Drive...','info');
+    await driveUploadJson(MASTER_FILE_ID, json, 'master.json');
+    showToast('✓ master.json saved to Drive!','success');
+    closeModal('masterJsonModal');
+  }catch(e){ showToast('❌ Save failed: '+e.message,'error'); }
 }
 
 
