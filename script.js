@@ -592,11 +592,95 @@ function updateCell(key, ri, field, value) {
   }
   markDirty();
 }
-function deleteRow(key, ri) {
-  if (!confirm('Delete this row?')) return;
-  data[key].splice(ri,1);
-  markDirty(); switchTab(currentTab);
+async function deleteRow(key, ri) {
+  const row = data[key][ri];
+  const label = row.source || row.personName || row.name || `Row ${ri+1}`;
+
+  // Custom confirm modal — ask about monthly file first
+  const confirmed = await showConfirmModal(
+    '🗑️ Delete Row',
+    `Delete <strong>${label}</strong> from this month's file?`
+  );
+  if (!confirmed) return;
+
+  // Remove from monthly data
+  data[key].splice(ri, 1);
+  markDirty();
+
+  // Now ask about master.json
+  if (accessToken && MASTER_FILE_ID) {
+    const alsoMaster = await showConfirmModal(
+      '📋 Also delete from Master?',
+      `Do you also want to remove <strong>${label}</strong> from <code>master.json</code>?<br><span style="font-size:.75rem;color:var(--muted)">This will affect all future months created from master.</span>`
+    );
+    if (alsoMaster) {
+      await syncDeleteToMaster(key, label, row);
+    }
+  }
+
+  switchTab(currentTab);
 }
+
+async function syncDeleteToMaster(key, label, deletedRow) {
+  try {
+    showToast('Syncing deletion to master.json...', 'info');
+    const masterFileId = await resolveMasterFileId();
+    const masterText   = await driveDownloadText(masterFileId);
+    const masterData   = JSON.parse(masterText);
+
+    if (!masterData[key]) { showToast('Section not found in master.json', 'error'); return; }
+
+    // Match by source/personName/name — same field used for the label
+    const matchKeys = ['source', 'personName', 'name'];
+    const matchKey  = matchKeys.find(k => deletedRow[k]);
+    const matchVal  = matchKey ? deletedRow[matchKey] : null;
+
+    let idx = -1;
+    if (matchVal) {
+      idx = masterData[key].findIndex(r => r[matchKey] === matchVal);
+    }
+
+    if (idx === -1) {
+      showToast(`⚠️ Could not find "${label}" in master.json — not deleted there`, 'error');
+      return;
+    }
+
+    masterData[key].splice(idx, 1);
+    // Re-number sno
+    masterData[key].forEach((r, i) => { if (r.sno !== undefined) r.sno = i + 1; });
+
+    await driveUploadJson(masterFileId, masterData, 'master.json');
+    buildSchemasFromData(masterData);
+    showToast(`✓ "${label}" deleted from master.json too`, 'success');
+  } catch(e) {
+    showToast('❌ Master sync error: ' + e.message, 'error');
+    console.error(e);
+  }
+}
+// ── CONFIRM MODAL (replaces browser confirm()) ───────────────────────────
+// Returns a Promise<boolean> — resolves true on confirm, false on cancel.
+function showConfirmModal(title, bodyHtml) {
+  return new Promise(resolve => {
+    document.getElementById('confirmModalTitle').textContent = title;
+    document.getElementById('confirmModalBody').innerHTML   = bodyHtml;
+    openModal('confirmModal');
+
+    // Wire buttons fresh each time (avoids stale listeners)
+    const btnYes = document.getElementById('confirmModalYes');
+    const btnNo  = document.getElementById('confirmModalNo');
+
+    function done(result) {
+      closeModal('confirmModal');
+      btnYes.replaceWith(btnYes.cloneNode(true)); // remove old listeners
+      btnNo .replaceWith(btnNo .cloneNode(true));
+      resolve(result);
+    }
+
+    document.getElementById('confirmModalYes').addEventListener('click', () => done(true),  { once:true });
+    document.getElementById('confirmModalNo') .addEventListener('click', () => done(false), { once:true });
+  });
+}
+
 function markDirty() { hasChanges=true; document.getElementById('syncBar').classList.add('visible'); }
 function discardChanges() {
   if (!confirm('Discard all unsaved changes?')) return;
@@ -622,7 +706,7 @@ function showAddRow(key, title) {
     }).join('') + '</div>';
   openModal('addRowModal');
 }
-function submitAddRow() {
+async function submitAddRow() {
   const key=addRowContext, schema=SCHEMAS[key]||[], form=document.getElementById('addRowForm');
   const row={_id:key+'_'+Date.now()};
   schema.forEach(col=>{
@@ -633,7 +717,52 @@ function submitAddRow() {
   if (key==='lending') row.balance=String((parseFloat(row.amount)||0)-(parseFloat(row.returned)||0));
   if (!data[key]) data[key]=[];
   data[key].push(row);
-  closeModal('addRowModal'); markDirty(); switchTab(currentTab);
+  closeModal('addRowModal');
+  markDirty();
+
+  // Ask if user wants to add to master.json too
+  if (accessToken && MASTER_FILE_ID) {
+    const label = row.source || row.personName || row.name || 'new row';
+    const alsoMaster = await showConfirmModal(
+      '📋 Also add to Master?',
+      `Add <strong>${label}</strong> to <code>master.json</code> as well?<br><span style="font-size:.75rem;color:var(--muted)">It will then appear in all future months created from master.</span>`
+    );
+    if (alsoMaster) {
+      await syncAddToMaster(key, row);
+    }
+  }
+
+  switchTab(currentTab);
+}
+
+async function syncAddToMaster(key, newRow) {
+  try {
+    showToast('Syncing new row to master.json...', 'info');
+    const masterFileId = await resolveMasterFileId();
+    const masterText   = await driveDownloadText(masterFileId);
+    const masterData   = JSON.parse(masterText);
+
+    if (!masterData[key]) masterData[key] = [];
+
+    // Strip month-specific fields (dates, amounts) — keep structural fields only
+    const monthOnlyFields = ['dateReceived','datePaid','dateGiven','dateStart','dateEnd','dueDate','date','amount','returned','balance','_id'];
+    const masterRow = {};
+    Object.keys(newRow).forEach(k => {
+      masterRow[k] = monthOnlyFields.includes(k) ? '' : newRow[k];
+    });
+    masterRow.sno = masterData[key].length + 1;
+    masterRow.status = 'Pending'; // always reset to Pending in master
+
+    masterData[key].push(masterRow);
+
+    await driveUploadJson(masterFileId, masterData, 'master.json');
+    buildSchemasFromData(masterData);
+    const label = newRow.source || newRow.personName || newRow.name || 'row';
+    showToast(`✓ "${label}" added to master.json too`, 'success');
+  } catch(e) {
+    showToast('❌ Master sync error: ' + e.message, 'error');
+    console.error(e);
+  }
 }
 
 // ── MONTH PICKER ──────────────────────────────────────────────────────────
