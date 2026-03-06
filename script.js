@@ -25,105 +25,77 @@ let data    = {};
 let SCHEMAS = {};
 
 // ── SCHEMA BUILDER ────────────────────────────────────────────────────────
-// Schemas are fixed to match the Excel file exactly.
-// Each section's columns mirror the Excel sheet columns 1-to-1.
+// Dynamically derives schemas from the keys of master.json rows.
+// Type is inferred by key name. Status options are fixed per section.
+// This means master.json fully controls the columns — add/remove keys there.
 function buildSchemasFromData(masterObj) {
-  function collectOpts(section, key) {
-    const rows = (masterObj[section] || []);
-    return [...new Set(rows.map(r => r[key]).filter(v => v && v !== ''))];
-  }
+  const sections = ['income','fixed','semifixed','variable','unexpected','lending'];
 
-  SCHEMAS = {
-    income: [
-      { key:'sno',             label:'#',                  type:'sno'    },
-      { key:'source',          label:'Source',             type:'text'   },
-      { key:'category',        label:'Category',           type:'text'   },
-      { key:'paymentMode',     label:'Payment Mode',       type:'select', opts: collectOpts('income','paymentMode').length ? collectOpts('income','paymentMode') : ['Bank Transfer','Cash','UPI','Auto-Debit'] },
-      { key:'accountReceived', label:'Account Received',   type:'text'   },
-      { key:'dateReceived',    label:'Date Received',      type:'date'   },
-      { key:'amount',          label:'Amount (₹)',         type:'number' },
-      { key:'status',          label:'Status',             type:'select', opts:['Paid','Pending','Delayed'] },
-      { key:'month',           label:'Month',              type:'text'   },
-      { key:'remarks',         label:'Remarks',            type:'text'   },
-    ],
-    fixed: [
-      { key:'sno',             label:'#',                  type:'sno'    },
-      { key:'source',          label:'Source',             type:'text'   },
-      { key:'loanNumber',      label:'Loan Number',        type:'text'   },
-      { key:'totalLoanAmount', label:'Total Loan Amount (₹)', type:'number' },
-      { key:'category',        label:'Category',           type:'text'   },
-      { key:'paymentMode',     label:'Payment Mode',       type:'select', opts: collectOpts('fixed','paymentMode').length ? collectOpts('fixed','paymentMode') : ['Bank Transfer','Cash','UPI','Auto-Debit'] },
-      { key:'dateToPay',       label:'Date to Pay',        type:'text'   },
-      { key:'dateStart',       label:'Date of Start',      type:'date'   },
-      { key:'dateEnd',         label:'Date of End',        type:'date'   },
-      { key:'datePaid',        label:'Date of Paid',       type:'date'   },
-      { key:'amount',          label:'Amount (₹)',         type:'number' },
-      { key:'status',          label:'Status',             type:'select', opts:['Paid','Pending','Delayed'] },
-      { key:'pendingAmount',   label:'Pending Amount (₹)', type:'number' },
-      { key:'interestRate',    label:'Interest Rate (%)',  type:'text'   },
-      { key:'remarks',         label:'Remarks',            type:'text'   },
-    ],
-    semifixed: [
-      { key:'sno',             label:'#',                  type:'sno'    },
-      { key:'source',          label:'Source',             type:'text'   },
-      { key:'loanNumber',      label:'Loan Number',        type:'text'   },
-      { key:'category',        label:'Category',           type:'text'   },
-      { key:'paymentMode',     label:'Payment Mode',       type:'select', opts: collectOpts('semifixed','paymentMode').length ? collectOpts('semifixed','paymentMode') : ['Bank Transfer','Cash','UPI','Auto-Debit'] },
-      { key:'dateToPay',       label:'Date to Pay',        type:'text'   },
-      { key:'dateStart',       label:'Date of Start',      type:'date'   },
-      { key:'dateEnd',         label:'Date of End',        type:'date'   },
-      { key:'datePaid',        label:'Date of Paid',       type:'date'   },
-      { key:'amount',          label:'Amount (₹)',         type:'number' },
-      { key:'status',          label:'Status',             type:'select', opts:['Paid','Pending','Delayed'] },
-      { key:'pendingAmount',   label:'Pending Amount (₹)', type:'number' },
-      { key:'interestRate',    label:'Interest Rate (%)',  type:'text'   },
-      { key:'remarks',         label:'Remarks',            type:'text'   },
-    ],
-    variable: [
-      { key:'sno',         label:'#',              type:'sno'      },
-      { key:'source',      label:'Source',         type:'text'     },
-      { key:'date',        label:'Date',           type:'date'     },
-      { key:'category',    label:'Category',       type:'text'     },
-      { key:'subcategory', label:'Subcategory',    type:'text'     },
-      { key:'paymentMode', label:'Payment Mode',   type:'select', opts: collectOpts('variable','paymentMode').length ? collectOpts('variable','paymentMode') : ['Bank Transfer','Cash','UPI','Auto-Debit','RBL CC','ICICI CC'] },
-      { key:'accountUsed', label:'Account Used',   type:'text'     },
-      { key:'description', label:'Description',    type:'textarea' },
-      { key:'amount',      label:'Amount (₹)',     type:'number'   },
-      { key:'month',       label:'Month',          type:'text'     },
-      { key:'status',      label:'Status',         type:'select', opts:['Paid','Pending','Delayed'] },
-      { key:'remarks',     label:'Remarks',        type:'text'     },
-    ],
-    unexpected: [
-      { key:'sno',         label:'#',              type:'sno'      },
-      { key:'source',      label:'Source',         type:'text'     },
-      { key:'date',        label:'Date',           type:'date'     },
-      { key:'category',    label:'Category',       type:'text'     },
-      { key:'subcategory', label:'Subcategory',    type:'text'     },
-      { key:'paymentMode', label:'Payment Mode',   type:'select', opts: collectOpts('unexpected','paymentMode').length ? collectOpts('unexpected','paymentMode') : ['Bank Transfer','Cash','UPI','Auto-Debit','RBL CC','ICICI CC'] },
-      { key:'accountUsed', label:'Account Used',   type:'text'     },
-      { key:'description', label:'Description',    type:'textarea' },
-      { key:'amount',      label:'Amount (₹)',     type:'number'   },
-      { key:'month',       label:'Month',          type:'text'     },
-      { key:'status',      label:'Status',         type:'select', opts:['Paid','Pending','Delayed'] },
-      { key:'remarks',     label:'Remarks',        type:'text'     },
-    ],
-    lending: [
-      { key:'sno',             label:'#',                    type:'sno'    },
-      { key:'personName',      label:'Person Name',          type:'text'   },
-      { key:'contactRelation', label:'Contact / Relation',   type:'text'   },
-      { key:'type',            label:'Type',                 type:'select', opts: collectOpts('lending','type').length ? collectOpts('lending','type') : ['Lent','Borrowed'] },
-      { key:'mode',            label:'Mode',                 type:'select', opts: collectOpts('lending','mode').length ? collectOpts('lending','mode') : ['Bank Transfer','Cash','UPI','IDFC CC','RBL CC','ICICI CC'] },
-      { key:'dateGiven',       label:'Date Given / Borrowed',type:'date'   },
-      { key:'dueDate',         label:'Due Date',             type:'date'   },
-      { key:'interestRate',    label:'Interest Rate (%)',    type:'text'   },
-      { key:'amount',          label:'Amount (₹)',           type:'number' },
-      { key:'returned',        label:'Returned / Paid (₹)', type:'number' },
-      { key:'balance',         label:'Balance (₹)',          type:'number' },
-      { key:'status',          label:'Status',               type:'select', opts:['Fully Paid','Partially Paid','Delayed'] },
-      { key:'accountUsed',     label:'Account Used',         type:'text'   },
-      { key:'remarks',         label:'Remarks',              type:'text'   },
-    ],
-  };
+  const dateKeys     = ['date','dateReceived','datePaid','dateStart','dateEnd','dateGiven','dueDate','dateToPay'];
+  const numberKeys   = ['amount','totalLoanAmount','pendingAmount','returned','balance'];
+  const textareaKeys = ['description'];
+  const selectKeys   = ['paymentMode','status','type','mode','accountUsed','accountReceived'];
+
+  // For sections with 0 rows, fall back to sibling section keys if available
+  // (e.g. unexpected mirrors variable structure)
+  const fallbackKeys = { unexpected: 'variable' };
+
+  SCHEMAS = {};
+
+  sections.forEach(section => {
+    let rows = masterObj[section] || [];
+
+    // If this section is empty, try to get key structure from a fallback sibling
+    if (rows.length === 0 && fallbackKeys[section]) {
+      rows = masterObj[fallbackKeys[section]] || [];
+    }
+
+    if (rows.length === 0) {
+      SCHEMAS[section] = [{ key:'sno', label:'#', type:'sno' }];
+      return;
+    }
+
+    // Collect all unique non-internal keys across rows
+    const allKeys = [];
+    rows.forEach(row => {
+      Object.keys(row).forEach(k => {
+        if (!allKeys.includes(k) && !k.startsWith('_')) allKeys.push(k);
+      });
+    });
+
+    const schema = allKeys.map(key => {
+      if (key === 'sno') return { key, label: '#', type: 'sno' };
+
+      // camelCase → Title Case label
+      const label = key
+        .replace(/([A-Z])/g, ' $1')
+        .replace(/^./, s => s.toUpperCase())
+        .replace('Amount', 'Amount (\u20b9)')
+        .trim();
+
+      if (dateKeys.includes(key))     return { key, label, type: 'date' };
+      if (numberKeys.includes(key))   return { key, label, type: 'number' };
+      if (textareaKeys.includes(key)) return { key, label, type: 'textarea' };
+
+      if (selectKeys.includes(key)) {
+        let opts;
+        if (key === 'status') {
+          // Status options are fixed by section — never derived from data
+          opts = section === 'lending'
+            ? ['Fully Paid', 'Partially Paid', 'Delayed']
+            : ['Paid', 'Pending', 'Delayed'];
+        } else {
+          // Other selects: collect unique non-empty values from data
+          opts = [...new Set(rows.map(r => r[key]).filter(v => v && v !== ''))];
+        }
+        return { key, label, type: 'select', opts };
+      }
+
+      return { key, label, type: 'text' };
+    });
+
+    SCHEMAS[section] = schema;
+  });
 }
 
 // ── SIGN IN ───────────────────────────────────────────────────────────────
@@ -568,8 +540,11 @@ function renderSheet(c, key, title) {
   };
 
   const thead = schema.map(col=>`<th>${col.label}</th>`).join('')+'<th></th>';
+  // When empty: render a proper row with correct column count so DataTables doesn't crash.
+  // The "no entries" message is shown via a caption element instead of a colspan td.
+  const emptyRow = schema.map(()=>`<td></td>`).join('') + '<td></td>';
   const tbody = rows.length===0
-    ? `<tr><td colspan="${schema.length+1}" style="color:var(--muted);padding:2rem;font-size:.8rem">No entries yet. Tap + to add.</td></tr>`
+    ? `<tr class="dt-empty-row">${emptyRow}</tr>`
     : rows.map((row,ri)=>`<tr>${schema.map(col=>{
         const v=(row[col.key]??'').toString().replace(/"/g,'&quot;');
         if (col.type==='sno')      return `<td style="color:var(--muted);font-size:.68rem;min-width:22px">${ri+1}</td>`;
@@ -581,23 +556,31 @@ function renderSheet(c, key, title) {
       }).join('')}<td><button class="delete-btn" onclick="deleteRow('${key}',${ri})">✕</button></td></tr>`
     ).join('');
 
+  const emptyMsg = rows.length===0
+    ? `<div style="text-align:center;padding:1.5rem;color:var(--muted);font-size:.82rem;margin-top:.5rem">No entries yet — tap ➕ Add Entry to get started.</div>`
+    : '';
+
   c.innerHTML = `
     <div class="add-entry-center">
       <button class="add-entry-btn" onclick="showAddRow('${key}','${title}')">➕ Add Entry</button>
     </div>
     <div class="section-head">${title}</div>
-    <div class="sheet-table">
+    ${emptyMsg}
+    <div class="sheet-table" style="${rows.length===0?'display:none':''}">
       <div class="table-scroll"><table id="dataTable"><thead><tr>${thead}</tr></thead><tbody>${tbody}</tbody></table></div>
     </div>`;
 
-  setTimeout(()=>{
-    if ($.fn.DataTable.isDataTable('#dataTable')) $('#dataTable').DataTable().destroy();
-    $('#dataTable').DataTable({
-      paging:true, searching:false, ordering:false,
-      pageLength:10, lengthChange:true,
-      scrollX:true, scrollY:'60vh', scrollCollapse:true, fixedHeader:true
-    });
-  }, 50);
+  // Only init DataTables when there are actual rows — prevents column count crash on empty tables
+  if (rows.length > 0) {
+    setTimeout(()=>{
+      if ($.fn.DataTable.isDataTable('#dataTable')) $('#dataTable').DataTable().destroy();
+      $('#dataTable').DataTable({
+        paging:true, searching:false, ordering:false,
+        pageLength:10, lengthChange:true,
+        scrollX:true, scrollY:'60vh', scrollCollapse:true, fixedHeader:true
+      });
+    }, 50);
+  }
 }
 
 // ── CELL EDIT / DELETE ────────────────────────────────────────────────────
