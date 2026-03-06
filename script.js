@@ -178,27 +178,35 @@ async function driveCopy(fileId, name, folderId) {
   if (!r.ok) throw new Error('Copy failed: '+r.status+' '+(await r.text()));
   return r.json();
 }
-async function driveDownloadText(fileId){
-
-  if(!accessToken){
-    throw new Error("User not authenticated");
-  }
-
-  const r = await fetch(
-    `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
-    {
-      headers:{
-        Authorization: "Bearer " + accessToken
-      }
+async function driveDownloadText(fileId) {
+  // First try with OAuth token (works for own files)
+  if (accessToken) {
+    try {
+      const r = await fetch(
+        `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
+        { headers: { Authorization: 'Bearer ' + accessToken } }
+      );
+      if (r.ok) return r.text();
+    } catch(e) {
+      // fall through to public download
     }
-  );
-
-  if(!r.ok){
-    const err = await r.text();
-    throw new Error("Drive download failed: " + err);
   }
 
-  return r.text();
+  // Fallback: try public export URL (works if file is shared with "Anyone with link")
+  try {
+    const publicUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
+    const r = await fetch(publicUrl);
+    if (r.ok) {
+      const text = await r.text();
+      // Google sometimes returns an HTML warning page for large files — detect it
+      if (text.trim().startsWith('{') || text.trim().startsWith('[')) return text;
+      throw new Error('Got HTML instead of JSON — file may not be publicly shared');
+    }
+  } catch(e) {
+    // fall through
+  }
+
+  throw new Error('Failed to fetch — make sure the file is in your own Drive or shared publicly');
 }
 async function driveUploadJson(fileId, obj, name) {
   const json = JSON.stringify(obj, null, 2);
@@ -771,16 +779,28 @@ async function editMasterJson() {
   if (!MASTER_FILE_ID) { showToast('Master file ID not set in Settings','error'); return; }
 
   showToast('Loading master.json...','info');
-  try {
-    const text = await driveDownloadText(MASTER_FILE_ID);
-    document.getElementById('masterJsonEditor').value = JSON.stringify(JSON.parse(text), null, 2);
-    document.getElementById('mjJsonError').style.display = 'none';
-    switchMjTab('edit');
-    openModal('masterJsonModal');
-  } catch(e) {
-    console.error(e);
-    showToast('Failed to load master.json: ' + e.message, 'error');
+
+  let masterData = null;
+
+  // Try to download from Drive (works when file is accessible via OAuth)
+  if (MASTER_FILE_ID) {
+    try {
+      const text = await driveDownloadText(MASTER_FILE_ID);
+      masterData = JSON.parse(text);
+    } catch(e) {
+      console.warn('Drive download failed, falling back to built-in:', e.message);
+      // Fall back to built-in template so editor still opens
+      masterData = getBuiltInMasterData();
+      showToast('⚠️ Using built-in template (Drive file not accessible)','info');
+    }
+  } else {
+    masterData = getBuiltInMasterData();
   }
+
+  document.getElementById('masterJsonEditor').value = JSON.stringify(masterData, null, 2);
+  document.getElementById('mjJsonError').style.display = 'none';
+  switchMjTab('edit');
+  openModal('masterJsonModal');
 }
 
 function validateMasterJson() {
@@ -840,8 +860,9 @@ async function saveMasterJson() {
 async function confirmResetMaster() {
   if (!confirm('Reset master.json to completely blank?\n\nEvery field will be emptied — no sources, no amounts, nothing.\nOnly row numbers (S.No) are kept.\n\nExisting monthly files are NOT affected.')) return;
 
-  showToast('Resetting master.json to blank...', 'info');
+  showToast('Building blank template...', 'info');
   try {
+    // Reset builds entirely from SCHEMAS — no Drive download needed
     const sections = ['income','fixed','semifixed','variable','unexpected','lending'];
 
     // Row counts per section — how many blank rows to generate
