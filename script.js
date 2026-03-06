@@ -1,4 +1,4 @@
-// ── HARDCODED DEFAULTS ───────────────────────────────────────────────────
+// ── CONFIG (IDs only — zero data hardcoded) ───────────────────────────────
 const DEFAULT_CLIENT_ID = '802226109271-praqff3gi21a2i90mp78bmn6a7999s9m.apps.googleusercontent.com';
 const DEFAULT_MASTER_ID = '1G-TZIlJPtSygE7jDmDDbJsuAr8pRGP8T';
 const DEFAULT_FOLDER_ID = '1FpSq1CKfMec2P3p15C8U7HFYgK-HLiNE';
@@ -37,37 +37,37 @@ const SCHEMAS = {
     {key:'remarks',        label:'Remarks',    type:'text'}
   ],
   fixed:[
-    {key:'sno',             label:'#',          type:'sno'},
-    {key:'source',          label:'Source',     type:'text'},
-    {key:'loanNumber',      label:'Loan No.',   type:'text'},
-    {key:'totalLoanAmount', label:'Total Loan', type:'number'},
-    {key:'category',        label:'Category',   type:'text'},
-    {key:'paymentMode',     label:'Mode',       type:'select', opts:['Bank Transfer','Auto-Debit','Cash','SBI Bank','ICICI Bank','BOI Bank','UPI']},
-    {key:'dateToPay',       label:'Due Day',    type:'text'},
-    {key:'dateStart',       label:'Start',      type:'date'},
-    {key:'dateEnd',         label:'End',        type:'date'},
-    {key:'datePaid',        label:'Paid On',    type:'date'},
-    {key:'amount',          label:'Amount (₹)', type:'number'},
-    {key:'status',          label:'Status',     type:'select', opts:['Paid','Pending','Delayed']},
-    {key:'pendingAmount',   label:'Pending (₹)',type:'number'},
-    {key:'interestRate',    label:'Interest',   type:'text'},
-    {key:'remarks',         label:'Remarks',    type:'text'}
+    {key:'sno',             label:'#',           type:'sno'},
+    {key:'source',          label:'Source',      type:'text'},
+    {key:'loanNumber',      label:'Loan No.',    type:'text'},
+    {key:'totalLoanAmount', label:'Total Loan',  type:'number'},
+    {key:'category',        label:'Category',    type:'text'},
+    {key:'paymentMode',     label:'Mode',        type:'select', opts:['Bank Transfer','Auto-Debit','Cash','SBI Bank','ICICI Bank','BOI Bank','UPI']},
+    {key:'dateToPay',       label:'Due Day',     type:'text'},
+    {key:'dateStart',       label:'Start',       type:'date'},
+    {key:'dateEnd',         label:'End',         type:'date'},
+    {key:'datePaid',        label:'Paid On',     type:'date'},
+    {key:'amount',          label:'Amount (₹)',  type:'number'},
+    {key:'status',          label:'Status',      type:'select', opts:['Paid','Pending','Delayed']},
+    {key:'pendingAmount',   label:'Pending (₹)', type:'number'},
+    {key:'interestRate',    label:'Interest',    type:'text'},
+    {key:'remarks',         label:'Remarks',     type:'text'}
   ],
   semifixed:[
-    {key:'sno',           label:'#',          type:'sno'},
-    {key:'source',        label:'Source',     type:'text'},
-    {key:'loanNumber',    label:'Ref No.',    type:'text'},
-    {key:'category',      label:'Category',   type:'text'},
-    {key:'paymentMode',   label:'Mode',       type:'select', opts:['Bank Transfer','Auto-Debit','Cash','UPI','RBL CC']},
-    {key:'dateToPay',     label:'Due Day',    type:'text'},
-    {key:'dateStart',     label:'Start',      type:'date'},
-    {key:'dateEnd',       label:'End',        type:'date'},
-    {key:'datePaid',      label:'Paid On',    type:'date'},
-    {key:'amount',        label:'Amount (₹)', type:'number'},
-    {key:'status',        label:'Status',     type:'select', opts:['Paid','Pending','Delayed']},
-    {key:'pendingAmount', label:'Pending (₹)',type:'number'},
-    {key:'interestRate',  label:'Interest',   type:'text'},
-    {key:'remarks',       label:'Remarks',    type:'text'}
+    {key:'sno',           label:'#',           type:'sno'},
+    {key:'source',        label:'Source',      type:'text'},
+    {key:'loanNumber',    label:'Ref No.',     type:'text'},
+    {key:'category',      label:'Category',    type:'text'},
+    {key:'paymentMode',   label:'Mode',        type:'select', opts:['Bank Transfer','Auto-Debit','Cash','UPI','RBL CC']},
+    {key:'dateToPay',     label:'Due Day',     type:'text'},
+    {key:'dateStart',     label:'Start',       type:'date'},
+    {key:'dateEnd',       label:'End',         type:'date'},
+    {key:'datePaid',      label:'Paid On',     type:'date'},
+    {key:'amount',        label:'Amount (₹)',  type:'number'},
+    {key:'status',        label:'Status',      type:'select', opts:['Paid','Pending','Delayed']},
+    {key:'pendingAmount', label:'Pending (₹)', type:'number'},
+    {key:'interestRate',  label:'Interest',    type:'text'},
+    {key:'remarks',       label:'Remarks',     type:'text'}
   ],
   variable:[
     {key:'sno',         label:'#',           type:'sno'},
@@ -161,7 +161,7 @@ function signOut() {
   document.getElementById('app').classList.remove('visible');
 }
 
-// ── DRIVE REST API (fetch, OAuth token only) ──────────────────────────────
+// ── DRIVE REST API ────────────────────────────────────────────────────────
 const H = () => ({ 'Authorization':'Bearer '+accessToken });
 
 async function driveList(q) {
@@ -170,42 +170,16 @@ async function driveList(q) {
   if (!r.ok) throw new Error('List failed: '+r.status);
   return (await r.json()).files || [];
 }
-async function driveCopy(fileId, name, folderId) {
-  const body = { name }; if (folderId) body.parents=[folderId];
-  const r = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}/copy?fields=id,name`, {
-    method:'POST', headers:{...H(),'Content-Type':'application/json'}, body:JSON.stringify(body)
-  });
-  if (!r.ok) throw new Error('Copy failed: '+r.status+' '+(await r.text()));
-  return r.json();
-}
-async function driveDownloadText(fileId){
-
-  if(!accessToken){
-    throw new Error("User not authenticated");
-  }
-
-  const r = await fetch(
-    `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
-    {
-      headers:{
-        Authorization: "Bearer " + accessToken
-      }
-    }
-  );
-
-  if(!r.ok){
-    const err = await r.text();
-    throw new Error("Drive download failed: " + err);
-  }
-
+async function driveDownloadText(fileId) {
+  if (!accessToken) throw new Error('Not authenticated');
+  const r = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, { headers:H() });
+  if (!r.ok) throw new Error('Download failed: '+(await r.text()));
   return r.text();
 }
 async function driveUploadJson(fileId, obj, name) {
-  const json = JSON.stringify(obj, null, 2);
-  const blob = new Blob([json], { type:'application/json' });
   const form = new FormData();
   form.append('metadata', new Blob([JSON.stringify({name})], {type:'application/json'}));
-  form.append('file', blob);
+  form.append('file',     new Blob([JSON.stringify(obj, null, 2)], {type:'application/json'}));
   const r = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`, {
     method:'PATCH', headers:H(), body:form
   });
@@ -213,14 +187,11 @@ async function driveUploadJson(fileId, obj, name) {
   return r.json();
 }
 async function driveCreateJson(name, obj, folderId) {
-  // Create new file with content
-  const json = JSON.stringify(obj, null, 2);
-  const blob = new Blob([json], { type:'application/json' });
   const meta = { name, mimeType:'application/json' };
   if (folderId) meta.parents = [folderId];
   const form = new FormData();
   form.append('metadata', new Blob([JSON.stringify(meta)], {type:'application/json'}));
-  form.append('file', blob);
+  form.append('file',     new Blob([JSON.stringify(obj, null, 2)], {type:'application/json'}));
   const r = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name', {
     method:'POST', headers:H(), body:form
   });
@@ -229,10 +200,11 @@ async function driveCreateJson(name, obj, folderId) {
 }
 
 // ── FILE NAMES ────────────────────────────────────────────────────────────
-function getFileName()       { return `${MONTHS[currentMonth.month]}-${currentMonth.year}_Salary_Tracker.json`; }
-function getMasterFileName() { return 'master.json'; }
+function getFileName() {
+  return `${MONTHS[currentMonth.month]}-${currentMonth.year}_Salary_Tracker.json`;
+}
 
-// ── LOAD / CREATE ─────────────────────────────────────────────────────────
+// ── LOAD / CREATE MONTH FILE ──────────────────────────────────────────────
 async function loadOrCreateCurrentMonth() {
   if (!accessToken)    { showToast('Please sign in first','error'); return; }
   if (!MASTER_FILE_ID) { showToast('Set Master JSON File ID in ⚙️ Settings first','error'); openSettingsModal(); return; }
@@ -240,7 +212,6 @@ async function loadOrCreateCurrentMonth() {
   const name = getFileName();
   showToast('🔍 Looking for '+name+'...','info');
   try {
-    // Search for this month's JSON in the destination folder
     let q = `name='${name}' and trashed=false and mimeType='application/json'`;
     if (DEST_FOLDER_ID) q += ` and '${DEST_FOLDER_ID}' in parents`;
     const files = await driveList(q);
@@ -258,112 +229,35 @@ async function loadOrCreateCurrentMonth() {
   }
 }
 
+// Always reads master.json from Drive — no hardcoded data anywhere
 async function createFromMaster(name) {
-  showToast('📋 Creating new month file...','info');
+  showToast('📋 Loading master.json from Drive...','info');
   try {
-    let masterData;
+    const masterText = await driveDownloadText(MASTER_FILE_ID);
+    const masterData = JSON.parse(masterText);
 
-    // Try to download master.json from Drive first (works if file is in same account)
-    if (MASTER_FILE_ID) {
-      try {
-        const masterText = await driveDownloadText(MASTER_FILE_ID);
-        masterData = JSON.parse(masterText);
-        showToast('✓ Master template loaded from Drive','info');
-      } catch(e) {
-        // File not accessible (different account / not shared) — fall back to built-in template
-        console.warn('Master file not accessible, using built-in template:', e.message);
-        masterData = getBuiltInMasterData();
-      }
-    } else {
-      masterData = getBuiltInMasterData();
-    }
-
-    // Stamp with current month
     const newData = JSON.parse(JSON.stringify(masterData));
     newData._month   = MONTHS[currentMonth.month];
     newData._year    = currentMonth.year;
     newData._created = new Date().toISOString();
 
-    // Create new JSON file in destination folder
     const result = await driveCreateJson(name, newData, DEST_FOLDER_ID);
     currentFileId = result.id;
 
     loadDataFromObject(newData);
     setFileStatus(true);
     switchTab(currentTab);
-    showToast('✓ '+name+' created!','success');
+    showToast('✓ '+name+' created from master!','success');
   } catch(e) {
-    showToast('❌ Create error: '+e.message,'error');
+    showToast('❌ '+e.message,'error');
     console.error(e);
   }
-}
-
-// Built-in master template — exact copy of your master.json
-// Used as fallback when Drive master file isn't accessible
-function getBuiltInMasterData() {
-  return {
-    "_version": 1,
-    "_description": "Salary Tracker Master Template - Naveen Somalapuri",
-    "income": [
-      {"sno":1,"source":"Naveen","category":"Salary","paymentMode":"Bank Transfer","accountReceived":"ICICI","dateReceived":"","amount":"","status":"Pending","month":"","remarks":"Hide7906rs home knows 35677rs"},
-      {"sno":2,"source":"Dad","category":"","paymentMode":"Bank Transfer","accountReceived":"","dateReceived":"","amount":"","status":"Delayed","month":"","remarks":""},
-      {"sno":3,"source":"Mom","category":"","paymentMode":"Cash","accountReceived":"","dateReceived":"","amount":"","status":"Delayed","month":"","remarks":""}
-    ],
-    "fixed": [
-      {"sno":1,"source":"FED","loanNumber":"75007600354653","totalLoanAmount":"","category":"","paymentMode":"SBI Bank","dateToPay":"5th","dateStart":"","dateEnd":"","datePaid":"","amount":"2708","status":"Pending","pendingAmount":"","interestRate":"","remarks":""},
-      {"sno":2,"source":"HDB","loanNumber":"52565440","totalLoanAmount":"","category":"","paymentMode":"SBI Bank","dateToPay":"4th","dateStart":"","dateEnd":"","datePaid":"","amount":"4426","status":"Pending","pendingAmount":"","interestRate":"","remarks":""},
-      {"sno":3,"source":"SBI","loanNumber":"","totalLoanAmount":"","category":"","paymentMode":"ICICI Bank","dateToPay":"","dateStart":"","dateEnd":"","datePaid":"","amount":"1619","status":"Pending","pendingAmount":"","interestRate":"","remarks":""},
-      {"sno":4,"source":"AXIS MAX LIFE INSURANCE","loanNumber":"","totalLoanAmount":"","category":"","paymentMode":"","dateToPay":"18th","dateStart":"","dateEnd":"","datePaid":"","amount":"1080","status":"Pending","pendingAmount":"","interestRate":"","remarks":""},
-      {"sno":5,"source":"RBL","loanNumber":"","totalLoanAmount":"","category":"","paymentMode":"","dateToPay":"","dateStart":"","dateEnd":"","datePaid":"","amount":"1751.83","status":"Pending","pendingAmount":"","interestRate":"","remarks":""},
-      {"sno":6,"source":"IDFC (Nanna)","loanNumber":"","totalLoanAmount":"","category":"","paymentMode":"","dateToPay":"","dateStart":"","dateEnd":"","datePaid":"","amount":"2187","status":"Pending","pendingAmount":"","interestRate":"","remarks":""},
-      {"sno":7,"source":"TVS","loanNumber":"","totalLoanAmount":"","category":"","paymentMode":"BOI Bank","dateToPay":"3rd","dateStart":"","dateEnd":"","datePaid":"","amount":"5453","status":"Pending","pendingAmount":"","interestRate":"","remarks":""},
-      {"sno":8,"source":"ICICI","loanNumber":"","totalLoanAmount":"","category":"","paymentMode":"","dateToPay":"","dateStart":"","dateEnd":"","datePaid":"","amount":"1955.43","status":"Pending","pendingAmount":"","interestRate":"","remarks":""},
-      {"sno":9,"source":"ICICI","loanNumber":"","totalLoanAmount":"","category":"","paymentMode":"","dateToPay":"","dateStart":"","dateEnd":"","datePaid":"","amount":"2036.9","status":"Pending","pendingAmount":"","interestRate":"","remarks":""},
-      {"sno":10,"source":"ICICI","loanNumber":"","totalLoanAmount":"","category":"","paymentMode":"","dateToPay":"","dateStart":"","dateEnd":"","datePaid":"","amount":"1765.44","status":"Pending","pendingAmount":"","interestRate":"","remarks":""},
-      {"sno":11,"source":"RBL (For Dad)","loanNumber":"","totalLoanAmount":"16000","category":"","paymentMode":"","dateToPay":"","dateStart":"2025-12-02","dateEnd":"","datePaid":"","amount":"1593.04","status":"Pending","pendingAmount":"","interestRate":"25% + 18%GST on interest","remarks":"Minimum due 2088"},
-      {"sno":12,"source":"Naveen Hided Extra Increment amount","loanNumber":"","totalLoanAmount":"","category":"","paymentMode":"","dateToPay":"","dateStart":"","dateEnd":"","datePaid":"","amount":"7906","status":"Pending","pendingAmount":"","interestRate":"16% + 18%GST","remarks":"Minimum due 2547"},
-      {"sno":13,"source":"Park Fee","loanNumber":"","totalLoanAmount":"","category":"","paymentMode":"","dateToPay":"","dateStart":"","dateEnd":"","datePaid":"","amount":"200","status":"Pending","pendingAmount":"","interestRate":"","remarks":""},
-      {"sno":14,"source":"IDFC (For Dad)","loanNumber":"","totalLoanAmount":"15574","category":"","paymentMode":"","dateToPay":"","dateStart":"2025-12-20","dateEnd":"2026-11-20","datePaid":"","amount":"1413.05","status":"Pending","pendingAmount":"","interestRate":"","remarks":""}
-    ],
-    "semifixed": [
-      {"sno":1,"source":"Room Rent","loanNumber":"","category":"","paymentMode":"Auto-Debit","dateToPay":"","dateStart":"","dateEnd":"","datePaid":"","amount":"","status":"Pending","pendingAmount":"","interestRate":"","remarks":""},
-      {"sno":2,"source":"Gas Bill","loanNumber":"","category":"","paymentMode":"Cash","dateToPay":"","dateStart":"","dateEnd":"","datePaid":"","amount":"","status":"Pending","pendingAmount":"","interestRate":"","remarks":""},
-      {"sno":3,"source":"Amma Mobile Recharge (Jio)","loanNumber":"","category":"","paymentMode":"Bank Transfer","dateToPay":"","dateStart":"","dateEnd":"","datePaid":"","amount":"","status":"Pending","pendingAmount":"","interestRate":"","remarks":""},
-      {"sno":4,"source":"Nanna Mobile Recharge (Airtel)","loanNumber":"","category":"","paymentMode":"Cash","dateToPay":"","dateStart":"","dateEnd":"","datePaid":"","amount":"","status":"Pending","pendingAmount":"","interestRate":"","remarks":""},
-      {"sno":5,"source":"Ashwini Mobile Recharge (Jio)","loanNumber":"","category":"","paymentMode":"Bank Transfer","dateToPay":"","dateStart":"","dateEnd":"","datePaid":"","amount":"","status":"Pending","pendingAmount":"","interestRate":"","remarks":""},
-      {"sno":6,"source":"Garbage Bill","loanNumber":"","category":"","paymentMode":"Bank Transfer","dateToPay":"","dateStart":"","dateEnd":"","datePaid":"","amount":"","status":"Pending","pendingAmount":"","interestRate":"","remarks":""},
-      {"sno":7,"source":"Internet Bill","loanNumber":"","category":"","paymentMode":"Bank Transfer","dateToPay":"","dateStart":"","dateEnd":"","datePaid":"","amount":"","status":"Pending","pendingAmount":"","interestRate":"","remarks":""}
-    ],
-    "variable": [
-      {"sno":1,"source":"Nanna","date":"","category":"","subcategory":"","paymentMode":"Bank Transfer","accountUsed":"SBI","description":"Every month gives to dad","amount":"","month":"","status":"Pending","remarks":""},
-      {"sno":2,"source":"Amazon Pay Later","date":"","category":"","subcategory":"","paymentMode":"Auto-Debit","accountUsed":"BOI","description":"Mobile recharges and small expenses","amount":"","month":"","status":"Pending","remarks":""},
-      {"sno":3,"source":"Weekly market 2nd week","date":"","category":"","subcategory":"","paymentMode":"Bank Transfer","accountUsed":"ICICI","description":"","amount":"","month":"","status":"Pending","remarks":""},
-      {"sno":4,"source":"Weekly market 3rd week","date":"","category":"","subcategory":"","paymentMode":"","accountUsed":"","description":"","amount":"","month":"","status":"Pending","remarks":""},
-      {"sno":5,"source":"Weekly market 4th week","date":"","category":"","subcategory":"","paymentMode":"","accountUsed":"","description":"","amount":"","month":"","status":"Pending","remarks":""},
-      {"sno":6,"source":"Milk Packet, Raja kayanna, RRR kayanna","date":"","category":"","subcategory":"","paymentMode":"","accountUsed":"","description":"","amount":"","month":"","status":"Pending","remarks":""},
-      {"sno":7,"source":"Devudi gurchi Karuchu","date":"","category":"","subcategory":"","paymentMode":"","accountUsed":"","description":"","amount":"","month":"","status":"Pending","remarks":""},
-      {"sno":8,"source":"Naveen Bus Charges For Office","date":"","category":"","subcategory":"","paymentMode":"","accountUsed":"","description":"","amount":"","month":"","status":"Pending","remarks":""},
-      {"sno":9,"source":"Naveen Metro Charges For Office","date":"","category":"","subcategory":"","paymentMode":"","accountUsed":"","description":"","amount":"","month":"","status":"Pending","remarks":""},
-      {"sno":10,"source":"Nanna Bike Petrol","date":"","category":"","subcategory":"","paymentMode":"","accountUsed":"","description":"","amount":"","month":"","status":"Pending","remarks":""},
-      {"sno":11,"source":"Naveen Daily Eggs (30)","date":"","category":"","subcategory":"","paymentMode":"","accountUsed":"","description":"","amount":"","month":"","status":"Pending","remarks":""},
-      {"sno":12,"source":"Amma Kinley Soda","date":"","category":"","subcategory":"","paymentMode":"","accountUsed":"","description":"","amount":"","month":"","status":"Pending","remarks":""},
-      {"sno":13,"source":"Sunday hair colour","date":"","category":"","subcategory":"","paymentMode":"","accountUsed":"","description":"","amount":"","month":"","status":"Pending","remarks":""},
-      {"sno":14,"source":"Bore Bill","date":"","category":"","subcategory":"","paymentMode":"Bank Transfer","accountUsed":"HDFC","description":"","amount":"","month":"","status":"Pending","remarks":""},
-      {"sno":15,"source":"Grocery","date":"","category":"","subcategory":"","paymentMode":"Bank Transfer","accountUsed":"HDFC","description":"","amount":"","month":"","status":"Pending","remarks":""}
-    ],
-    "unexpected": [],
-    "lending": [
-      {"sno":1,"personName":"","contact":"","type":"Lent","mode":"IDFC CC","dateGiven":"","dueDate":"","interestRate":"","amount":"","returned":"","balance":"","status":"Partially Paid","accountUsed":"","remarks":""},
-      {"sno":2,"personName":"","contact":"","type":"Lent","mode":"Bank Transfer","dateGiven":"","dueDate":"","interestRate":"","amount":"","returned":"","balance":"","status":"Partially Paid","accountUsed":"","remarks":""}
-    ]
-  };
 }
 
 async function loadJsonData() {
   try {
     const text = await driveDownloadText(currentFileId);
-    const obj  = JSON.parse(text);
-    loadDataFromObject(obj);
+    loadDataFromObject(JSON.parse(text));
     setFileStatus(true);
     switchTab(currentTab);
     showToast('✓ Data loaded!','success');
@@ -378,12 +272,12 @@ function loadDataFromObject(obj) {
   keys.forEach(k => {
     data[k] = (obj[k] || []).map((row, i) => ({
       ...row,
-      _id: row._id || (k + '_' + i + '_' + Date.now())
+      _id: row._id || (k+'_'+i+'_'+Date.now())
     }));
   });
 }
 
-// ── SAVE ─────────────────────────────────────────────────────────────────
+// ── SAVE MONTH FILE ───────────────────────────────────────────────────────
 async function saveToGDrive() {
   if (!currentFileId) { await loadOrCreateCurrentMonth(); if (!currentFileId) return; }
   const btn = document.getElementById('saveBtn');
@@ -391,16 +285,16 @@ async function saveToGDrive() {
   btn.disabled = true;
   try {
     const payload = {
-      _version: 1,
-      _month:   MONTHS[currentMonth.month],
-      _year:    currentMonth.year,
-      _saved:   new Date().toISOString(),
-      income:      data.income,
-      fixed:       data.fixed,
-      semifixed:   data.semifixed,
-      variable:    data.variable,
-      unexpected:  data.unexpected,
-      lending:     data.lending
+      _version:   1,
+      _month:     MONTHS[currentMonth.month],
+      _year:      currentMonth.year,
+      _saved:     new Date().toISOString(),
+      income:     data.income,
+      fixed:      data.fixed,
+      semifixed:  data.semifixed,
+      variable:   data.variable,
+      unexpected: data.unexpected,
+      lending:    data.lending
     };
     await driveUploadJson(currentFileId, payload, getFileName());
     showToast('✓ Saved to Google Drive!','success');
@@ -415,59 +309,106 @@ async function saveToGDrive() {
   }
 }
 
+// ── MASTER JSON EDITOR ────────────────────────────────────────────────────
+// Loads from Drive, editable in textarea, saves back to Drive
+async function editMasterJson() {
+  if (!accessToken)    { showToast('Please sign in first','error'); return; }
+  if (!MASTER_FILE_ID) { showToast('Master file ID not set — check ⚙️ Settings','error'); return; }
+
+  closeModal('settingsModal'); // must close first so editor appears on top
+
+  showToast('Loading master.json from Drive...','info');
+  try {
+    const text = await driveDownloadText(MASTER_FILE_ID);
+    document.getElementById('masterJsonEditor').value = JSON.stringify(JSON.parse(text), null, 2);
+    showToast('✓ master.json loaded','success');
+    openModal('masterJsonModal');
+  } catch(e) {
+    console.error(e);
+    // Don't open editor with stale data — show exact error so user knows what's wrong
+    showToast('❌ Cannot load master.json: '+e.message,'error');
+  }
+}
+
+function formatMasterJson() {
+  const ta = document.getElementById('masterJsonEditor');
+  try {
+    ta.value = JSON.stringify(JSON.parse(ta.value), null, 2);
+    showToast('✨ Formatted!','success');
+  } catch(e) { showToast('❌ Invalid JSON: '+e.message,'error'); }
+}
+
+function validateMasterJson() {
+  try {
+    const json = JSON.parse(document.getElementById('masterJsonEditor').value);
+    const req  = ['income','fixed','semifixed','variable','unexpected','lending'];
+    const miss = req.filter(k => !Array.isArray(json[k]));
+    if (miss.length) { showToast('⚠️ Missing sections: '+miss.join(', '),'error'); return; }
+    showToast('✅ Valid! '+req.map(k=>k+':'+json[k].length).join(' · '),'success');
+  } catch(e) { showToast('❌ '+e.message,'error'); }
+}
+
+async function saveMasterJson() {
+  // Step 1: validate JSON syntax
+  let json;
+  try { json = JSON.parse(document.getElementById('masterJsonEditor').value); }
+  catch(e) { showToast('❌ Invalid JSON: '+e.message,'error'); return; }
+
+  // Step 2: validate required sections present
+  const req  = ['income','fixed','semifixed','variable','unexpected','lending'];
+  const miss = req.filter(k => !Array.isArray(json[k]));
+  if (miss.length) { showToast('❌ Missing sections: '+miss.join(', '),'error'); return; }
+
+  // Step 3: save to Drive
+  try {
+    showToast('Saving master.json to Drive...','info');
+    await driveUploadJson(MASTER_FILE_ID, json, 'master.json');
+    showToast('✓ master.json saved to Drive!','success');
+    closeModal('masterJsonModal');
+  } catch(e) {
+    showToast('❌ Save failed: '+e.message,'error');
+    console.error(e);
+  }
+}
+
 // ── EXPORT TO EXCEL ───────────────────────────────────────────────────────
 function exportExcel() {
   try {
     const wb = XLSX.utils.book_new();
-
-    // Dashboard summary sheet
     const fi=sumIf(data.fixed,'amount','status','Paid'), si=sumIf(data.semifixed,'amount','status','Paid');
     const vi=sumIf(data.variable,'amount','status','Paid'), ui=sumIf(data.unexpected,'amount','status','Paid');
     const ti=sum(data.income,'amount'), pi=sumIf(data.income,'amount','status','Paid'), te=fi+si+vi+ui;
-    const dashRows = [
-      ['Salary Tracker — '+MONTHS[currentMonth.month]+' '+currentMonth.year],
-      [''],
-      ['Total Income', ti, 'Paid Income', pi, 'Pending Income', ti-pi],
-      ['Total Expenses', te, '', '', 'Net Balance', pi-te],
-      [''],
-      ['Fixed Expenses (Paid)', fi],
-      ['Semi Fixed Expenses (Paid)', si],
-      ['Variable Expenses (Paid)', vi],
-      ['Unexpected Expenses (Paid)', ui],
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
+      ['Salary Tracker — '+MONTHS[currentMonth.month]+' '+currentMonth.year],[''],
+      ['Total Income',ti,'Paid Income',pi,'Pending Income',ti-pi],
+      ['Total Expenses',te,'','','Net Balance',pi-te],[''],
+      ['Fixed Expenses (Paid)',fi],['Semi Fixed Expenses (Paid)',si],
+      ['Variable Expenses (Paid)',vi],['Unexpected Expenses (Paid)',ui]
+    ]), 'Dashboard');
+    const sheets = [
+      {key:'income',    name:'Income',    headers:['S.No','Source','Category','Mode','Account','Date Received','Amount (₹)','Status','Month','Remarks']},
+      {key:'fixed',     name:'Fixed Exp', headers:['S.No','Source','Loan No.','Total Loan','Category','Mode','Due Day','Start','End','Paid On','Amount (₹)','Status','Pending (₹)','Interest','Remarks']},
+      {key:'semifixed', name:'Semi Fixed',headers:['S.No','Source','Ref No.','Category','Mode','Due Day','Start','End','Paid On','Amount (₹)','Status','Pending (₹)','Interest','Remarks']},
+      {key:'variable',  name:'Variable',  headers:['S.No','Source','Date','Category','Subcategory','Mode','Account','Description','Amount (₹)','Month','Status','Remarks']},
+      {key:'unexpected',name:'Unexpected',headers:['S.No','Source','Date','Category','Subcategory','Mode','Account','Description','Amount (₹)','Month','Status','Remarks']},
+      {key:'lending',   name:'Lending',   headers:['S.No','Person','Contact','Type','Mode','Date Given','Due Date','Interest','Amount (₹)','Returned (₹)','Balance (₹)','Status','Account','Remarks']}
     ];
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(dashRows), 'Dashboard');
-
-    // Each data sheet
-    const sheetDefs = [
-      {key:'income',     name:'Income',       headers:['S.No','Source','Category','Mode','Account','Date Received','Amount (₹)','Status','Month','Remarks']},
-      {key:'fixed',      name:'Fixed Exp',    headers:['S.No','Source','Loan No.','Total Loan','Category','Mode','Due Day','Start','End','Paid On','Amount (₹)','Status','Pending (₹)','Interest','Remarks']},
-      {key:'semifixed',  name:'Semi Fixed',   headers:['S.No','Source','Ref No.','Category','Mode','Due Day','Start','End','Paid On','Amount (₹)','Status','Pending (₹)','Interest','Remarks']},
-      {key:'variable',   name:'Variable Exp', headers:['S.No','Source','Date','Category','Subcategory','Mode','Account','Description','Amount (₹)','Month','Status','Remarks']},
-      {key:'unexpected', name:'Unexpected',   headers:['S.No','Source','Date','Category','Subcategory','Mode','Account','Description','Amount (₹)','Month','Status','Remarks']},
-      {key:'lending',    name:'Lending',      headers:['S.No','Person','Contact','Type','Mode','Date Given','Due Date','Interest','Amount (₹)','Returned (₹)','Balance (₹)','Status','Account','Remarks']},
-    ];
-    sheetDefs.forEach(({key, name, headers}) => {
+    sheets.forEach(({key,name,headers}) => {
       const schema = SCHEMAS[key];
-      const aoa = [
-        [name + ' — ' + MONTHS[currentMonth.month] + ' ' + currentMonth.year],
-        headers,
-        ...data[key].map((row,i) => schema.map(c => c.type==='sno' ? i+1 : (row[c.key] || '')))
-      ];
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), name);
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
+        [name+' — '+MONTHS[currentMonth.month]+' '+currentMonth.year], headers,
+        ...data[key].map((row,i)=>schema.map(c=>c.type==='sno'?i+1:(row[c.key]||'')))
+      ]), name);
     });
-
-    const fname = MONTHS[currentMonth.month]+'-'+currentMonth.year+'_Salary_Tracker.xlsx';
-    XLSX.writeFile(wb, fname);
+    XLSX.writeFile(wb, MONTHS[currentMonth.month]+'-'+currentMonth.year+'_Salary_Tracker.xlsx');
     showToast('📊 Excel downloaded!','success');
-  } catch(e) {
-    showToast('Export error: '+e.message,'error');
-  }
+  } catch(e) { showToast('Export error: '+e.message,'error'); }
 }
 
 // ── MATH HELPERS ─────────────────────────────────────────────────────────
-function sum(arr,f)        { return arr.reduce((s,r)=>s+(parseFloat(r[f])||0),0); }
-function sumIf(arr,f,cf,cv){ return arr.filter(r=>r[cf]===cv).reduce((s,r)=>s+(parseFloat(r[f])||0),0); }
-function fmt(n)            { return '₹'+parseFloat(n||0).toLocaleString('en-IN',{maximumFractionDigits:0}); }
+function sum(arr,f)         { return arr.reduce((s,r)=>s+(parseFloat(r[f])||0),0); }
+function sumIf(arr,f,cf,cv) { return arr.filter(r=>r[cf]===cv).reduce((s,r)=>s+(parseFloat(r[f])||0),0); }
+function fmt(n)             { return '₹'+parseFloat(n||0).toLocaleString('en-IN',{maximumFractionDigits:0}); }
 
 // ── TABS ─────────────────────────────────────────────────────────────────
 function switchTab(tab) {
@@ -481,15 +422,9 @@ function switchTab(tab) {
 }
 
 function renderDashboard(c) {
-  // Income: Total = all rows, Paid = only status 'Paid', Pending = 'Pending'+'Delayed'
-  const ti=sum(data.income,'amount');
-  const pi=sumIf(data.income,'amount','status','Paid');
-
-  // Expenses: only count rows where status === 'Paid' (Pending/Delayed don't count yet)
-  const fi=sumIf(data.fixed,    'amount','status','Paid');
-  const si=sumIf(data.semifixed,'amount','status','Paid');
-  const vi=sumIf(data.variable, 'amount','status','Paid');
-  const ui=sumIf(data.unexpected,'amount','status','Paid');
+  const ti=sum(data.income,'amount'), pi=sumIf(data.income,'amount','status','Paid');
+  const fi=sumIf(data.fixed,'amount','status','Paid'),    si=sumIf(data.semifixed,'amount','status','Paid');
+  const vi=sumIf(data.variable,'amount','status','Paid'), ui=sumIf(data.unexpected,'amount','status','Paid');
   const te=fi+si+vi+ui, nb=pi-te, pct=pi>0?Math.min(100,(te/pi)*100):0;
 
   const noFile = !currentFileId ? `<div class="load-card">
@@ -518,25 +453,26 @@ function renderDashboard(c) {
         <thead><tr><th>Category</th><th style="text-align:right">Paid</th><th style="text-align:right">Pending</th><th style="text-align:right">Delayed</th></tr></thead>
         <tbody>
           ${[
-            ['Fixed Exp',   fi, sumIf(data.fixed,    'amount','status','Pending'), sumIf(data.fixed,    'amount','status','Delayed')],
-            ['Semi Fixed',  si, sumIf(data.semifixed,'amount','status','Pending'), sumIf(data.semifixed,'amount','status','Delayed')],
-            ['Variable',    vi, sumIf(data.variable, 'amount','status','Pending'), sumIf(data.variable, 'amount','status','Delayed')],
-            ['Unexpected',  ui, sumIf(data.unexpected,'amount','status','Pending'),sumIf(data.unexpected,'amount','status','Delayed')]
-            ].map(([cat,p,pnd,del])=>`<tr>
-              <td>${cat}</td>
-              <td style="text-align:right;color:var(--accent);font-family:var(--font-mono)">${fmt(p)}</td>
-              <td style="text-align:right;color:var(--accent2);font-family:var(--font-mono)">${fmt(pnd)}</td>
-              <td style="text-align:right;color:var(--delayed);font-family:var(--font-mono)">${del>0?fmt(del):'-'}</td>
-            </tr>`).join('')}
+            ['Fixed Exp',  fi, sumIf(data.fixed,    'amount','status','Pending'), sumIf(data.fixed,    'amount','status','Delayed')],
+            ['Semi Fixed', si, sumIf(data.semifixed,'amount','status','Pending'), sumIf(data.semifixed,'amount','status','Delayed')],
+            ['Variable',   vi, sumIf(data.variable, 'amount','status','Pending'), sumIf(data.variable, 'amount','status','Delayed')],
+            ['Unexpected', ui, sumIf(data.unexpected,'amount','status','Pending'),sumIf(data.unexpected,'amount','status','Delayed')]
+          ].map(([cat,p,pnd,del])=>`<tr>
+            <td>${cat}</td>
+            <td style="text-align:right;color:var(--accent);font-family:var(--font-mono)">${fmt(p)}</td>
+            <td style="text-align:right;color:var(--accent2);font-family:var(--font-mono)">${fmt(pnd)}</td>
+            <td style="text-align:right;color:var(--delayed);font-family:var(--font-mono)">${del>0?fmt(del):'-'}</td>
+          </tr>`).join('')}
         </tbody>
       </table>
     </div>`;
 }
 
 function renderSheet(c, key, title) {
-  const schema = SCHEMAS[key];
-  const rows   = data[key];
-  const stColor = {Paid:'var(--paid)',Pending:'var(--pending)',Delayed:'var(--delayed)','Partially Paid':'var(--accent3)','Fully Paid':'var(--paid)'};
+  const schema  = SCHEMAS[key];
+  const rows    = data[key];
+  const stColor = {Paid:'var(--paid)',Pending:'var(--pending)',Delayed:'var(--delayed)',
+                   'Partially Paid':'var(--accent3)','Fully Paid':'var(--paid)'};
 
   const thead = schema.map(col=>`<th>${col.label}</th>`).join('')+'<th></th>';
   const tbody = rows.length===0
@@ -551,38 +487,24 @@ function renderSheet(c, key, title) {
       }).join('')}<td><button class="delete-btn" onclick="deleteRow('${key}',${ri})">✕</button></td></tr>`
     ).join('');
 
-  c.innerHTML = ` <div class="add-entry-center">
-<button class="add-entry-btn" onclick="showAddRow('${key}','${title}')">
-➕ Add Entry
-</button>
-</div> 
+  c.innerHTML = `
+    <div class="add-entry-center">
+      <button class="add-entry-btn" onclick="showAddRow('${key}','${title}')">➕ Add Entry</button>
+    </div>
     <div class="section-head">${title}</div>
     <div class="sheet-table">
-      <div class="table-scroll"><table id="dataTable" ><thead><tr>${thead}</tr></thead><tbody>${tbody}</tbody></table></div>
-    </div>
-  `;
-  setTimeout(()=>{
+      <div class="table-scroll"><table id="dataTable"><thead><tr>${thead}</tr></thead><tbody>${tbody}</tbody></table></div>
+    </div>`;
 
-    if($.fn.DataTable.isDataTable('#dataTable')){
-    $('#dataTable').DataTable().destroy();
-    }
-    
+  setTimeout(()=>{
+    if ($.fn.DataTable.isDataTable('#dataTable')) $('#dataTable').DataTable().destroy();
     $('#dataTable').DataTable({
-    paging:true,
-    searching:false,
-    ordering:false,
-    pageLength:10,
-    lengthChange:true,
-    
-    scrollX:true,
-    scrollY:"60vh",
-    scrollCollapse:true,
-    
-    fixedHeader:true
+      paging:true, searching:false, ordering:false,
+      pageLength:10, lengthChange:true,
+      scrollX:true, scrollY:'60vh', scrollCollapse:true, fixedHeader:true
     });
-    
-    },50);
-    }
+  }, 50);
+}
 
 // ── CELL EDIT / DELETE ────────────────────────────────────────────────────
 function updateCell(key, ri, field, value) {
@@ -593,7 +515,7 @@ function updateCell(key, ri, field, value) {
   }
   markDirty();
 }
-function deleteRow(key,ri) {
+function deleteRow(key, ri) {
   if (!confirm('Delete this row?')) return;
   data[key].splice(ri,1);
   markDirty(); switchTab(currentTab);
@@ -606,59 +528,22 @@ function discardChanges() {
 }
 
 // ── ADD ROW ───────────────────────────────────────────────────────────────
-function showAddRow(key,title){
-
-    addRowContext = key;
-    
-    document.getElementById('addRowTitle').textContent = 'Add ' + title;
-    
-    const schema = SCHEMAS[key].filter(c => c.type !== 'sno');
-    
-    document.getElementById('addRowForm').innerHTML =
-    
-    '<div class="form-grid">' +
-    
+function showAddRow(key, title) {
+  addRowContext = key;
+  document.getElementById('addRowTitle').textContent = 'Add '+title;
+  const schema = SCHEMAS[key].filter(c=>c.type!=='sno');
+  document.getElementById('addRowForm').innerHTML = '<div class="form-grid">' +
     schema.map(col => {
-    
-    let input = '';
-    
-    if(col.type === 'select'){
-    input = `
-    <select class="form-select" name="${col.key}">
-    <option value="">Select...</option>
-    ${col.opts.map(o => `<option>${o}</option>`).join('')}
-    </select>`;
-    }
-    
-    else if(col.type === 'date'){
-    input = `<input type="date" class="form-input" name="${col.key}">`;
-    }
-    
-    else if(col.type === 'number'){
-    input = `<input type="number" class="form-input" name="${col.key}" step="0.01">`;
-    }
-    else if(col.type === 'textarea'){
-        input = `<textarea class="form-input" name="${col.key}" rows="1" placeholder="${col.label}"></textarea>`;
-        }
-        
-        else{
-        input = `<input type="text" class="form-input" name="${col.key}" placeholder="${col.label}">`;
-        }
-    
-    return `
-    <div class="form-group">
-    <label class="form-label">${col.label}</label>
-    ${input}
-    </div>
-    `;
-    
-    }).join('')
-    
-    + '</div>';
-    
-    openModal('addRowModal');
-    
-    }
+      let input = '';
+      if      (col.type==='select')   input = `<select class="form-select" name="${col.key}"><option value="">Select...</option>${col.opts.map(o=>`<option>${o}</option>`).join('')}</select>`;
+      else if (col.type==='date')     input = `<input type="date" class="form-input" name="${col.key}">`;
+      else if (col.type==='number')   input = `<input type="number" class="form-input" name="${col.key}" step="0.01">`;
+      else if (col.type==='textarea') input = `<textarea class="form-input" name="${col.key}" rows="1" placeholder="${col.label}"></textarea>`;
+      else                            input = `<input type="text" class="form-input" name="${col.key}" placeholder="${col.label}">`;
+      return `<div class="form-group"><label class="form-label">${col.label}</label>${input}</div>`;
+    }).join('') + '</div>';
+  openModal('addRowModal');
+}
 function submitAddRow() {
   const key=addRowContext, schema=SCHEMAS[key], form=document.getElementById('addRowForm');
   const row={_id:key+'_'+Date.now()};
@@ -673,15 +558,25 @@ function submitAddRow() {
 }
 
 // ── MONTH PICKER ──────────────────────────────────────────────────────────
-function showMonthPicker() { pickerMonth={...currentMonth}; document.getElementById('yearDisplay').textContent=pickerMonth.year; renderMonthGrid(); openModal('monthModal'); }
-function renderMonthGrid() { document.getElementById('monthGrid').innerHTML=MONTHS.map((m,i)=>`<div class="month-chip ${i===pickerMonth.month?'selected':''}" onclick="selMonth(${i})">${m.slice(0,3)}</div>`).join(''); }
+function showMonthPicker() {
+  pickerMonth={...currentMonth};
+  document.getElementById('yearDisplay').textContent=pickerMonth.year;
+  renderMonthGrid(); openModal('monthModal');
+}
+function renderMonthGrid() {
+  document.getElementById('monthGrid').innerHTML=MONTHS.map((m,i)=>
+    `<div class="month-chip ${i===pickerMonth.month?'selected':''}" onclick="selMonth(${i})">${m.slice(0,3)}</div>`
+  ).join('');
+}
 function selMonth(i) { pickerMonth.month=i; renderMonthGrid(); }
 function changeYear(d) { pickerMonth.year+=d; document.getElementById('yearDisplay').textContent=pickerMonth.year; }
 function applyMonth() {
   currentMonth={...pickerMonth}; updateMonthDisplay(); closeModal('monthModal');
   currentFileId=null; resetData(); setFileStatus(false); switchTab(currentTab);
 }
-function updateMonthDisplay() { document.getElementById('monthDisplay').textContent=MONTHS[currentMonth.month]+' '+currentMonth.year; }
+function updateMonthDisplay() {
+  document.getElementById('monthDisplay').textContent=MONTHS[currentMonth.month]+' '+currentMonth.year;
+}
 
 // ── SETTINGS ──────────────────────────────────────────────────────────────
 function openSettingsModal() {
@@ -702,12 +597,14 @@ function saveSettings() {
   showToast('✓ Settings saved!','success');
 }
 
-// ── THEME TOGGLE ──────────────────────────────────────────────────────────
+// ── THEME ─────────────────────────────────────────────────────────────────
 function toggleTheme() {
   const isDay=document.body.classList.toggle('day');
   localStorage.setItem('st_theme', isDay?'day':'night');
 }
-function applyStoredTheme() { if (localStorage.getItem('st_theme')==='day') document.body.classList.add('day'); }
+function applyStoredTheme() {
+  if (localStorage.getItem('st_theme')==='day') document.body.classList.add('day');
+}
 
 // ── HELPERS ───────────────────────────────────────────────────────────────
 function setFileStatus(linked) {
@@ -718,82 +615,21 @@ function setFileStatus(linked) {
 function resetData() { data={income:[],fixed:[],semifixed:[],variable:[],unexpected:[],lending:[]}; }
 function openModal(id)  { document.getElementById(id).classList.add('open'); }
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
-document.querySelectorAll('.modal-overlay').forEach(el=>{
-  el.addEventListener('click',e=>{ if(e.target===el) el.classList.remove('open'); });
-});
 
 let toastTimer;
-function showToast(msg,type='info') {
+function showToast(msg, type='info') {
   const t=document.getElementById('toast');
   t.textContent=msg; t.className=`toast ${type} show`;
   clearTimeout(toastTimer);
-  toastTimer=setTimeout(()=>t.classList.remove('show'),3500);
+  toastTimer=setTimeout(()=>t.classList.remove('show'), 3500);
 }
-
-async function editMasterJson(){
-  if(!accessToken){ showToast('Please sign in first','error'); return; }
-  if(!MASTER_FILE_ID){ showToast('Master file ID not set in Settings','error'); return; }
-  closeModal('settingsModal');  // close settings first so editor appears on top
-  showToast('Loading master.json...','info');
-  try{
-    const text = await driveDownloadText(MASTER_FILE_ID);
-    document.getElementById('masterJsonEditor').value = JSON.stringify(JSON.parse(text), null, 2);
-    showToast('✓ Loaded from Drive','success');
-  }catch(e){
-    console.warn('Drive load failed, using built-in:', e.message);
-    document.getElementById('masterJsonEditor').value = JSON.stringify(getBuiltInMasterData(), null, 2);
-    showToast('⚠️ Drive unavailable – showing built-in template','info');
-  }
-  openModal('masterJsonModal');
-}
-
-function formatMasterJson(){
-  const ta = document.getElementById('masterJsonEditor');
-  try{
-    ta.value = JSON.stringify(JSON.parse(ta.value), null, 2);
-    showToast('✨ Formatted!','success');
-  }catch(e){ showToast('❌ Invalid JSON: '+e.message,'error'); }
-}
-
-function validateMasterJson(){
-  try{
-    const json = JSON.parse(document.getElementById('masterJsonEditor').value);
-    const req = ['income','fixed','semifixed','variable','unexpected','lending'];
-    const miss = req.filter(k => !Array.isArray(json[k]));
-    if(miss.length){ showToast('⚠️ Missing sections: '+miss.join(', '),'error'); return; }
-    showToast('✅ Valid! '+req.map(k=>k+':'+json[k].length).join(', '),'success');
-  }catch(e){ showToast('❌ '+e.message,'error'); }
-}
-
-
-async function saveMasterJson(){
-  const text = document.getElementById('masterJsonEditor').value;
-  let json;
-  try{ json = JSON.parse(text); }
-  catch(e){ showToast('❌ Invalid JSON: '+e.message,'error'); return; }
-  const req = ['income','fixed','semifixed','variable','unexpected','lending'];
-  const miss = req.filter(k => !Array.isArray(json[k]));
-  if(miss.length){ showToast('❌ Missing sections: '+miss.join(', '),'error'); return; }
-  try{
-    showToast('Saving to Drive...','info');
-    await driveUploadJson(MASTER_FILE_ID, json, 'master.json');
-    showToast('✓ master.json saved to Drive!','success');
-    closeModal('masterJsonModal');
-  }catch(e){ showToast('❌ Save failed: '+e.message,'error'); }
-}
-
 
 // ── INIT ──────────────────────────────────────────────────────────────────
-document.addEventListener("DOMContentLoaded", function () {
-
-    applyStoredTheme();
-    updateMonthDisplay();
-    renderMonthGrid();
-  
-    document.querySelectorAll('.modal-overlay').forEach(el=>{
-      el.addEventListener('click',e=>{
-        if(e.target===el) el.classList.remove('open');
-      });
-    });
-  
+document.addEventListener('DOMContentLoaded', function() {
+  applyStoredTheme();
+  updateMonthDisplay();
+  renderMonthGrid();
+  document.querySelectorAll('.modal-overlay').forEach(el=>{
+    el.addEventListener('click', e=>{ if(e.target===el) el.classList.remove('open'); });
   });
+});
