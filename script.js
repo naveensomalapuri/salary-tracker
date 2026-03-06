@@ -210,14 +210,16 @@ async function driveDownloadText(fileId) {
 }
 async function driveUploadJson(fileId, obj, name) {
   const json = JSON.stringify(obj, null, 2);
-  const blob = new Blob([json], { type:'application/json' });
-  const form = new FormData();
-  form.append('metadata', new Blob([JSON.stringify({name})], {type:'application/json'}));
-  form.append('file', blob);
-  const r = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`, {
-    method:'PATCH', headers:H(), body:form
-  });
-  if (!r.ok) throw new Error('Upload failed: '+r.status+' '+(await r.text()));
+  // Use simple media upload — works for all file types including Google Doc-stored JSON
+  const r = await fetch(
+    `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`,
+    {
+      method: 'PATCH',
+      headers: { ...H(), 'Content-Type': 'application/json' },
+      body: json
+    }
+  );
+  if (!r.ok) throw new Error('Upload failed: ' + r.status + ' ' + (await r.text()));
   return r.json();
 }
 async function driveCreateJson(name, obj, folderId) {
