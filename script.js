@@ -21,15 +21,16 @@ let addRowContext  = null;
 let gisLoaded     = false;
 
 // All data and schemas come from Drive — nothing hardcoded here
-let data    = {};
-let SCHEMAS = {};
+let data           = {};
+let SCHEMAS        = {};
+let SCHEMAS_MASTER = {};   // Persistent cache — survives row deletion
 
 // ── SCHEMA BUILDER ────────────────────────────────────────────────────────
 // Dynamically derives schemas from the keys of master.json rows.
 // Type is inferred by key name. Status options are fixed per section.
 // This means master.json fully controls the columns — add/remove keys there.
 function buildSchemasFromData(masterObj) {
-  const sections = ['income','fixed','semifixed','variable','unexpected','lending'];
+  const sections = ['income','savings','fixed','semifixed','variable','unexpected','lending'];
 
   const dateKeys     = ['date','dateReceived','datePaid','dateStart','dateEnd','dateGiven','dueDate','dateToPay'];
   const numberKeys   = ['amount','totalLoanAmount','pendingAmount','returned','balance'];
@@ -83,6 +84,8 @@ function buildSchemasFromData(masterObj) {
           // Status options are fixed by section — never derived from data
           opts = section === 'lending'
             ? ['Fully Paid', 'Partially Paid', 'Delayed']
+            : section === 'savings'
+            ? ['Saved', 'Pending', 'Withdrawn']
             : ['Paid', 'Pending', 'Delayed'];
         } else {
           // Other selects: collect unique non-empty values from data
@@ -96,6 +99,9 @@ function buildSchemasFromData(masterObj) {
 
     SCHEMAS[section] = schema;
   });
+
+  // Cache a deep copy so empty-section schemas can be restored after all rows deleted
+  SCHEMAS_MASTER = JSON.parse(JSON.stringify(SCHEMAS));
 }
 
 // ── SIGN IN ───────────────────────────────────────────────────────────────
@@ -278,7 +284,7 @@ async function loadJsonData() {
 }
 
 function loadDataFromObject(obj) {
-  const sections = ['income','fixed','semifixed','variable','unexpected','lending'];
+  const sections = ['income','savings','fixed','semifixed','variable','unexpected','lending'];
   data = {};
   sections.forEach(k => {
     data[k] = (obj[k] || []).map((row, i) => ({
@@ -295,7 +301,7 @@ async function saveToGDrive() {
   btn.innerHTML = '<div class="spinner"></div>';
   btn.disabled = true;
   try {
-    const sections = ['income','fixed','semifixed','variable','unexpected','lending'];
+    const sections = ['income','savings','fixed','semifixed','variable','unexpected','lending'];
     const payload = { _version:1, _month:MONTHS[currentMonth.month], _year:currentMonth.year, _saved:new Date().toISOString() };
     sections.forEach(k => payload[k] = data[k] || []);
     await driveUploadJson(currentFileId, payload, getFileName());
@@ -390,8 +396,8 @@ async function saveMasterJson() {
 function exportExcel() {
   try {
     const wb = XLSX.utils.book_new();
-    const sections = ['income','fixed','semifixed','variable','unexpected','lending'];
-    const sheetNames = {income:'Income',fixed:'Fixed Expenses',semifixed:'Semi Fixed Exp',
+    const sections = ['income','savings','fixed','semifixed','variable','unexpected','lending'];
+    const sheetNames = {income:'Income',savings:'Savings',fixed:'Fixed Expenses',semifixed:'Semi Fixed Exp',
                         variable:'Variable Exp',unexpected:'Unexpected Exp',lending:'Lending & Borrowing'};
     // Match Excel dashboard formulas exactly
     // Total Income = only Paid entries
@@ -402,16 +408,18 @@ function exportExcel() {
     const si = sumIf(data.semifixed||[],'amount','status','Paid');
     const vi = sumIf(data.variable||[],'amount','status','Paid');
     const ui = sumIf(data.unexpected||[],'amount','status','Paid');
+    const svi = sumIf(data.savings||[],'amount','status','Saved');
     const te = fi + si + vi + ui;
-    const nb = ti - te; // Net Balance = Total Income - Total Paid Expenses
+    const nb = ti - te - svi;
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
       ['Salary Tracker — '+MONTHS[currentMonth.month]+' '+currentMonth.year],[''],
       ['Total Income', ti, '', 'Paid Income', pi, '', 'Pending Income', pndI],[''],
-      ['Total Expenses (Paid)', te, '', '', '', '', 'Net Balance', nb],[''],
+      ['Total Expenses (Paid)', te, '', 'Savings (Saved)', svi, '', 'Net Balance', nb],[''],
       ['Fixed Expenses (Paid)', fi],
       ['Semi Fixed Expenses (Paid)', si],
       ['Variable Expenses (Paid)', vi],
-      ['Unexpected Expenses (Paid)', ui]
+      ['Unexpected Expenses (Paid)', ui],
+      ['Savings (Saved)', svi]
     ]), 'Dashboard');
     sections.forEach(key => {
       const schema = SCHEMAS[key] || [];
@@ -430,15 +438,15 @@ function exportExcel() {
 // ── MATH HELPERS ─────────────────────────────────────────────────────────
 function sum(arr,f)         { return arr.reduce((s,r)=>s+(parseFloat(r[f])||0),0); }
 function sumIf(arr,f,cf,cv) { return arr.filter(r=>r[cf]===cv).reduce((s,r)=>s+(parseFloat(r[f])||0),0); }
-function fmt(n)             { return '₹'+parseFloat(n||0).toLocaleString('en-IN',{maximumFractionDigits:0}); }
+function fmt(n)             { return '₹'+parseFloat(n||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 
 // ── TABS ─────────────────────────────────────────────────────────────────
 function switchTab(tab) {
   currentTab = tab;
-  const tabs = ['dashboard','income','fixed','semifixed','variable','unexpected','lending'];
+  const tabs = ['dashboard','income','savings','fixed','semifixed','variable','unexpected','lending'];
   document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',tabs[i]===tab));
   const c = document.getElementById('content');
-  const titles = {income:'Income',fixed:'Fixed Expenses',semifixed:'Semi Fixed Expenses',
+  const titles = {income:'Income',savings:'Savings',fixed:'Fixed Expenses',semifixed:'Semi Fixed Expenses',
                   variable:'Variable Expenses',unexpected:'Unexpected Expenses',lending:'Lending & Borrowing'};
   if (tab==='dashboard') renderDashboard(c); else renderSheet(c, tab, titles[tab]);
 }
@@ -461,11 +469,12 @@ function renderDashboard(c) {
   const si = sumIf(data.semifixed||[],'amount','status','Paid');
   const vi = sumIf(data.variable||[],'amount','status','Paid');
   const ui = sumIf(data.unexpected||[],'amount','status','Paid');
+  const svi = sumIf(data.savings||[],'amount','status','Saved');
   const te = fi + si + vi + ui;
 
   // Net Balance = Total Income - Total Paid Expenses (matches Excel =C4-C15)
-  const nb = ti - te;
-  const pct = ti > 0 ? Math.min(100, (te / ti) * 100) : 0;
+  const nb = ti - te - svi;
+  const pct = ti > 0 ? Math.min(100, ((te + svi) / ti) * 100) : 0;
 
   const noFile = !currentFileId ? `<div class="load-card">
     <div class="load-card-title">📂 ${MONTHS[currentMonth.month]} ${currentMonth.year}</div>
@@ -483,6 +492,11 @@ function renderDashboard(c) {
       <div class="stat-card expenses">
         <div class="stat-label">Total Expenses (Paid)</div>
         <div class="stat-value expenses">${fmt(te)}</div>
+      </div>
+      <div class="stat-card" style="background:linear-gradient(135deg,rgba(0,229,160,.08),rgba(0,229,160,.03));border-color:rgba(0,229,160,.25)">
+        <div class="stat-label">Total Savings</div>
+        <div class="stat-value" style="color:var(--accent)">${fmt(svi)}</div>
+        <div style="font-size:.68rem;margin-top:.3rem;color:var(--muted)">Saved: <span style="color:var(--paid)">${fmt(svi)}</span> &nbsp; Pending: <span style="color:var(--pending)">${fmt(sumIf(data.savings||[],'amount','status','Pending'))}</span></div>
       </div>
       <div class="stat-card balance">
         <div class="stat-label">Net Balance</div>
@@ -511,7 +525,8 @@ function renderDashboard(c) {
             ['Fixed',      fi, sumIf(data.fixed||[],    'amount','status','Pending'), sumIf(data.fixed||[],    'amount','status','Delayed')],
             ['Semi Fixed', si, sumIf(data.semifixed||[],'amount','status','Pending'), sumIf(data.semifixed||[],'amount','status','Delayed')],
             ['Variable',   vi, sumIf(data.variable||[], 'amount','status','Pending'), sumIf(data.variable||[], 'amount','status','Delayed')],
-            ['Unexpected', ui, sumIf(data.unexpected||[],'amount','status','Pending'),sumIf(data.unexpected||[],'amount','status','Delayed')]
+            ['Unexpected', ui, sumIf(data.unexpected||[],'amount','status','Pending'),sumIf(data.unexpected||[],'amount','status','Delayed')],
+            ['Savings',    svi, sumIf(data.savings||[], 'amount','status','Pending'), 0]
           ].map(([cat,p,pnd,del])=>`<tr>
             <td>${cat}</td>
             <td style="text-align:right;color:var(--paid);font-family:var(--font-mono)">${p>0?fmt(p):'-'}</td>
@@ -520,8 +535,8 @@ function renderDashboard(c) {
           </tr>`).join('')}
           <tr style="border-top:1px solid var(--border);font-weight:700">
             <td>Total</td>
-            <td style="text-align:right;color:var(--paid);font-family:var(--font-mono)">${fmt(te)}</td>
-            <td style="text-align:right;color:var(--pending);font-family:var(--font-mono)">${fmt(sumIf(data.fixed||[],'amount','status','Pending')+sumIf(data.semifixed||[],'amount','status','Pending')+sumIf(data.variable||[],'amount','status','Pending')+sumIf(data.unexpected||[],'amount','status','Pending'))}</td>
+            <td style="text-align:right;color:var(--paid);font-family:var(--font-mono)">${fmt(te+svi)}</td>
+            <td style="text-align:right;color:var(--pending);font-family:var(--font-mono)">${fmt(sumIf(data.fixed||[],'amount','status','Pending')+sumIf(data.semifixed||[],'amount','status','Pending')+sumIf(data.variable||[],'amount','status','Pending')+sumIf(data.unexpected||[],'amount','status','Pending')+sumIf(data.savings||[],'amount','status','Pending'))}</td>
             <td style="text-align:right;color:var(--delayed);font-family:var(--font-mono)">${fmt(sumIf(data.fixed||[],'amount','status','Delayed')+sumIf(data.semifixed||[],'amount','status','Delayed')+sumIf(data.variable||[],'amount','status','Delayed')+sumIf(data.unexpected||[],'amount','status','Delayed'))}</td>
           </tr>
         </tbody>
@@ -530,8 +545,12 @@ function renderDashboard(c) {
 }
 
 function renderSheet(c, key, title) {
-  const schema  = SCHEMAS[key] || [];
   const rows    = data[key]    || [];
+  // If all rows have been deleted, restore schema from master cache so new rows get correct headers
+  if (rows.length === 0 && SCHEMAS_MASTER[key] && SCHEMAS_MASTER[key].length > 1) {
+    SCHEMAS[key] = JSON.parse(JSON.stringify(SCHEMAS_MASTER[key]));
+  }
+  const schema  = SCHEMAS[key] || [];
   // Status colour coding matches Excel status values
   const stColor = {
     'Paid':         'var(--paid)',
