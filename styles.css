@@ -72,7 +72,19 @@ body.day .t-sun  { opacity:1;transform:scale(1) rotate(0); }
 
 /* ── DASHBOARD ── */
 .dashboard-grid { display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:1rem; }
-.stat-card { background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;position:relative;overflow:hidden; }
+@media(max-width:360px) {
+  .dashboard-grid { grid-template-columns:1fr; }
+}
+.stat-card { background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;position:relative;overflow:hidden;animation:cardIn .35s ease both; }
+@keyframes cardIn {
+  from { opacity:0; transform:translateY(10px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+.dashboard-grid .stat-card:nth-child(1) { animation-delay:.05s; }
+.dashboard-grid .stat-card:nth-child(2) { animation-delay:.1s; }
+.dashboard-grid .stat-card:nth-child(3) { animation-delay:.15s; }
+.dashboard-grid .stat-card:nth-child(4) { animation-delay:.2s; }
+.dashboard-grid .stat-card:nth-child(5) { animation-delay:.25s; }
 .stat-card::before { content:'';position:absolute;top:0;left:0;right:0;height:2px; }
 .stat-card.income::before { background:var(--accent); }
 .stat-card.expenses::before { background:var(--accent2); }
@@ -84,6 +96,25 @@ body.day .t-sun  { opacity:1;transform:scale(1) rotate(0); }
 .stat-value.expenses { color:var(--accent2); }
 .stat-value.balance-pos { color:var(--accent); }
 .stat-value.balance-neg { color:var(--accent2); }
+/* ── BREAKDOWN TABLE MOBILE ── */
+.breakdown-table-wrap { width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:var(--radius); }
+.breakdown-table-wrap table { min-width:320px;width:100%; }
+@media(max-width:480px) {
+  .breakdown-table-wrap td, .breakdown-table-wrap th { padding:.55rem .55rem;font-size:.72rem; }
+  .stat-value { font-size:1rem; }
+}
+
+/* ── SHEET FADE IN ── */
+.content { flex:1;padding:1rem;animation:fadeIn .22s ease; }
+@keyframes fadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+
+/* ── ADD ENTRY BTN PULSE ── */
+.add-entry-btn { transition:transform .18s,box-shadow .18s !important; }
+.add-entry-btn:hover { transform:translateY(-2px) !important;box-shadow:0 8px 24px rgba(0,229,160,.25) !important; }
+
+/* ── ROW APPEAR ── */
+tbody tr { animation:rowIn .2s ease both; }
+@keyframes rowIn { from{opacity:0;transform:translateX(-4px)} to{opacity:1;transform:translateX(0)} }
 .section-head { font-family:var(--font-head);font-size:.8rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:1.2rem 0 .6rem; }
 .progress-bar { height:4px;background:var(--border);border-radius:2px;overflow:hidden;margin-top:.5rem; }
 .progress-fill { height:100%;background:linear-gradient(90deg,var(--accent),var(--accent3));border-radius:2px; }
