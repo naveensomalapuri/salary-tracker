@@ -518,7 +518,7 @@ function renderDashboard(c) {
     </div>
     <div class="section-head">Expense Breakdown</div>
     <div class="sheet-table">
-      <table style="min-width:unset;width:100%">
+      <div class="breakdown-table-wrap"><table style="min-width:unset;width:100%">
         <thead><tr><th>Category</th><th style="text-align:right">Paid</th><th style="text-align:right">Pending</th><th style="text-align:right">Delayed</th></tr></thead>
         <tbody>
           ${[
@@ -540,7 +540,7 @@ function renderDashboard(c) {
             <td style="text-align:right;color:var(--delayed);font-family:var(--font-mono)">${fmt(sumIf(data.fixed||[],'amount','status','Delayed')+sumIf(data.semifixed||[],'amount','status','Delayed')+sumIf(data.variable||[],'amount','status','Delayed')+sumIf(data.unexpected||[],'amount','status','Delayed'))}</td>
           </tr>
         </tbody>
-      </table>
+      </table></div>
     </div>`;
 }
 
@@ -561,12 +561,7 @@ function renderSheet(c, key, title) {
   };
 
   const thead = schema.map(col=>`<th>${col.label}</th>`).join('')+'<th></th>';
-  // When empty: render a proper row with correct column count so DataTables doesn't crash.
-  // The "no entries" message is shown via a caption element instead of a colspan td.
-  const emptyRow = schema.map(()=>`<td></td>`).join('') + '<td></td>';
-  const tbody = rows.length===0
-    ? `<tr class="dt-empty-row">${emptyRow}</tr>`
-    : rows.map((row,ri)=>`<tr>${schema.map(col=>{
+  const tbody = rows.length===0 ? '' : rows.map((row,ri)=>`<tr>${schema.map(col=>{
         const v=(row[col.key]??'').toString().replace(/"/g,'&quot;');
         if (col.type==='sno')      return `<td style="color:var(--muted);font-size:.68rem;min-width:22px">${ri+1}</td>`;
         if (col.type==='select')   return `<td><select class="inline-select" style="color:${stColor[row[col.key]]||'var(--text)'}" onchange="updateCell('${key}',${ri},'${col.key}',this.value)">${(col.opts||[]).map(o=>`<option ${o===row[col.key]?'selected':''}>${o}</option>`).join('')}</select></td>`;
@@ -577,8 +572,9 @@ function renderSheet(c, key, title) {
       }).join('')}<td><button class="delete-btn" onclick="deleteRow('${key}',${ri})">✕</button></td></tr>`
     ).join('');
 
-  const emptyMsg = rows.length===0
-    ? `<div style="text-align:center;padding:1.5rem;color:var(--muted);font-size:.82rem;margin-top:.5rem">No entries yet — tap ➕ Add Entry to get started.</div>`
+  // Empty state: show table with headers + a "no entries" row so column structure is always visible
+  const emptyTbody = rows.length===0
+    ? `<tr><td colspan="${schema.length+1}" style="text-align:center;padding:2rem 1rem;color:var(--muted);font-size:.82rem">No entries yet — tap ➕ Add Entry to get started.</td></tr>`
     : '';
 
   c.innerHTML = `
@@ -586,12 +582,11 @@ function renderSheet(c, key, title) {
       <button class="add-entry-btn" onclick="showAddRow('${key}','${title}')">➕ Add Entry</button>
     </div>
     <div class="section-head">${title}</div>
-    ${emptyMsg}
-    <div class="sheet-table" style="${rows.length===0?'display:none':''}">
-      <div class="table-scroll"><table id="dataTable"><thead><tr>${thead}</tr></thead><tbody>${tbody}</tbody></table></div>
+    <div class="sheet-table">
+      <div class="table-scroll"><table id="dataTable"><thead><tr>${thead}</tr></thead><tbody>${rows.length===0 ? emptyTbody : tbody}</tbody></table></div>
     </div>`;
 
-  // Only init DataTables when there are actual rows — prevents column count crash on empty tables
+  // Only init DataTables when there are actual rows — prevents DataTables from interfering with empty-state row
   if (rows.length > 0) {
     setTimeout(()=>{
       if ($.fn.DataTable.isDataTable('#dataTable')) $('#dataTable').DataTable().destroy();
