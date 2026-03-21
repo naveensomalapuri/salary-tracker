@@ -7,11 +7,11 @@ let CLIENT_ID      = localStorage.getItem('st_client_id')  || DEFAULT_CLIENT_ID;
 let MASTER_FILE_ID = localStorage.getItem('st_master_id')  || DEFAULT_MASTER_ID;
 let DEST_FOLDER_ID = localStorage.getItem('st_folder_id')  || DEFAULT_FOLDER_ID;
 
-const SCOPES = 'https://www.googleapis.com/auth/drive';
+const SCOPES = 'https://www.googleapis.com/auth/drive.file';
 const MONTHS = ['January','February','March','April','May','June',
                 'July','August','September','October','November','December'];
 
-let tokenClient, accessToken;
+let tokenClient, accessToken, tokenExpiresAt = 0;
 let currentMonth  = { month: new Date().getMonth(), year: new Date().getFullYear() };
 let pickerMonth   = { ...currentMonth };
 let currentTab    = 'dashboard';
@@ -25,84 +25,144 @@ let data           = {};
 let SCHEMAS        = {};
 let SCHEMAS_MASTER = {};   // Persistent cache — survives row deletion
 
+// ── CANONICAL SCHEMA DEFINITIONS ─────────────────────────────────────────
+// Each section has a fixed, authoritative schema. This means schemas NEVER
+// depend on rows existing in the data, eliminating the "empty section falls
+// back to wrong sibling schema" bug. master.json drives select option values
+// but NOT the column structure.
+const CANONICAL_SCHEMAS = {
+  income: [
+    { key:'sno',             label:'#',                  type:'sno' },
+    { key:'source',          label:'Source',             type:'text' },
+    { key:'category',        label:'Category',           type:'text' },
+    { key:'paymentMode',     label:'Payment Mode',       type:'select', opts:[] },
+    { key:'accountReceived', label:'Account Received',   type:'select', opts:[] },
+    { key:'dateReceived',    label:'Date Received',      type:'date' },
+    { key:'amount',          label:'Amount (₹)',         type:'number' },
+    { key:'status',          label:'Status',             type:'select', opts:['Paid','Pending','Delayed'] },
+    { key:'month',           label:'Month',              type:'text' },
+    { key:'remarks',         label:'Remarks',            type:'text' },
+  ],
+  savings: [
+    { key:'sno',          label:'#',               type:'sno' },
+    { key:'source',       label:'Source',          type:'text' },
+    { key:'category',     label:'Category',        type:'text' },
+    { key:'paymentMode',  label:'Payment Mode',    type:'select', opts:[] },
+    { key:'accountUsed',  label:'Account Used',    type:'select', opts:[] },
+    { key:'date',         label:'Date',            type:'date' },
+    { key:'amount',       label:'Amount (₹)',      type:'number' },
+    { key:'targetAmount', label:'Target Amount (₹)',type:'number' },
+    { key:'status',       label:'Status',          type:'select', opts:['Saved','Pending','Withdrawn'] },
+    { key:'remarks',      label:'Remarks',         type:'text' },
+  ],
+  fixed: [
+    { key:'sno',             label:'#',                   type:'sno' },
+    { key:'source',          label:'Source',              type:'text' },
+    { key:'loanNumber',      label:'Loan Number',         type:'text' },
+    { key:'totalLoanAmount', label:'Total Loan Amount (₹)',type:'number' },
+    { key:'category',        label:'Category',            type:'text' },
+    { key:'paymentMode',     label:'Payment Mode',        type:'select', opts:[] },
+    { key:'dateToPay',       label:'Date To Pay',         type:'text' },
+    { key:'dateStart',       label:'Date Start',          type:'date' },
+    { key:'dateEnd',         label:'Date End',            type:'date' },
+    { key:'datePaid',        label:'Date Paid',           type:'date' },
+    { key:'amount',          label:'Amount (₹)',          type:'number' },
+    { key:'status',          label:'Status',              type:'select', opts:['Paid','Pending','Delayed'] },
+    { key:'pendingAmount',   label:'Pending Amount (₹)',  type:'number' },
+    { key:'interestRate',    label:'Interest Rate',       type:'text' },
+    { key:'remarks',         label:'Remarks',             type:'text' },
+  ],
+  semifixed: [
+    { key:'sno',           label:'#',                  type:'sno' },
+    { key:'source',        label:'Source',             type:'text' },
+    { key:'loanNumber',    label:'Loan Number',        type:'text' },
+    { key:'category',      label:'Category',           type:'text' },
+    { key:'paymentMode',   label:'Payment Mode',       type:'select', opts:[] },
+    { key:'dateToPay',     label:'Date To Pay',        type:'text' },
+    { key:'dateStart',     label:'Date Start',         type:'date' },
+    { key:'dateEnd',       label:'Date End',           type:'date' },
+    { key:'datePaid',      label:'Date Paid',          type:'date' },
+    { key:'amount',        label:'Amount (₹)',         type:'number' },
+    { key:'status',        label:'Status',             type:'select', opts:['Paid','Pending','Delayed'] },
+    { key:'pendingAmount', label:'Pending Amount (₹)', type:'number' },
+    { key:'interestRate',  label:'Interest Rate',      type:'text' },
+    { key:'remarks',       label:'Remarks',            type:'text' },
+  ],
+  variable: [
+    { key:'sno',         label:'#',             type:'sno' },
+    { key:'source',      label:'Source',        type:'text' },
+    { key:'date',        label:'Date',          type:'date' },
+    { key:'category',    label:'Category',      type:'text' },
+    { key:'subcategory', label:'Subcategory',   type:'text' },
+    { key:'paymentMode', label:'Payment Mode',  type:'select', opts:[] },
+    { key:'accountUsed', label:'Account Used',  type:'select', opts:[] },
+    { key:'description', label:'Description',   type:'textarea' },
+    { key:'amount',      label:'Amount (₹)',    type:'number' },
+    { key:'month',       label:'Month',         type:'text' },
+    { key:'status',      label:'Status',        type:'select', opts:['Paid','Pending','Delayed'] },
+    { key:'remarks',     label:'Remarks',       type:'text' },
+  ],
+  unexpected: [
+    { key:'sno',         label:'#',             type:'sno' },
+    { key:'source',      label:'Source',        type:'text' },
+    { key:'date',        label:'Date',          type:'date' },
+    { key:'category',    label:'Category',      type:'text' },
+    { key:'subcategory', label:'Subcategory',   type:'text' },
+    { key:'paymentMode', label:'Payment Mode',  type:'select', opts:[] },
+    { key:'accountUsed', label:'Account Used',  type:'select', opts:[] },
+    { key:'description', label:'Description',   type:'textarea' },
+    { key:'amount',      label:'Amount (₹)',    type:'number' },
+    { key:'month',       label:'Month',         type:'text' },
+    { key:'status',      label:'Status',        type:'select', opts:['Paid','Pending','Delayed'] },
+    { key:'remarks',     label:'Remarks',       type:'text' },
+  ],
+  lending: [
+    { key:'sno',             label:'#',                  type:'sno' },
+    { key:'personName',      label:'Person Name',        type:'text' },
+    { key:'type',            label:'Type',               type:'select', opts:['Lent','Borrowed'] },
+    { key:'mode',            label:'Mode',               type:'select', opts:[] },
+    { key:'dateGiven',       label:'Date Given',         type:'date' },
+    { key:'dueDate',         label:'Due Date',           type:'date' },
+    { key:'interestRate',    label:'Interest Rate',      type:'text' },
+    { key:'amount',          label:'Amount (₹)',         type:'number' },
+    { key:'returned',        label:'Returned (₹)',       type:'number' },
+    { key:'balance',         label:'Balance (₹)',        type:'readonly' },
+    { key:'status',          label:'Status',             type:'select', opts:['Fully Paid','Partially Paid','Delayed'] },
+    { key:'accountUsed',     label:'Account Used',       type:'select', opts:[] },
+    { key:'remarks',         label:'Remarks',            type:'text' },
+    { key:'contactRelation', label:'Contact / Relation', type:'text' },
+  ],
+};
+
 // ── SCHEMA BUILDER ────────────────────────────────────────────────────────
-// Dynamically derives schemas from the keys of master.json rows.
-// Type is inferred by key name. Status options are fixed per section.
-// This means master.json fully controls the columns — add/remove keys there.
+// Uses canonical schemas as the structural backbone.
+// Hydrates select options (except status) from actual master.json data values.
+// This means schemas are ALWAYS correct even when sections are empty.
 function buildSchemasFromData(masterObj) {
   const sections = ['income','savings','fixed','semifixed','variable','unexpected','lending'];
-
-  const dateKeys     = ['date','dateReceived','datePaid','dateStart','dateEnd','dateGiven','dueDate','dateToPay'];
-  const numberKeys   = ['amount','totalLoanAmount','pendingAmount','returned','balance'];
-  const textareaKeys = ['description'];
-  const selectKeys   = ['paymentMode','status','type','mode','accountUsed','accountReceived'];
-
-  // For sections with 0 rows, fall back to sibling section keys if available
-  // (e.g. unexpected mirrors variable structure)
-  const fallbackKeys = { unexpected: 'variable' };
 
   SCHEMAS = {};
 
   sections.forEach(section => {
-    let rows = masterObj[section] || [];
+    const rows = masterObj[section] || [];
+    // Deep-clone canonical schema so we can safely mutate opts
+    const schema = JSON.parse(JSON.stringify(CANONICAL_SCHEMAS[section] || [{ key:'sno', label:'#', type:'sno' }]));
 
-    // If this section is empty, try to get key structure from a fallback sibling
-    if (rows.length === 0 && fallbackKeys[section]) {
-      rows = masterObj[fallbackKeys[section]] || [];
-    }
-
-    if (rows.length === 0) {
-      SCHEMAS[section] = [{ key:'sno', label:'#', type:'sno' }];
-      return;
-    }
-
-    // Collect all unique non-internal keys across rows
-    const allKeys = [];
-    rows.forEach(row => {
-      Object.keys(row).forEach(k => {
-        if (!allKeys.includes(k) && !k.startsWith('_')) allKeys.push(k);
-      });
-    });
-
-    const schema = allKeys.map(key => {
-      if (key === 'sno') return { key, label: '#', type: 'sno' };
-
-      // camelCase → Title Case label
-      const label = key
-        .replace(/([A-Z])/g, ' $1')
-        .replace(/^./, s => s.toUpperCase())
-        .replace('Amount', 'Amount (\u20b9)')
-        .trim();
-
-      if (dateKeys.includes(key))     return { key, label, type: 'date' };
-      if (numberKeys.includes(key))   return { key, label, type: 'number' };
-      if (textareaKeys.includes(key)) return { key, label, type: 'textarea' };
-
-      if (selectKeys.includes(key)) {
-        let opts;
-        if (key === 'status') {
-          // Status options are fixed by section — never derived from data
-          opts = section === 'lending'
-            ? ['Fully Paid', 'Partially Paid', 'Delayed']
-            : section === 'savings'
-            ? ['Saved', 'Pending', 'Withdrawn']
-            : ['Paid', 'Pending', 'Delayed'];
-        } else {
-          // Other selects: collect unique non-empty values from data
-          opts = [...new Set(rows.map(r => r[key]).filter(v => v && v !== ''))];
-        }
-        return { key, label, type: 'select', opts };
+    // Hydrate dynamic select options from data (skip status — it's fixed)
+    schema.forEach(col => {
+      if (col.type === 'select' && col.key !== 'status' && rows.length > 0) {
+        const vals = [...new Set(rows.map(r => r[col.key]).filter(v => v && v !== ''))];
+        if (vals.length > 0) col.opts = vals;
       }
-
-      return { key, label, type: 'text' };
     });
 
     SCHEMAS[section] = schema;
   });
 
-  // Cache a deep copy so empty-section schemas can be restored after all rows deleted
+  // Cache a deep copy so empty-section schemas survive row deletion
   SCHEMAS_MASTER = JSON.parse(JSON.stringify(SCHEMAS));
 }
+
 
 // ── SIGN IN ───────────────────────────────────────────────────────────────
 function handleGoogleSignIn() {
@@ -132,7 +192,26 @@ function initTokenClient() {
 function onTokenResponse(resp) {
   if (resp.error) { showToast('Sign-in failed: '+resp.error,'error'); gisLoaded=false; return; }
   accessToken = resp.access_token;
+  // Google tokens expire in 3600s; refresh 5 min early to be safe
+  tokenExpiresAt = Date.now() + ((resp.expires_in || 3600) - 300) * 1000;
   onSignedIn();
+}
+
+// Call this before every Drive API request to silently refresh if near-expired
+function ensureFreshToken() {
+  return new Promise((resolve, reject) => {
+    if (Date.now() < tokenExpiresAt) { resolve(); return; }
+    // Token expired or expiring — request a new one silently
+    try {
+      tokenClient.requestAccessToken({ prompt: '' });
+      // onTokenResponse will fire and update accessToken/tokenExpiresAt
+      // We resolve after a short wait; Drive calls will then use fresh token
+      const check = setInterval(() => {
+        if (Date.now() < tokenExpiresAt) { clearInterval(check); resolve(); }
+      }, 200);
+      setTimeout(() => { clearInterval(check); reject(new Error('Token refresh timed out. Please sign in again.')); }, 8000);
+    } catch(e) { reject(e); }
+  });
 }
 function onSignedIn() {
   document.getElementById('splash').style.display='none';
@@ -140,6 +219,8 @@ function onSignedIn() {
   updateMonthDisplay();
   switchTab('dashboard');
   showToast('✓ Signed in!','success');
+  // Auto-load current month file
+  loadOrCreateCurrentMonth();
 }
 function signOut() {
   if (!confirm('Sign out?')) return;
@@ -154,12 +235,14 @@ function signOut() {
 const H = () => ({ 'Authorization':'Bearer '+accessToken });
 
 async function driveList(q) {
+  await ensureFreshToken();
   const p = new URLSearchParams({ q, fields:'files(id,name,mimeType)', pageSize:'10' });
   const r = await fetch('https://www.googleapis.com/drive/v3/files?'+p, { headers:H() });
   if (!r.ok) throw new Error('List failed: '+r.status);
   return (await r.json()).files || [];
 }
 async function driveDownloadText(fileId) {
+  await ensureFreshToken();
   if (!accessToken) throw new Error('Not authenticated');
 
   // Try 1: direct download (works for files YOU own)
@@ -186,6 +269,7 @@ async function driveDownloadText(fileId) {
   throw new Error(msg);
 }
 async function driveUploadJson(fileId, obj, name) {
+  await ensureFreshToken();
   const form = new FormData();
   form.append('metadata', new Blob([JSON.stringify({name})], {type:'application/json'}));
   form.append('file',     new Blob([JSON.stringify(obj, null, 2)], {type:'application/json'}));
@@ -196,6 +280,7 @@ async function driveUploadJson(fileId, obj, name) {
   return r.json();
 }
 async function driveCreateJson(name, obj, folderId) {
+  await ensureFreshToken();
   const meta = { name, mimeType:'application/json' };
   if (folderId) meta.parents = [folderId];
   const form = new FormData();
@@ -340,24 +425,6 @@ async function resolveMasterFileId() {
   return foundId;
 }
 
-async function testMasterAccess() {
-  console.log('accessToken:', accessToken ? 'OK' : 'NULL');
-  console.log('MASTER_FILE_ID:', MASTER_FILE_ID);
-  if (!accessToken) { alert('Not signed in!'); return; }
-  var url1 = 'https://www.googleapis.com/drive/v3/files/' + MASTER_FILE_ID + '?fields=id,name';
-  var url2 = 'https://www.googleapis.com/drive/v3/files/' + MASTER_FILE_ID + '?alt=media';
-  try {
-    var r1 = await fetch(url1, { headers: { Authorization: 'Bearer ' + accessToken } });
-    var b1 = await r1.text();
-    console.log('Metadata:', r1.status, b1.substring(0,200));
-    if (!r1.ok) { alert('Metadata FAILED ' + r1.status + ': ' + b1.substring(0,300)); return; }
-    var r2 = await fetch(url2, { headers: { Authorization: 'Bearer ' + accessToken } });
-    var b2 = await r2.text();
-    console.log('Download:', r2.status, b2.substring(0,200));
-    if (!r2.ok) alert('Download FAILED ' + r2.status + ': ' + b2.substring(0,300));
-    else alert('SUCCESS! Loaded ' + b2.length + ' bytes');
-  } catch(e) { alert('fetch threw: ' + e.message); console.error(e); }
-}
 
 async function editMasterJson() {
   if (!accessToken) { showToast('Please sign in first','error'); return; }
@@ -470,6 +537,8 @@ function renderDashboard(c) {
   const vi = sumIf(data.variable||[],'amount','status','Paid');
   const ui = sumIf(data.unexpected||[],'amount','status','Paid');
   const svi = sumIf(data.savings||[],'amount','status','Saved');
+  const savingsTarget = sum(data.savings||[], 'targetAmount');
+  const savingsPct = savingsTarget > 0 ? Math.min(100, (svi / savingsTarget) * 100) : 0;
   const te = fi + si + vi + ui;
 
   // Net Balance = Total Income - Total Paid Expenses (matches Excel =C4-C15)
@@ -497,6 +566,14 @@ function renderDashboard(c) {
         <div class="stat-label">Total Savings</div>
         <div class="stat-value" style="color:var(--accent)">${fmt(svi)}</div>
         <div style="font-size:.68rem;margin-top:.3rem;color:var(--muted)">Saved: <span style="color:var(--paid)">${fmt(svi)}</span> &nbsp; Pending: <span style="color:var(--pending)">${fmt(sumIf(data.savings||[],'amount','status','Pending'))}</span></div>
+        ${savingsTarget > 0 ? `
+        <div style="margin-top:.55rem">
+          <div style="display:flex;justify-content:space-between;font-size:.65rem;color:var(--muted);margin-bottom:.25rem">
+            <span>Target: ${fmt(savingsTarget)}</span>
+            <span style="color:var(--accent);font-weight:700">${savingsPct.toFixed(1)}%</span>
+          </div>
+          <div class="progress-bar"><div class="progress-fill" style="width:${savingsPct}%;background:linear-gradient(90deg,var(--accent),var(--accent))"></div></div>
+        </div>` : ''}
       </div>
       <div class="stat-card balance">
         <div class="stat-label">Net Balance</div>
@@ -561,16 +638,19 @@ function renderSheet(c, key, title) {
   };
 
   const thead = schema.map(col=>`<th>${col.label}</th>`).join('')+'<th></th>';
-  const tbody = rows.length===0 ? '' : rows.map((row,ri)=>`<tr>${schema.map(col=>{
+  const tbody = rows.length===0 ? '' : rows.map((row,ri)=>{
+      const id = row._id;
+      return `<tr data-id="${id}">${schema.map(col=>{
         const v=(row[col.key]??'').toString().replace(/"/g,'&quot;');
         if (col.type==='sno')      return `<td style="color:var(--muted);font-size:.68rem;min-width:22px">${ri+1}</td>`;
-        if (col.type==='select')   return `<td><select class="inline-select" style="color:${stColor[row[col.key]]||'var(--text)'}" onchange="updateCell('${key}',${ri},'${col.key}',this.value)">${(col.opts||[]).map(o=>`<option ${o===row[col.key]?'selected':''}>${o}</option>`).join('')}</select></td>`;
-        if (col.type==='number')   return `<td><input class="inline-input" type="number" step="0.01" value="${v}" onchange="updateCell('${key}',${ri},'${col.key}',this.value)" style="width:90px;text-align:right"></td>`;
-        if (col.type==='date')     return `<td><input class="inline-input" type="date" value="${v}" onchange="updateCell('${key}',${ri},'${col.key}',this.value)" style="width:118px"></td>`;
-        if (col.type==='textarea') return `<td><input class="inline-input" type="text" value="${v}" onchange="updateCell('${key}',${ri},'${col.key}',this.value)" style="min-width:120px"></td>`;
-        return `<td><input class="inline-input" type="text" value="${v}" onchange="updateCell('${key}',${ri},'${col.key}',this.value)" style="min-width:65px"></td>`;
-      }).join('')}<td><button class="delete-btn" onclick="deleteRow('${key}',${ri})">✕</button></td></tr>`
-    ).join('');
+        if (col.type==='readonly') return `<td style="font-family:var(--font-mono);font-size:.8rem;color:var(--accent3);min-width:80px;text-align:right">${v||'—'}</td>`;
+        if (col.type==='select')   return `<td><select class="inline-select" style="color:${stColor[row[col.key]]||'var(--text)'}" onchange="updateCell('${key}','${id}','${col.key}',this.value)">${(col.opts||[]).map(o=>`<option ${o===row[col.key]?'selected':''}>${o}</option>`).join('')}</select></td>`;
+        if (col.type==='number')   return `<td><input class="inline-input" type="number" step="0.01" value="${v}" onchange="updateCell('${key}','${id}','${col.key}',this.value)" style="width:90px;text-align:right"></td>`;
+        if (col.type==='date')     return `<td><input class="inline-input" type="date" value="${v}" onchange="updateCell('${key}','${id}','${col.key}',this.value)" style="width:118px"></td>`;
+        if (col.type==='textarea') return `<td><input class="inline-input" type="text" value="${v}" onchange="updateCell('${key}','${id}','${col.key}',this.value)" style="min-width:120px"></td>`;
+        return `<td><input class="inline-input" type="text" value="${v}" onchange="updateCell('${key}','${id}','${col.key}',this.value)" style="min-width:65px"></td>`;
+      }).join('')}<td><button class="delete-btn" onclick="deleteRow('${key}','${id}')">✕</button></td></tr>`;
+    }).join('');
 
   // Empty state: show table with headers + a "no entries" row so column structure is always visible
   const emptyTbody = rows.length===0
@@ -600,17 +680,19 @@ function renderSheet(c, key, title) {
 }
 
 // ── CELL EDIT / DELETE ────────────────────────────────────────────────────
-function updateCell(key, ri, field, value) {
-  data[key][ri][field] = value;
+function updateCell(key, rowId, field, value) {
+  const row = data[key].find(r => r._id === rowId);
+  if (!row) return;
+  row[field] = value;
   if (key==='lending') {
-    const r=data[key][ri];
-    r.balance = String((parseFloat(r.amount)||0)-(parseFloat(r.returned)||0));
+    row.balance = String((parseFloat(row.amount)||0)-(parseFloat(row.returned)||0));
   }
   markDirty();
 }
-async function deleteRow(key, ri) {
-  const row = data[key][ri];
-  const label = row.source || row.personName || row.name || `Row ${ri+1}`;
+async function deleteRow(key, rowId) {
+  const row = data[key].find(r => r._id === rowId);
+  if (!row) return;
+  const label = row.source || row.personName || row.name || `Row`;
 
   // Custom confirm modal — ask about monthly file first
   const confirmed = await showConfirmModal(
@@ -619,8 +701,10 @@ async function deleteRow(key, ri) {
   );
   if (!confirmed) return;
 
-  // Remove from monthly data
-  data[key].splice(ri, 1);
+  // Remove from monthly data using _id — safe across DataTables pagination
+  const idx = data[key].findIndex(r => r._id === rowId);
+  if (idx === -1) return;
+  data[key].splice(idx, 1);
   markDirty();
 
   // Now ask about master.json
@@ -698,8 +782,9 @@ function showConfirmModal(title, bodyHtml) {
 }
 
 function markDirty() { hasChanges=true; document.getElementById('syncBar').classList.add('visible'); }
-function discardChanges() {
-  if (!confirm('Discard all unsaved changes?')) return;
+async function discardChanges() {
+  const ok = await showConfirmModal('Discard Changes?', 'All unsaved changes will be lost. This cannot be undone.');
+  if (!ok) return;
   hasChanges=false; document.getElementById('syncBar').classList.remove('visible');
   if (currentFileId) loadJsonData(); else { resetData(); switchTab(currentTab); }
 }
@@ -708,25 +793,55 @@ function discardChanges() {
 function showAddRow(key, title) {
   addRowContext = key;
   document.getElementById('addRowTitle').textContent = 'Add '+title;
-  // Schema already has correct opts for every field (including status) from buildSchemasFromData
-  const schema = (SCHEMAS[key] || []).filter(c=>c.type!=='sno');
+  const schema = (SCHEMAS[key] || []).filter(c => c.type !== 'sno' && c.type !== 'readonly');
+  const requiredKeys = ['source','personName','name','amount'];
   document.getElementById('addRowForm').innerHTML = '<div class="form-grid">' +
     schema.map(col => {
+      const isRequired = requiredKeys.includes(col.key);
+      const reqMark = isRequired ? ' <span style="color:var(--accent2)">*</span>' : '';
       let input = '';
       if      (col.type==='select')   input = `<select class="form-select" name="${col.key}"><option value="">Select...</option>${(col.opts||[]).map(o=>`<option>${o}</option>`).join('')}</select>`;
       else if (col.type==='date')     input = `<input type="date" class="form-input" name="${col.key}">`;
-      else if (col.type==='number')   input = `<input type="number" class="form-input" name="${col.key}" step="0.01">`;
+      else if (col.type==='number')   input = `<input type="number" class="form-input" name="${col.key}" step="0.01" min="0">`;
       else if (col.type==='textarea') input = `<textarea class="form-input" name="${col.key}" rows="2" placeholder="${col.label}"></textarea>`;
       else                            input = `<input type="text" class="form-input" name="${col.key}" placeholder="${col.label}">`;
-      return `<div class="form-group"><label class="form-label">${col.label}</label>${input}</div>`;
-    }).join('') + '</div>';
+      return `<div class="form-group"><label class="form-label">${col.label}${reqMark}</label>${input}</div>`;
+    }).join('') + '</div><p style="font-size:.67rem;color:var(--muted);margin-top:.5rem"><span style="color:var(--accent2)">*</span> Required</p>';
   openModal('addRowModal');
 }
 async function submitAddRow() {
   const key=addRowContext, schema=SCHEMAS[key]||[], form=document.getElementById('addRowForm');
+
+  // ── Validation ────────────────────────────────────────────────────────
+  // Clear previous error states
+  form.querySelectorAll('.form-input,.form-select').forEach(el => el.classList.remove('input-error'));
+
+  let hasError = false;
+
+  // Require a name/source field
+  const nameField = form.querySelector('[name="source"],[name="personName"],[name="name"]');
+  if (nameField && !nameField.value.trim()) {
+    nameField.classList.add('input-error');
+    nameField.focus();
+    showToast('❌ Please enter a name / source', 'error');
+    hasError = true;
+  }
+
+  // Require amount > 0
+  const amountField = form.querySelector('[name="amount"]');
+  if (amountField && (isNaN(parseFloat(amountField.value)) || parseFloat(amountField.value) <= 0)) {
+    amountField.classList.add('input-error');
+    if (!hasError) { amountField.focus(); showToast('❌ Amount must be greater than 0', 'error'); }
+    hasError = true;
+  }
+
+  if (hasError) return;
+  // ─────────────────────────────────────────────────────────────────────
+
   const row={_id:key+'_'+Date.now()};
   schema.forEach(col=>{
     if (col.type==='sno') { row.sno=(data[key]||[]).length+1; return; }
+    if (col.type==='readonly') return; // computed fields — skip
     const el=form.querySelector('[name="'+col.key+'"]');
     row[col.key]=el?el.value:'';
   });
@@ -794,7 +909,14 @@ function renderMonthGrid() {
 }
 function selMonth(i) { pickerMonth.month=i; renderMonthGrid(); }
 function changeYear(d) { pickerMonth.year+=d; document.getElementById('yearDisplay').textContent=pickerMonth.year; }
-function applyMonth() {
+async function applyMonth() {
+  if (hasChanges) {
+    const ok = await showConfirmModal(
+      '⚠️ Unsaved Changes',
+      'You have unsaved changes in this month. Switching months will <strong>discard them</strong>. Continue?'
+    );
+    if (!ok) { closeModal('monthModal'); return; }
+  }
   currentMonth={...pickerMonth}; updateMonthDisplay(); closeModal('monthModal');
   currentFileId=null; resetData(); setFileStatus(false); switchTab(currentTab);
 }

@@ -64,8 +64,26 @@ body.day .t-sun  { opacity:1;transform:scale(1) rotate(0); }
 .file-status { font-size:.63rem;color:var(--muted);display:flex;align-items:center;gap:.3rem;max-width:150px;overflow:hidden; }
 .file-status.linked { color:var(--accent); }
 .dot { width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0; }
-.tab-nav { display:flex;overflow-x:auto;scrollbar-width:none;margin-top:.75rem; }
+.tab-nav { display:flex;overflow-x:auto;scrollbar-width:none;margin-top:.75rem;position:relative; }
 .tab-nav::-webkit-scrollbar { display:none; }
+/* Fade indicator to hint there are more tabs to the right */
+.tab-nav-wrap { position:relative; }
+.tab-nav-wrap::after {
+  content:'';
+  position:absolute;
+  top:0;right:0;bottom:0;
+  width:32px;
+  background:linear-gradient(to right, transparent, var(--surface));
+  pointer-events:none;
+  border-radius:0;
+  transition:opacity .2s;
+}
+/* Error state for form validation */
+.input-error {
+  border-color: var(--accent2) !important;
+  box-shadow: 0 0 0 2px rgba(255,107,53,.2) !important;
+}
+
 .tab-btn { flex-shrink:0;padding:.55rem .85rem;font-family:var(--font-mono);font-size:.68rem;color:var(--muted);background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap; }
 .tab-btn.active { color:var(--accent);border-bottom-color:var(--accent); }
 .content { flex:1;padding:1rem; }
