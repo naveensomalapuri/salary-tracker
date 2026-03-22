@@ -626,7 +626,43 @@ function renderDashboard(c) {
           </tr>
         </tbody>
       </table></div>
-    </div>`;
+    </div>
+
+    ${(()=>{
+      const lend = data.lending || [];
+      if (lend.length === 0) return '';
+      const totalLent      = sumIf(lend,'amount','type','Lent');
+      const totalBorrowed  = sumIf(lend,'amount','type','Borrowed');
+      const outstanding    = lend.filter(r => r.status !== 'Fully Paid').reduce((s,r) => s + (parseFloat(r.balance)||parseFloat(r.amount)||0), 0);
+      const fullyPaid      = lend.filter(r => r.status === 'Fully Paid').length;
+      const pending        = lend.filter(r => r.status !== 'Fully Paid').length;
+      return `
+      <div class="section-head" style="margin-top:1.4rem">
+        🤝 Lending & Borrowing
+        <span style="font-size:.65rem;font-weight:400;color:var(--muted);margin-left:.5rem;text-transform:none;letter-spacing:0">— not included in salary calculations</span>
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;margin-bottom:1rem">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.75rem;text-align:center">
+          <div>
+            <div style="font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.25rem">Total Lent</div>
+            <div style="font-family:var(--font-head);font-size:1rem;font-weight:700;color:var(--accent2)">${fmt(totalLent)}</div>
+          </div>
+          <div>
+            <div style="font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.25rem">Total Borrowed</div>
+            <div style="font-family:var(--font-head);font-size:1rem;font-weight:700;color:var(--accent3)">${fmt(totalBorrowed)}</div>
+          </div>
+          <div>
+            <div style="font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.25rem">Outstanding</div>
+            <div style="font-family:var(--font-head);font-size:1rem;font-weight:700;color:var(--delayed)">${fmt(outstanding)}</div>
+          </div>
+        </div>
+        <div style="margin-top:.75rem;padding-top:.75rem;border-top:1px solid var(--border);display:flex;justify-content:center;gap:1.5rem;font-size:.7rem;color:var(--muted)">
+          <span>✅ Settled: <strong style="color:var(--paid)">${fullyPaid}</strong></span>
+          <span>⏳ Pending: <strong style="color:var(--pending)">${pending}</strong></span>
+          <span>📋 Total entries: <strong>${lend.length}</strong></span>
+        </div>
+      </div>`;
+    })()}`;
 }
 
 function renderSheet(c, key, title) {
