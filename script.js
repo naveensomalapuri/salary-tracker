@@ -692,8 +692,19 @@ function updateCell(key, rowId, field, value) {
   const row = data[key].find(r => r._id === rowId);
   if (!row) return;
   row[field] = value;
-  if (key==='lending') {
-    row.balance = String((parseFloat(row.amount)||0)-(parseFloat(row.returned)||0));
+  if (key === 'lending') {
+    row.balance = String((parseFloat(row.amount)||0) - (parseFloat(row.returned)||0));
+    // Update the rendered balance cell immediately without full re-render
+    const tr = document.querySelector(`tr[data-id="${rowId}"]`);
+    if (tr) {
+      const balanceCells = tr.querySelectorAll('td');
+      // Find balance column index from schema
+      const schema = SCHEMAS[key] || [];
+      const balIdx = schema.findIndex(c => c.key === 'balance');
+      if (balIdx >= 0 && balanceCells[balIdx]) {
+        balanceCells[balIdx].textContent = row.balance || '—';
+      }
+    }
   }
   markDirty();
 }
@@ -789,7 +800,17 @@ function showConfirmModal(title, bodyHtml) {
   });
 }
 
-function markDirty() { hasChanges=true; document.getElementById('syncBar').classList.add('visible'); }
+function markDirty() {
+  hasChanges = true;
+  document.getElementById('syncBar').classList.add('visible');
+  // Re-render dashboard immediately if it's the current tab so totals stay live
+  if (currentTab === 'dashboard') {
+    renderDashboard(document.getElementById('content'));
+  }
+}
+
+// Called after any tab switch to dashboard — always reads live data[]
+// (No caching — data[] is the single source of truth)
 async function discardChanges() {
   const ok = await showConfirmModal('Discard Changes?', 'All unsaved changes will be lost. This cannot be undone.');
   if (!ok) return;
@@ -821,12 +842,10 @@ async function submitAddRow() {
   const key=addRowContext, schema=SCHEMAS[key]||[], form=document.getElementById('addRowForm');
 
   // ── Validation ────────────────────────────────────────────────────────
-  // Clear previous error states
   form.querySelectorAll('.form-input,.form-select').forEach(el => el.classList.remove('input-error'));
 
   let hasError = false;
 
-  // Require a name/source field
   const nameField = form.querySelector('[name="source"],[name="personName"],[name="name"]');
   if (nameField && !nameField.value.trim()) {
     nameField.classList.add('input-error');
@@ -835,7 +854,6 @@ async function submitAddRow() {
     hasError = true;
   }
 
-  // Require amount > 0
   const amountField = form.querySelector('[name="amount"]');
   if (amountField && (isNaN(parseFloat(amountField.value)) || parseFloat(amountField.value) <= 0)) {
     amountField.classList.add('input-error');
@@ -846,18 +864,23 @@ async function submitAddRow() {
   if (hasError) return;
   // ─────────────────────────────────────────────────────────────────────
 
-  const row={_id:key+'_'+Date.now()};
-  schema.forEach(col=>{
-    if (col.type==='sno') { row.sno=(data[key]||[]).length+1; return; }
-    if (col.type==='readonly') return; // computed fields — skip
-    const el=form.querySelector('[name="'+col.key+'"]');
-    row[col.key]=el?el.value:'';
+  const row = { _id: key + '_' + Date.now() };
+  schema.forEach(col => {
+    if (col.type === 'sno')      { row.sno = (data[key]||[]).length + 1; return; }
+    if (col.type === 'readonly') return;
+    const el = form.querySelector('[name="' + col.key + '"]');
+    row[col.key] = el ? el.value : '';
   });
-  if (key==='lending') row.balance=String((parseFloat(row.amount)||0)-(parseFloat(row.returned)||0));
-  if (!data[key]) data[key]=[];
+  if (key === 'lending') row.balance = String((parseFloat(row.amount)||0) - (parseFloat(row.returned)||0));
+
+  if (!data[key]) data[key] = [];
   data[key].push(row);
+
   closeModal('addRowModal');
   markDirty();
+
+  // Switch to the section tab so user sees new row immediately
+  switchTab(key);
 
   // Ask if user wants to add to master.json too
   if (accessToken && MASTER_FILE_ID) {
@@ -871,7 +894,8 @@ async function submitAddRow() {
     }
   }
 
-  switchTab(currentTab);
+  // Final re-render of section tab to ensure DataTables is stable
+  switchTab(key);
 }
 
 async function syncAddToMaster(key, newRow) {
