@@ -245,28 +245,27 @@ async function driveDownloadText(fileId) {
   await ensureFreshToken();
   if (!accessToken) throw new Error('Not authenticated');
 
-  // Try 1: direct download (works for files YOU own)
-  const r1 = await fetch(
-    `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
-    { headers: H() }
-  );
+  const baseUrl = `https://www.googleapis.com/drive/v3/files/${fileId}`;
+
+  // Try 1: standard download (owned files)
+  const r1 = await fetch(`${baseUrl}?alt=media&supportsAllDrives=true`, { headers: H() });
   if (r1.ok) return r1.text();
 
-  // Try 2: shared/external file — add acknowledgeAbuse flag
-  const r2 = await fetch(
-    `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&acknowledgeAbuse=true`,
-    { headers: H() }
-  );
+  // Try 2: with acknowledgeAbuse (shared/external files that trigger virus scan warning)
+  const r2 = await fetch(`${baseUrl}?alt=media&acknowledgeAbuse=true&supportsAllDrives=true`, { headers: H() });
   if (r2.ok) return r2.text();
 
-  // Both failed — get the actual error message from Drive
-  let msg = 'HTTP '+r2.status;
+  // Both failed — surface a clear error
+  let msg = 'HTTP ' + r2.status;
   try { const e = await r2.json(); msg = e.error?.message || msg; } catch(_){}
-  if (r2.status===404) throw new Error('File not found. Check the Master File ID in Settings.');
-  if (r2.status===403) throw new Error(
-    'Access denied. Go to Google Drive → right-click master.json → Make a copy → use the copy\'s ID in Settings.'
+
+  if (r2.status === 404) throw new Error(
+    'master.json not found (404). Open ⚙️ Settings and paste the correct File ID from your Drive share link.'
   );
-  throw new Error(msg);
+  if (r2.status === 403) throw new Error(
+    'Access denied (403). In Google Drive, right-click master.json → Share → set to "Anyone with the link" → Viewer. Then retry.'
+  );
+  throw new Error('Download failed: ' + msg);
 }
 async function driveUploadJson(fileId, obj, name) {
   await ensureFreshToken();
@@ -327,8 +326,10 @@ async function loadOrCreateCurrentMonth() {
 async function createFromMaster(name) {
   showToast('📋 Loading master.json from Drive...','info');
   try {
-    const masterFileId = await resolveMasterFileId();
-    const masterText = await driveDownloadText(masterFileId);
+    // Use MASTER_FILE_ID directly — driveDownloadText handles all fallbacks
+    if (!MASTER_FILE_ID) throw new Error('No Master File ID set. Open ⚙️ Settings and paste your master.json file ID.');
+    showToast('⬇️ Downloading master.json (ID: ' + MASTER_FILE_ID.slice(0,8) + '...)','info');
+    const masterText = await driveDownloadText(MASTER_FILE_ID);
     const masterData = JSON.parse(masterText);
 
     // Build schemas from master structure
@@ -339,16 +340,17 @@ async function createFromMaster(name) {
     newData._year    = currentMonth.year;
     newData._created = new Date().toISOString();
 
+    showToast('☁️ Creating ' + name + ' in Drive...','info');
     const result = await driveCreateJson(name, newData, DEST_FOLDER_ID);
     currentFileId = result.id;
 
     loadDataFromObject(newData);
     setFileStatus(true);
     switchTab(currentTab);
-    showToast('✓ '+name+' created from master!','success');
+    showToast('✓ ' + name + ' created from master!','success');
   } catch(e) {
-    showToast('❌ '+e.message,'error');
-    console.error(e);
+    showToast('❌ ' + e.message, 'error');
+    console.error('createFromMaster error:', e);
   }
 }
 
@@ -404,21 +406,27 @@ async function saveToGDrive() {
 
 // ── MASTER JSON EDITOR ────────────────────────────────────────────────────
 async function resolveMasterFileId() {
-  // Try stored ID first — same direct download the month files use
+  // If we have an ID, trust it — try to directly download to verify access.
+  // A metadata-only fetch can return 200 even when download is forbidden.
   if (MASTER_FILE_ID) {
     const r = await fetch(
-      `https://www.googleapis.com/drive/v3/files/${MASTER_FILE_ID}?fields=id,name`,
+      `https://www.googleapis.com/drive/v3/files/${MASTER_FILE_ID}?alt=media`,
       { headers: H() }
     );
-    if (r.ok) return MASTER_FILE_ID; // ID is valid, use it
+    if (r.ok) return MASTER_FILE_ID;
+    // 404 = wrong ID, 403 = no access — fall through to search
+    if (r.status === 403) throw new Error(
+      'Access denied to master.json. Open the file in Google Drive, click Share → change to "Anyone with the link can view", then retry.'
+    );
   }
-  // Stored ID failed — search Drive by filename, same as loadOrCreateCurrentMonth does
+  // ID missing or 404 — search Drive by filename (only finds files you own)
   showToast('Searching Drive for master.json...','info');
   const q = `name='master.json' and trashed=false and mimeType='application/json'`;
   const files = await driveList(q);
-  if (files.length === 0) throw new Error('master.json not found in Drive. Upload it first.');
+  if (files.length === 0) throw new Error(
+    'master.json not found. Check the File ID in ⚙️ Settings — paste the ID from your Drive share link.'
+  );
   const foundId = files[0].id;
-  // Auto-save the correct ID so it works next time
   MASTER_FILE_ID = foundId;
   localStorage.setItem('st_master_id', foundId);
   showToast('✓ Found master.json — ID updated in Settings','success');
