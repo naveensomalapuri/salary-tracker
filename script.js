@@ -917,11 +917,8 @@ function renderMonthGrid() {
 }
 function selMonth(i) { pickerMonth.month=i; renderMonthGrid(); }
 function changeYear(d) {
-  const newYear = pickerMonth.year + d;
-  const currentYear = new Date().getFullYear();
-  if (newYear < 2020 || newYear > currentYear + 1) return;
-  pickerMonth.year = newYear;
-  document.getElementById('yearDisplay').textContent=pickerMonth.year;
+  pickerMonth.year += d;
+  document.getElementById('yearDisplay').textContent = pickerMonth.year;
 }
 async function applyMonth() {
   if (hasChanges) {
