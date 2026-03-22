@@ -148,9 +148,9 @@ function buildSchemasFromData(masterObj) {
     // Deep-clone canonical schema so we can safely mutate opts
     const schema = JSON.parse(JSON.stringify(CANONICAL_SCHEMAS[section] || [{ key:'sno', label:'#', type:'sno' }]));
 
-    // Hydrate dynamic select options from data (skip status — it's fixed)
+    // Hydrate dynamic select options from data (skip status and lending type — they're fixed)
     schema.forEach(col => {
-      if (col.type === 'select' && col.key !== 'status' && rows.length > 0) {
+      if (col.type === 'select' && col.key !== 'status' && col.key !== 'type' && rows.length > 0) {
         const vals = [...new Set(rows.map(r => r[col.key]).filter(v => v && v !== ''))];
         if (vals.length > 0) col.opts = vals;
       }
