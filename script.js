@@ -1,13 +1,13 @@
 // ── CONFIG ────────────────────────────────────────────────────────────────
 const DEFAULT_CLIENT_ID = '802226109271-praqff3gi21a2i90mp78bmn6a7999s9m.apps.googleusercontent.com';
-const DEFAULT_MASTER_ID = '1w91ZLfxhFA9yTorZHrVQGSQ9k0U8c0ny';
+const DEFAULT_MASTER_ID = '1HNzAmH7cP7CRMtQyb8XkkyB0ttkNKicw';
 const DEFAULT_FOLDER_ID = '1FpSq1CKfMec2P3p15C8U7HFYgK-HLiNE';
 
 let CLIENT_ID      = localStorage.getItem('st_client_id')  || DEFAULT_CLIENT_ID;
 let MASTER_FILE_ID = localStorage.getItem('st_master_id')  || DEFAULT_MASTER_ID;
 let DEST_FOLDER_ID = localStorage.getItem('st_folder_id')  || DEFAULT_FOLDER_ID;
 
-const SCOPES = 'https://www.googleapis.com/auth/drive.file';
+const SCOPES = 'https://www.googleapis.com/auth/drive';
 const MONTHS = ['January','February','March','April','May','June',
                 'July','August','September','October','November','December'];
 
@@ -908,7 +908,13 @@ function renderMonthGrid() {
   ).join('');
 }
 function selMonth(i) { pickerMonth.month=i; renderMonthGrid(); }
-function changeYear(d) { pickerMonth.year+=d; document.getElementById('yearDisplay').textContent=pickerMonth.year; }
+function changeYear(d) {
+  const newYear = pickerMonth.year + d;
+  const currentYear = new Date().getFullYear();
+  if (newYear < 2020 || newYear > currentYear + 1) return;
+  pickerMonth.year = newYear;
+  document.getElementById('yearDisplay').textContent=pickerMonth.year;
+}
 async function applyMonth() {
   if (hasChanges) {
     const ok = await showConfirmModal(
@@ -972,6 +978,13 @@ function showToast(msg, type='info') {
 
 // ── INIT ──────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', function() {
+  // Migrate: if localStorage has the old master ID, replace with new one
+  const OLD_MASTER_ID = '1w91ZLfxhFA9yTorZHrVQGSQ9k0U8c0ny';
+  if (localStorage.getItem('st_master_id') === OLD_MASTER_ID) {
+    localStorage.setItem('st_master_id', DEFAULT_MASTER_ID);
+    MASTER_FILE_ID = DEFAULT_MASTER_ID;
+  }
+
   applyStoredTheme();
   updateMonthDisplay();
   renderMonthGrid();
