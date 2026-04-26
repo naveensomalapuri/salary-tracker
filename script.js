@@ -222,14 +222,25 @@ function onSignedIn() {
   // Auto-load current month file
   loadOrCreateCurrentMonth();
 }
-function signOut() {
-  if (!confirm('Sign out?')) return;
+async function signOut() {
+  const msg = hasChanges
+    ? 'You have unsaved changes. Sign out anyway?'
+    : 'Sign out?';
+  const ok = await showConfirmModal('👤 Sign Out', msg);
+  if (!ok) return;
   if (accessToken && typeof google!=='undefined') google.accounts.oauth2.revoke(accessToken,()=>{});
   accessToken=null; currentFileId=null; gisLoaded=false;
+  hasChanges=false;
+  document.getElementById('syncBar').classList.remove('visible');
   resetData();
   document.getElementById('splash').style.display='flex';
   document.getElementById('app').classList.remove('visible');
 }
+
+// Warn before closing/reloading the tab if there are unsaved edits
+window.addEventListener('beforeunload', (e) => {
+  if (hasChanges) { e.preventDefault(); e.returnValue = ''; }
+});
 
 // ── DRIVE REST API ────────────────────────────────────────────────────────
 const H = () => ({ 'Authorization':'Bearer '+accessToken });

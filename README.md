@@ -52,7 +52,7 @@ Drive Folder/
 ### Status Values
 
 - **Income & all Expense tabs:** `Paid` · `Pending` · `Delayed`
-- **Lending & Borrowing:** `Fully Paid` · `Partially Paid` · `Pending`
+- **Lending & Borrowing:** `Fully Paid` · `Partially Paid` · `Delayed`
 
 ### Dashboard Logic
 
@@ -113,7 +113,7 @@ The app has the full master template built-in as a fallback, so this step is opt
 3. Paste it in the app Settings as **Master JSON File ID**
 
 > **Pre-configured defaults already in the app:**
-> - Master File ID: `1G-TZIlJPtSygE7jDmDDbJsuAr8pRGP8T`
+> - Master File ID: `1HNzAmH7cP7CRMtQyb8XkkyB0ttkNKicw`
 > - Folder ID: `1FpSq1CKfMec2P3p15C8U7HFYgK-HLiNE`
 
 ### Step 6 — Configure the App
