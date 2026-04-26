@@ -4,31 +4,39 @@
    kept for JS compatibility — see applyStoredTheme).
    ───────────────────────────────────────────────────────────────────────── */
 
+/* ─── COLOR SYSTEM ────────────────────────────────────────────────────────
+   Primary hue: teal (~170°) — chosen for finance: trust + growth.
+   All accents are calibrated to similar perceived lightness (HSL L≈48%
+   in light mode, L≈65% in dark mode) so they harmonize as a set.
+   Neutrals carry a slight cool/blue undertone to avoid clinical gray.
+   60% surface neutrals · 30% brand teal anchors · 10% semantic accents.
+   ─────────────────────────────────────────────────────────────────────── */
+
 /* DARK (default class state — used when body has NO .day class) */
 :root {
-  --bg:#000000;
-  --surface:#1c1c1e;
-  --surface2:#2c2c2e;
-  --surface3:#3a3a3c;
-  --border:rgba(84,84,88,.55);
-  --border-soft:rgba(84,84,88,.32);
-  --text:#ffffff;
-  --text2:rgba(235,235,245,.78);
-  --muted:rgba(235,235,245,.55);
+  --bg:#0a0e15;
+  --surface:#141a24;
+  --surface2:#1d2432;
+  --surface3:#283142;
+  --border:rgba(148,163,184,.16);
+  --border-soft:rgba(148,163,184,.09);
+  --text:#f1f5fb;
+  --text2:#cbd5e1;
+  --muted:#94a3b8;
 
-  --accent:#30d158;       /* iOS green */
-  --accent2:#ff453a;      /* iOS red */
-  --accent3:#0a84ff;      /* iOS blue */
-  --accent4:#bf5af2;      /* iOS purple */
-  --paid:#30d158;
-  --pending:#ff9f0a;
-  --delayed:#ff9f0a;
+  --accent:#14b8a6;       /* teal-400 — brand */
+  --accent2:#f87171;      /* red-400 — danger */
+  --accent3:#60a5fa;      /* blue-400 — info */
+  --accent4:#a78bfa;      /* violet-400 — premium */
+  --paid:#34d399;         /* emerald-400 */
+  --pending:#fbbf24;      /* amber-400 */
+  --delayed:#fb923c;      /* orange-400 */
 
   --radius:14px;
   --radius-lg:20px;
   --radius-pill:999px;
-  --shadow:0 1px 0 rgba(255,255,255,.04);
-  --shadow-card:0 8px 32px rgba(0,0,0,.4);
+  --shadow:0 1px 0 rgba(255,255,255,.03),0 0 0 .5px rgba(148,163,184,.06);
+  --shadow-card:0 12px 36px rgba(0,0,0,.55);
 
   --font:-apple-system,BlinkMacSystemFont,"SF Pro Text","Inter",system-ui,Segoe UI,Roboto,sans-serif;
   --font-display:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Rounded","Inter",system-ui,sans-serif;
@@ -37,26 +45,26 @@
 
 /* LIGHT (default at app startup) */
 body.day {
-  --bg:#f2f2f7;
+  --bg:#f5f7fa;
   --surface:#ffffff;
-  --surface2:#f2f2f7;
-  --surface3:#e5e5ea;
-  --border:rgba(60,60,67,.18);
-  --border-soft:rgba(60,60,67,.10);
-  --text:#000000;
-  --text2:rgba(60,60,67,.85);
-  --muted:rgba(60,60,67,.55);
+  --surface2:#eef1f6;
+  --surface3:#dde3ed;
+  --border:rgba(15,23,42,.10);
+  --border-soft:rgba(15,23,42,.05);
+  --text:#0f172a;
+  --text2:#334155;
+  --muted:#64748b;
 
-  --accent:#34c759;
-  --accent2:#ff3b30;
-  --accent3:#007aff;
-  --accent4:#5856d6;
-  --paid:#34c759;
-  --pending:#ff9500;
-  --delayed:#ff9500;
+  --accent:#0d9488;       /* teal-600 — brand */
+  --accent2:#dc2626;      /* red-600 — danger */
+  --accent3:#2563eb;      /* blue-600 — info */
+  --accent4:#7c3aed;      /* violet-600 — premium */
+  --paid:#059669;         /* emerald-600 */
+  --pending:#d97706;      /* amber-600 */
+  --delayed:#ea580c;      /* orange-600 */
 
-  --shadow:0 1px 3px rgba(0,0,0,.04),0 0 0 .5px rgba(0,0,0,.05);
-  --shadow-card:0 1px 3px rgba(0,0,0,.05),0 6px 22px rgba(0,0,0,.06);
+  --shadow:0 1px 3px rgba(15,23,42,.04),0 0 0 .5px rgba(15,23,42,.04);
+  --shadow-card:0 1px 3px rgba(15,23,42,.06),0 8px 28px rgba(15,23,42,.07);
 }
 
 *,*::before,*::after { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -87,10 +95,10 @@ html,body {
 }
 .logo-mark {
   width:84px; height:84px; border-radius:22px;
-  background:linear-gradient(180deg,#34c759 0%,#00a352 100%);
+  background:linear-gradient(180deg,#2dd4bf 0%,#0d9488 100%);
   display:flex; align-items:center; justify-content:center;
   font-size:2.4rem; margin-bottom:1.4rem;
-  box-shadow:0 12px 30px rgba(52,199,89,.32),inset 0 1px 0 rgba(255,255,255,.4);
+  box-shadow:0 12px 30px rgba(13,148,136,.32),inset 0 1px 0 rgba(255,255,255,.4);
 }
 .splash-title {
   font-family:var(--font-display);
@@ -254,11 +262,11 @@ body.day .tab-nav-wrap::after { background:linear-gradient(to right,transparent,
 }
 .tab-btn.active {
   color:#fff;
-  background:var(--accent3);
+  background:var(--accent);
 }
 body.day .tab-btn.active { color:#fff; }
 
-.input-error { box-shadow:0 0 0 2px rgba(255,59,48,.25) !important; }
+.input-error { box-shadow:0 0 0 2px color-mix(in srgb,var(--accent2) 35%,transparent) !important; }
 
 .content { flex:1; padding:1rem; animation:fadeIn .22s ease; }
 @keyframes fadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
@@ -427,7 +435,7 @@ tbody tr:hover { background:var(--surface2); }
   border-radius:6px;
   font-size:.95rem;
 }
-.delete-btn:hover { color:var(--accent2); background:rgba(255,59,48,.08); }
+.delete-btn:hover { color:var(--accent2); background:color-mix(in srgb,var(--accent2) 12%,transparent); }
 
 /* ── BUTTONS ─────────────────────────────────────────────────────────── */
 .btn {
@@ -444,7 +452,7 @@ tbody tr:hover { background:var(--surface2); }
 }
 .btn:active { transform:scale(.97); opacity:.9; }
 .btn:disabled { opacity:.5; cursor:not-allowed; transform:none; }
-.btn-primary { background:var(--accent3); color:#fff; }
+.btn-primary { background:var(--accent); color:#fff; }
 .btn-secondary { background:var(--surface3); color:var(--text); }
 .btn-export { background:var(--accent4); color:#fff; }
 
@@ -540,7 +548,7 @@ body.day .sync-bar { background:rgba(255,255,255,.92); }
   font-weight:500;
 }
 .month-chip.selected,.month-chip:hover {
-  background:var(--accent3);
+  background:var(--accent);
   color:#fff;
 }
 .year-selector { display:flex; align-items:center; justify-content:center; gap:1rem; margin-bottom:1rem; }
@@ -642,7 +650,7 @@ body.day .sync-bar { background:rgba(255,255,255,.92); }
   padding:.75rem 1.5rem;
   border-radius:14px;
   cursor:pointer;
-  box-shadow:0 4px 14px rgba(52,199,89,.32);
+  box-shadow:0 4px 14px rgba(13,148,136,.28);
   letter-spacing:-.01em;
 }
 .add-entry-btn:active { transform:scale(.97); opacity:.9; }
@@ -719,12 +727,19 @@ body.day .sync-bar { background:rgba(255,255,255,.92); }
   white-space:nowrap;
   font-family:var(--font);
 }
-.status-paid,.status-saved,.status-fully-paid { background:rgba(52,199,89,.16); color:var(--accent); }
-.status-pending { background:rgba(255,149,0,.16); color:var(--pending); }
-.status-delayed,.status-partially-paid,.status-withdrawn { background:rgba(255,149,0,.16); color:var(--delayed); }
+.status-paid,.status-saved,.status-fully-paid {
+  background:color-mix(in srgb,var(--paid) 16%,transparent);
+  color:var(--paid);
+}
+.status-pending {
+  background:color-mix(in srgb,var(--pending) 16%,transparent);
+  color:var(--pending);
+}
+.status-delayed,.status-partially-paid,.status-withdrawn {
+  background:color-mix(in srgb,var(--delayed) 16%,transparent);
+  color:var(--delayed);
+}
 .status-empty { background:var(--surface2); color:var(--muted); }
-body.day .status-paid,body.day .status-saved,body.day .status-fully-paid { background:rgba(52,199,89,.14); }
-body.day .status-pending { background:rgba(255,149,0,.14); }
 
 .row-card-body {
   padding:1rem .95rem 1rem;
@@ -756,7 +771,7 @@ body.day .status-pending { background:rgba(255,149,0,.14); }
 .row-card-actions { grid-column:1 / -1; display:flex; gap:.6rem; margin-top:.45rem; }
 .delete-btn-card {
   flex:1;
-  background:rgba(255,59,48,.12);
+  background:color-mix(in srgb,var(--accent2) 12%,transparent);
   border:none;
   color:var(--accent2);
   padding:.7rem;
