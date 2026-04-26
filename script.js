@@ -676,13 +676,37 @@ function renderDashboard(c) {
     })()}`;
 }
 
+// ── ROW-CARD CONFIG (used for mobile card view) ───────────────────────────
+const PRIMARY_FIELD = {
+  income:'source', savings:'source', fixed:'source', semifixed:'source',
+  variable:'source', unexpected:'source', lending:'personName'
+};
+const META_FIELD = {
+  income:'category', savings:'category', fixed:'category', semifixed:'category',
+  variable:'category', unexpected:'category', lending:'type'
+};
+const DATE_FIELD = {
+  income:'dateReceived', savings:'date', fixed:'datePaid', semifixed:'datePaid',
+  variable:'date', unexpected:'date', lending:'dateGiven'
+};
+function statusSlug(s) { return (s||'empty').toString().toLowerCase().replace(/[^a-z0-9]+/g,'-'); }
+function isMobileView() { return window.matchMedia('(max-width: 767px)').matches; }
+function escAttr(v) { return (v ?? '').toString().replace(/"/g,'&quot;'); }
+function escHtml(v) { return (v ?? '').toString().replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+
 function renderSheet(c, key, title) {
   const rows    = data[key]    || [];
   // If all rows have been deleted, restore schema from master cache so new rows get correct headers
   if (rows.length === 0 && SCHEMAS_MASTER[key] && SCHEMAS_MASTER[key].length > 1) {
     SCHEMAS[key] = JSON.parse(JSON.stringify(SCHEMAS_MASTER[key]));
   }
-  const schema  = SCHEMAS[key] || [];
+  const schema = SCHEMAS[key] || [];
+
+  if (isMobileView()) { renderSheetCards(c, key, title, rows, schema); return; }
+  renderSheetTable(c, key, title, rows, schema);
+}
+
+function renderSheetTable(c, key, title, rows, schema) {
   // Status colour coding matches Excel status values
   const stColor = {
     'Paid':         'var(--paid)',
@@ -734,25 +758,134 @@ function renderSheet(c, key, title) {
   }
 }
 
+// ── MOBILE: render rows as expandable cards ──────────────────────────────
+function renderCardField(col, row, key, id) {
+  if (col.type === 'sno') return '';
+  const v = escAttr(row[col.key]);
+  const span = (col.type === 'textarea') ? ' span-2' : '';
+  const onchange = `updateCell('${key}','${id}','${col.key}',this.value)`;
+  let input;
+  if (col.type === 'readonly') {
+    input = `<div class="form-readonly">${escHtml(row[col.key]) || '—'}</div>`;
+  } else if (col.type === 'select') {
+    input = `<select class="form-select" onchange="${onchange}"><option value="">—</option>${(col.opts||[]).map(o=>`<option ${o===row[col.key]?'selected':''}>${escHtml(o)}</option>`).join('')}</select>`;
+  } else if (col.type === 'number') {
+    input = `<input class="form-input" type="number" step="0.01" value="${v}" onchange="${onchange}">`;
+  } else if (col.type === 'date') {
+    input = `<input class="form-input" type="date" value="${v}" onchange="${onchange}">`;
+  } else if (col.type === 'textarea') {
+    input = `<textarea class="form-input" rows="2" onchange="${onchange}">${escHtml(row[col.key])}</textarea>`;
+  } else {
+    input = `<input class="form-input" type="text" value="${v}" onchange="${onchange}">`;
+  }
+  return `<div class="form-group${span}"><label class="form-label">${col.label}</label>${input}</div>`;
+}
+
+function renderSheetCards(c, key, title, rows, schema) {
+  const primaryK = PRIMARY_FIELD[key]    || 'source';
+  const metaK    = META_FIELD[key]       || 'category';
+  const dateK    = DATE_FIELD[key];
+
+  const empty = `<div class="row-card" style="text-align:center;padding:2rem 1rem;color:var(--muted);font-size:.82rem">
+    No entries yet — tap <strong style="color:var(--accent)">➕ Add Entry</strong> to get started.
+  </div>`;
+
+  const cards = rows.map((row, i) => {
+    const id      = row._id;
+    const primary = row[primaryK] || '—';
+    const metaBits = [row[metaK], dateK ? row[dateK] : ''].filter(v => v && v !== '');
+    const metaTxt  = metaBits.length ? metaBits.join(' · ') : '\u00A0';
+    const status   = row.status || '';
+    const slug     = statusSlug(status);
+    const amountTxt = (row.amount !== undefined && row.amount !== '')
+      ? fmt(row.amount) : (key === 'lending' && row.balance ? fmt(row.balance) : '—');
+
+    const bodyFields = schema.map(col => renderCardField(col, row, key, id)).join('');
+
+    return `<details class="row-card" data-id="${id}">
+      <summary>
+        <div class="row-card-num">${i+1}</div>
+        <div class="row-card-main">
+          <div class="row-card-title">${escHtml(primary)}</div>
+          <div class="row-card-meta">${escHtml(metaTxt)}</div>
+        </div>
+        <div class="row-card-right">
+          <div class="row-card-amount">${amountTxt}</div>
+          <div class="row-card-status status-${slug}">${escHtml(status || '—')}</div>
+        </div>
+      </summary>
+      <div class="row-card-body">
+        ${bodyFields}
+        <div class="row-card-actions">
+          <button class="delete-btn-card" onclick="deleteRow('${key}','${id}')">✕ Delete entry</button>
+        </div>
+      </div>
+    </details>`;
+  }).join('');
+
+  c.innerHTML = `
+    <div class="add-entry-center">
+      <button class="add-entry-btn" onclick="showAddRow('${key}','${title}')">➕ Add Entry</button>
+    </div>
+    <div class="section-head">${title} · ${rows.length} ${rows.length===1?'entry':'entries'}</div>
+    <div class="card-list">${rows.length === 0 ? empty : cards}</div>`;
+}
+
+// Re-render the active sheet on viewport breakpoint changes (rotate / resize)
+let _lastIsMobile = isMobileView();
+window.addEventListener('resize', () => {
+  const now = isMobileView();
+  if (now === _lastIsMobile) return;
+  _lastIsMobile = now;
+  if (currentTab !== 'dashboard') switchTab(currentTab);
+});
+
 // ── CELL EDIT / DELETE ────────────────────────────────────────────────────
 function updateCell(key, rowId, field, value) {
   const row = data[key].find(r => r._id === rowId);
   if (!row) return;
   row[field] = value;
+
   if (key === 'lending') {
     row.balance = String((parseFloat(row.amount)||0) - (parseFloat(row.returned)||0));
-    // Update the rendered balance cell immediately without full re-render
+    // Update the rendered balance cell immediately without full re-render (table view)
     const tr = document.querySelector(`tr[data-id="${rowId}"]`);
     if (tr) {
-      const balanceCells = tr.querySelectorAll('td');
-      // Find balance column index from schema
       const schema = SCHEMAS[key] || [];
       const balIdx = schema.findIndex(c => c.key === 'balance');
-      if (balIdx >= 0 && balanceCells[balIdx]) {
-        balanceCells[balIdx].textContent = row.balance || '—';
+      const cells  = tr.querySelectorAll('td');
+      if (balIdx >= 0 && cells[balIdx]) cells[balIdx].textContent = row.balance || '—';
+    }
+    // Update balance readonly inside expanded card body, if present
+    const cardBalance = document.querySelector(`.row-card[data-id="${rowId}"] .form-readonly`);
+    if (cardBalance) cardBalance.textContent = row.balance || '—';
+  }
+
+  // Live-update card summary (mobile view) so the collapsed header stays accurate
+  const card = document.querySelector(`.row-card[data-id="${rowId}"]`);
+  if (card) {
+    const primaryK = PRIMARY_FIELD[key], metaK = META_FIELD[key], dateK = DATE_FIELD[key];
+    if (field === primaryK) {
+      const t = card.querySelector('.row-card-title');
+      if (t) t.textContent = value || '—';
+    }
+    if (field === metaK || field === dateK) {
+      const m = card.querySelector('.row-card-meta');
+      if (m) {
+        const bits = [row[metaK], dateK ? row[dateK] : ''].filter(v => v && v !== '');
+        m.textContent = bits.length ? bits.join(' · ') : '\u00A0';
       }
     }
+    if (field === 'amount') {
+      const a = card.querySelector('.row-card-amount');
+      if (a) a.textContent = (value !== '' && !isNaN(parseFloat(value))) ? fmt(value) : '—';
+    }
+    if (field === 'status') {
+      const s = card.querySelector('.row-card-status');
+      if (s) { s.textContent = value || '—'; s.className = `row-card-status status-${statusSlug(value)}`; }
+    }
   }
+
   markDirty();
 }
 async function deleteRow(key, rowId) {
