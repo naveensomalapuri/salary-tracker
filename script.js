@@ -1164,7 +1164,8 @@ function toggleTheme() {
   localStorage.setItem('st_theme', isDay?'day':'night');
 }
 function applyStoredTheme() {
-  if (localStorage.getItem('st_theme')==='day') document.body.classList.add('day');
+  // Light mode is the default (iOS-style); only apply dark mode if explicitly chosen
+  if (localStorage.getItem('st_theme') !== 'night') document.body.classList.add('day');
 }
 
 // ── HELPERS ───────────────────────────────────────────────────────────────
