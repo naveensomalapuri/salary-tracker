@@ -155,6 +155,72 @@ const NEXTMONTH_TARGET_MAP = {
   'Semi Fixed': 'semifixed',
 };
 
+// Default dropdown options merged into every paymentMode / accountUsed select across the app.
+// User-entered values from data are merged in too (they appear first in the dropdown).
+const DEFAULT_PAYMENT_MODES = [
+  'Cash',
+  'UPI',
+  'UPI - Google Pay',
+  'UPI - PhonePe',
+  'UPI - Paytm',
+  'UPI - BHIM',
+  'HDFC Credit Card',
+  'ICICI Credit Card',
+  'SBI Credit Card',
+  'Axis Credit Card',
+  'Kotak Credit Card',
+  'IDFC Credit Card',
+  'Yes Bank Credit Card',
+  'IndusInd Credit Card',
+  'RBL Credit Card',
+  'American Express',
+  'HDFC Debit Card',
+  'ICICI Debit Card',
+  'SBI Debit Card',
+  'Axis Debit Card',
+  'Kotak Debit Card',
+  'Net Banking',
+  'NEFT',
+  'IMPS',
+  'RTGS',
+  'Cheque',
+  'Demand Draft',
+  'Auto Debit',
+  'EMI',
+];
+
+const DEFAULT_ACCOUNTS = [
+  'HDFC Bank',
+  'ICICI Bank',
+  'SBI',
+  'Axis Bank',
+  'Kotak Mahindra Bank',
+  'IDFC First Bank',
+  'Yes Bank',
+  'IndusInd Bank',
+  'Bank of Baroda',
+  'Punjab National Bank',
+  'Canara Bank',
+  'Union Bank',
+  'Federal Bank',
+  'IDBI Bank',
+  'RBL Bank',
+  'AU Small Finance Bank',
+  'Bandhan Bank',
+  'DBS Bank',
+  'HSBC',
+  'Standard Chartered',
+  'Citibank',
+];
+
+// Field-key → default options list. Applied across all sections during schema hydration.
+const FIELD_DEFAULTS = {
+  paymentMode:     DEFAULT_PAYMENT_MODES,
+  mode:            DEFAULT_PAYMENT_MODES,   // lending uses 'mode'
+  accountUsed:     DEFAULT_ACCOUNTS,
+  accountReceived: DEFAULT_ACCOUNTS,
+};
+
 // ── SCHEMA BUILDER ────────────────────────────────────────────────────────
 // Uses canonical schemas as the structural backbone.
 // Hydrates select options (except status) from actual master.json data values.
@@ -171,22 +237,28 @@ function buildSchemasFromData(masterObj) {
 
     // Hydrate dynamic select options from data (skip fixed-opts columns: status, lending type, nextmonth's targetSection)
     schema.forEach(col => {
-      if (col.type === 'select' && col.key !== 'status' && col.key !== 'type' && col.key !== 'targetSection' && rows.length > 0) {
-        const vals = [...new Set(rows.map(r => r[col.key]).filter(v => v && v !== ''))];
-        if (vals.length > 0) col.opts = vals;
-      }
+      if (col.type !== 'select') return;
+      if (col.key === 'status' || col.key === 'type' || col.key === 'targetSection') return;
+
+      // Start with values already used in this section's rows (user's most-used appear first)
+      const userVals = rows.length > 0
+        ? [...new Set(rows.map(r => r[col.key]).filter(v => v && v !== ''))]
+        : [];
+      // Merge in hardcoded defaults for known fields (paymentMode, accountUsed, etc.)
+      const defaults = FIELD_DEFAULTS[col.key] || [];
+      const merged   = [...new Set([...userVals, ...defaults])];
+      if (merged.length > 0) col.opts = merged;
     });
 
     SCHEMAS[section] = schema;
   });
 
-  // nextmonth never lives in master.json, so its paymentMode / accountUsed selects would stay empty.
-  // Hydrate them from the union of values used across all other sections.
+  // nextmonth never lives in master.json. In addition to defaults already applied above,
+  // also pull paymentMode / accountUsed values used in OTHER sections so user-custom values are picked up.
   if (SCHEMAS.nextmonth) {
     SCHEMAS.nextmonth.forEach(col => {
       if (col.type !== 'select') return;
       if (col.key !== 'paymentMode' && col.key !== 'accountUsed') return;
-      // accountUsed in income is named accountReceived; pull from both keys
       const altKey = (col.key === 'accountUsed') ? 'accountReceived' : null;
       const values = new Set(col.opts || []);
       sections.forEach(s => {
