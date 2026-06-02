@@ -132,6 +132,27 @@ const CANONICAL_SCHEMAS = {
     { key:'remarks',         label:'Remarks',            type:'text' },
     { key:'contactRelation', label:'Contact / Relation', type:'text' },
   ],
+  nextmonth: [
+    { key:'sno',           label:'#',             type:'sno' },
+    { key:'source',        label:'Source',        type:'text' },
+    { key:'date',          label:'Date Spent',    type:'date' },
+    { key:'category',      label:'Category',      type:'text' },
+    { key:'paymentMode',   label:'Payment Mode',  type:'select', opts:[] },
+    { key:'accountUsed',   label:'Account Used',  type:'select', opts:[] },
+    { key:'description',   label:'Description',   type:'textarea' },
+    { key:'amount',        label:'Amount (₹)',    type:'number' },
+    { key:'targetSection', label:'Apply To',      type:'select', opts:['Variable','Unexpected','Fixed','Semi Fixed'] },
+    { key:'status',        label:'Status',        type:'select', opts:['Staged','Migrated'] },
+    { key:'remarks',       label:'Remarks',       type:'text' },
+  ],
+};
+
+// Maps the user-facing "Apply To" label on a nextmonth row to the canonical section key
+const NEXTMONTH_TARGET_MAP = {
+  'Variable':   'variable',
+  'Unexpected': 'unexpected',
+  'Fixed':      'fixed',
+  'Semi Fixed': 'semifixed',
 };
 
 // ── SCHEMA BUILDER ────────────────────────────────────────────────────────
@@ -139,7 +160,7 @@ const CANONICAL_SCHEMAS = {
 // Hydrates select options (except status) from actual master.json data values.
 // This means schemas are ALWAYS correct even when sections are empty.
 function buildSchemasFromData(masterObj) {
-  const sections = ['income','savings','fixed','semifixed','variable','unexpected','lending'];
+  const sections = ['income','savings','fixed','semifixed','variable','unexpected','lending','nextmonth'];
 
   SCHEMAS = {};
 
@@ -327,9 +348,77 @@ async function loadOrCreateCurrentMonth() {
     } else {
       await createFromMaster(name);
     }
+    // Pull any "Next Month" entries staged in the previous month's file
+    await migrateFromPreviousMonth();
   } catch(e) {
     showToast('❌ '+e.message,'error');
     console.error(e);
+  }
+}
+
+// Look for staged entries in the previous month's file and migrate them
+// into the current month's target section (Variable / Unexpected / Fixed / SemiFixed).
+// Source entries get their status flipped to "Migrated" so they aren't re-applied.
+async function migrateFromPreviousMonth() {
+  // Compute previous month/year (handle January → previous December)
+  let prevM = currentMonth.month - 1;
+  let prevY = currentMonth.year;
+  if (prevM < 0) { prevM = 11; prevY--; }
+  const prevName = `${MONTHS[prevM]}-${prevY}_Salary_Tracker.json`;
+
+  try {
+    let q = `name='${prevName}' and trashed=false and mimeType='application/json'`;
+    if (DEST_FOLDER_ID) q += ` and '${DEST_FOLDER_ID}' in parents`;
+    const files = await driveList(q);
+    if (files.length === 0) return; // no previous month file — silent no-op
+
+    const prevId   = files[0].id;
+    const prevText = await driveDownloadText(prevId);
+    const prevData = JSON.parse(prevText);
+    const staged   = (prevData.nextmonth || []).filter(r => r.status === 'Staged');
+    if (staged.length === 0) return;
+
+    let migrated = 0;
+    staged.forEach(src => {
+      const targetKey = NEXTMONTH_TARGET_MAP[src.targetSection] || 'variable';
+      if (!data[targetKey]) data[targetKey] = [];
+
+      const row = {
+        _id:          targetKey + '_' + Date.now() + '_' + Math.random().toString(36).slice(2,6),
+        source:       src.source || '',
+        category:     src.category || '',
+        paymentMode:  src.paymentMode || '',
+        accountUsed:  src.accountUsed || '',
+        amount:       src.amount || '',
+        status:       'Pending',
+        remarks:      src.remarks || '',
+        _carriedFrom: `${MONTHS[prevM]} ${prevY}`,
+      };
+      // Per-target field shape — schemas differ between variable/unexpected and fixed/semifixed
+      if (targetKey === 'variable' || targetKey === 'unexpected') {
+        row.date        = src.date || '';
+        row.description = src.description || '';
+        row.month       = MONTHS[currentMonth.month];
+      } else if (targetKey === 'fixed' || targetKey === 'semifixed') {
+        row.datePaid = src.date || '';
+      }
+      data[targetKey].push(row);
+
+      // Flip source status so we don't re-migrate next time
+      src.status = 'Migrated';
+      migrated++;
+    });
+
+    if (migrated > 0) {
+      // Persist the prev-month file so source entries stay marked Migrated
+      await driveUploadJson(prevId, prevData, prevName);
+      markDirty();           // current month has new rows — user reviews then saves
+      switchTab(currentTab); // re-render so migrated rows show immediately
+      showToast(`📤 Migrated ${migrated} ${migrated===1?'entry':'entries'} from ${MONTHS[prevM]} → ${MONTHS[currentMonth.month]}`, 'success');
+    }
+  } catch (e) {
+    console.error('Migration error:', e);
+    showToast('⚠️ Migration check failed: ' + e.message, 'error');
   }
 }
 
@@ -382,7 +471,7 @@ async function loadJsonData() {
 }
 
 function loadDataFromObject(obj) {
-  const sections = ['income','savings','fixed','semifixed','variable','unexpected','lending'];
+  const sections = ['income','savings','fixed','semifixed','variable','unexpected','lending','nextmonth'];
   data = {};
   sections.forEach(k => {
     data[k] = (obj[k] || []).map((row, i) => ({
@@ -399,7 +488,7 @@ async function saveToGDrive() {
   btn.innerHTML = '<div class="spinner"></div>';
   btn.disabled = true;
   try {
-    const sections = ['income','savings','fixed','semifixed','variable','unexpected','lending'];
+    const sections = ['income','savings','fixed','semifixed','variable','unexpected','lending','nextmonth'];
     const payload = { _version:1, _month:MONTHS[currentMonth.month], _year:currentMonth.year, _saved:new Date().toISOString() };
     sections.forEach(k => payload[k] = data[k] || []);
     await driveUploadJson(currentFileId, payload, getFileName());
@@ -482,9 +571,10 @@ async function saveMasterJson() {
 function exportExcel() {
   try {
     const wb = XLSX.utils.book_new();
-    const sections = ['income','savings','fixed','semifixed','variable','unexpected','lending'];
+    const sections = ['income','savings','fixed','semifixed','variable','unexpected','lending','nextmonth'];
     const sheetNames = {income:'Income',savings:'Savings',fixed:'Fixed Expenses',semifixed:'Semi Fixed Exp',
-                        variable:'Variable Exp',unexpected:'Unexpected Exp',lending:'Lending & Borrowing'};
+                        variable:'Variable Exp',unexpected:'Unexpected Exp',lending:'Lending & Borrowing',
+                        nextmonth:'Next Month (Reminder)'};
     // Match Excel dashboard formulas exactly
     // Total Income = only Paid entries
     const ti = sumIf(data.income||[],'amount','status','Paid');
@@ -529,11 +619,12 @@ function fmt(n)             { return '₹'+parseFloat(n||0).toLocaleString('en-I
 // ── TABS ─────────────────────────────────────────────────────────────────
 function switchTab(tab) {
   currentTab = tab;
-  const tabs = ['dashboard','income','savings','fixed','semifixed','variable','unexpected','lending'];
+  const tabs = ['dashboard','income','savings','fixed','semifixed','variable','unexpected','nextmonth','lending'];
   document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',tabs[i]===tab));
   const c = document.getElementById('content');
   const titles = {income:'Income',savings:'Savings',fixed:'Fixed Expenses',semifixed:'Semi Fixed Expenses',
-                  variable:'Variable Expenses',unexpected:'Unexpected Expenses',lending:'Lending & Borrowing'};
+                  variable:'Variable Expenses',unexpected:'Unexpected Expenses',lending:'Lending & Borrowing',
+                  nextmonth:'Next Month'};
   if (tab==='dashboard') renderDashboard(c); else renderSheet(c, tab, titles[tab]);
 }
 
@@ -673,21 +764,48 @@ function renderDashboard(c) {
           <span>📋 Total entries: <strong>${lend.length}</strong></span>
         </div>
       </div>`;
+    })()}
+
+    ${(()=>{
+      const nm = data.nextmonth || [];
+      const stagedRows = nm.filter(r => r.status === 'Staged');
+      if (stagedRows.length === 0) return '';
+      const total = sum(stagedRows, 'amount');
+      return `
+      <div class="section-head" style="margin-top:1.4rem">
+        📤 Next Month
+        <span style="font-size:.65rem;font-weight:400;color:var(--muted);margin-left:.5rem;text-transform:none;letter-spacing:0">— not included in this month's balance</span>
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;margin-bottom:1rem">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;text-align:center">
+          <div>
+            <div style="font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.25rem">Staged Entries</div>
+            <div style="font-family:var(--font-head);font-size:1rem;font-weight:700;color:var(--accent3)">${stagedRows.length}</div>
+          </div>
+          <div>
+            <div style="font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.25rem">Total Amount</div>
+            <div style="font-family:var(--font-head);font-size:1rem;font-weight:700;color:var(--accent3)">${fmt(total)}</div>
+          </div>
+        </div>
+        <div style="margin-top:.75rem;padding-top:.75rem;border-top:1px solid var(--border);font-size:.68rem;color:var(--muted);text-align:center;line-height:1.5">
+          These will move to ${MONTHS[(currentMonth.month+1)%12]} when you open it.
+        </div>
+      </div>`;
     })()}`;
 }
 
 // ── ROW-CARD CONFIG (used for mobile card view) ───────────────────────────
 const PRIMARY_FIELD = {
   income:'source', savings:'source', fixed:'source', semifixed:'source',
-  variable:'source', unexpected:'source', lending:'personName'
+  variable:'source', unexpected:'source', lending:'personName', nextmonth:'source'
 };
 const META_FIELD = {
   income:'category', savings:'category', fixed:'category', semifixed:'category',
-  variable:'category', unexpected:'category', lending:'type'
+  variable:'category', unexpected:'category', lending:'type', nextmonth:'targetSection'
 };
 const DATE_FIELD = {
   income:'dateReceived', savings:'date', fixed:'datePaid', semifixed:'datePaid',
-  variable:'date', unexpected:'date', lending:'dateGiven'
+  variable:'date', unexpected:'date', lending:'dateGiven', nextmonth:'date'
 };
 function statusSlug(s) { return (s||'empty').toString().toLowerCase().replace(/[^a-z0-9]+/g,'-'); }
 function isMobileView() { return window.matchMedia('(max-width: 767px)').matches; }
@@ -713,7 +831,9 @@ function renderSheetTable(c, key, title, rows, schema) {
     'Pending':      'var(--pending)',
     'Delayed':      'var(--delayed)',
     'Partially Paid':'var(--accent3)',
-    'Fully Paid':   'var(--paid)'
+    'Fully Paid':   'var(--paid)',
+    'Staged':       'var(--accent3)',
+    'Migrated':     'var(--muted)'
   };
 
   const thead = schema.map(col=>`<th>${col.label}</th>`).join('')+'<th></th>';
@@ -1009,7 +1129,13 @@ function showAddRow(key, title) {
       const isRequired = requiredKeys.includes(col.key);
       const reqMark = isRequired ? ' <span style="color:var(--accent2)">*</span>' : '';
       let input = '';
-      if      (col.type==='select')   input = `<select class="form-select" name="${col.key}"><option value="">Select...</option>${(col.opts||[]).map(o=>`<option>${o}</option>`).join('')}</select>`;
+      if      (col.type==='select')   {
+        // Pre-select sensible defaults for the Next Month tab
+        let preset = '';
+        if (key === 'nextmonth' && col.key === 'status')        preset = 'Staged';
+        if (key === 'nextmonth' && col.key === 'targetSection') preset = 'Variable';
+        input = `<select class="form-select" name="${col.key}"><option value="">Select...</option>${(col.opts||[]).map(o=>`<option${o===preset?' selected':''}>${o}</option>`).join('')}</select>`;
+      }
       else if (col.type==='date')     input = `<input type="date" class="form-input" name="${col.key}">`;
       else if (col.type==='number')   input = `<input type="number" class="form-input" name="${col.key}" step="0.01" min="0">`;
       else if (col.type==='textarea') input = `<textarea class="form-input" name="${col.key}" rows="2" placeholder="${col.label}"></textarea>`;

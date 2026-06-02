@@ -739,6 +739,14 @@ body.day .sync-bar { background:rgba(255,255,255,.92); }
   background:color-mix(in srgb,var(--delayed) 16%,transparent);
   color:var(--delayed);
 }
+.status-staged {
+  background:color-mix(in srgb,var(--accent3) 16%,transparent);
+  color:var(--accent3);
+}
+.status-migrated {
+  background:var(--surface3);
+  color:var(--muted);
+}
 .status-empty { background:var(--surface2); color:var(--muted); }
 
 .row-card-body {
