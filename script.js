@@ -169,9 +169,9 @@ function buildSchemasFromData(masterObj) {
     // Deep-clone canonical schema so we can safely mutate opts
     const schema = JSON.parse(JSON.stringify(CANONICAL_SCHEMAS[section] || [{ key:'sno', label:'#', type:'sno' }]));
 
-    // Hydrate dynamic select options from data (skip status and lending type — they're fixed)
+    // Hydrate dynamic select options from data (skip fixed-opts columns: status, lending type, nextmonth's targetSection)
     schema.forEach(col => {
-      if (col.type === 'select' && col.key !== 'status' && col.key !== 'type' && rows.length > 0) {
+      if (col.type === 'select' && col.key !== 'status' && col.key !== 'type' && col.key !== 'targetSection' && rows.length > 0) {
         const vals = [...new Set(rows.map(r => r[col.key]).filter(v => v && v !== ''))];
         if (vals.length > 0) col.opts = vals;
       }
@@ -179,6 +179,26 @@ function buildSchemasFromData(masterObj) {
 
     SCHEMAS[section] = schema;
   });
+
+  // nextmonth never lives in master.json, so its paymentMode / accountUsed selects would stay empty.
+  // Hydrate them from the union of values used across all other sections.
+  if (SCHEMAS.nextmonth) {
+    SCHEMAS.nextmonth.forEach(col => {
+      if (col.type !== 'select') return;
+      if (col.key !== 'paymentMode' && col.key !== 'accountUsed') return;
+      // accountUsed in income is named accountReceived; pull from both keys
+      const altKey = (col.key === 'accountUsed') ? 'accountReceived' : null;
+      const values = new Set(col.opts || []);
+      sections.forEach(s => {
+        if (s === 'nextmonth') return;
+        (masterObj[s] || []).forEach(r => {
+          if (r[col.key])           values.add(r[col.key]);
+          if (altKey && r[altKey])  values.add(r[altKey]);
+        });
+      });
+      if (values.size > 0) col.opts = [...values];
+    });
+  }
 
   // Cache a deep copy so empty-section schemas survive row deletion
   SCHEMAS_MASTER = JSON.parse(JSON.stringify(SCHEMAS));
@@ -1026,8 +1046,8 @@ async function deleteRow(key, rowId) {
   data[key].splice(idx, 1);
   markDirty();
 
-  // Now ask about master.json
-  if (accessToken && MASTER_FILE_ID) {
+  // Now ask about master.json (skip for nextmonth — never written there)
+  if (accessToken && MASTER_FILE_ID && key !== 'nextmonth') {
     const alsoMaster = await showConfirmModal(
       '📋 Also delete from Master?',
       `Do you also want to remove <strong>${label}</strong> from <code>master.json</code>?<br><span style="font-size:.75rem;color:var(--muted)">This will affect all future months created from master.</span>`
@@ -1188,8 +1208,8 @@ async function submitAddRow() {
   // Switch to the section tab so user sees new row immediately
   switchTab(key);
 
-  // Ask if user wants to add to master.json too
-  if (accessToken && MASTER_FILE_ID) {
+  // Ask if user wants to add to master.json too (skip for nextmonth — transient by design)
+  if (accessToken && MASTER_FILE_ID && key !== 'nextmonth') {
     const label = row.source || row.personName || row.name || 'new row';
     const alsoMaster = await showConfirmModal(
       '📋 Also add to Master?',
