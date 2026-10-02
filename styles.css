@@ -709,6 +709,22 @@ body.day .sync-bar { background:rgba(255,255,255,.92); }
   margin-top:.18rem;
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
 }
+/* Date · payment mode · account — second line under the title, aligned with it */
+.row-card-details {
+  grid-column:2 / -1;
+  display:flex; flex-wrap:wrap; gap:.3rem .4rem;
+  margin-top:-.35rem;
+}
+.row-card-chip {
+  font-size:.72rem;
+  color:var(--text);
+  background:var(--surface2);
+  padding:.16rem .5rem;
+  border-radius:var(--radius-pill);
+  white-space:nowrap;
+  max-width:100%; overflow:hidden; text-overflow:ellipsis;
+}
+.row-card-chip.empty { color:var(--muted); }
 .row-card-right { display:flex; flex-direction:column; align-items:flex-end; gap:.3rem; flex-shrink:0; }
 .row-card-amount {
   font-family:var(--font-display);

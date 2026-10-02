@@ -950,6 +950,32 @@ const DATE_FIELD = {
   income:'dateReceived', savings:'date', fixed:'datePaid', semifixed:'datePaid',
   variable:'date', unexpected:'date', lending:'dateGiven', nextmonth:'date'
 };
+const PAYMENT_FIELD = {
+  income:'paymentMode', savings:'paymentMode', fixed:'paymentMode', semifixed:'paymentMode',
+  variable:'paymentMode', unexpected:'paymentMode', lending:'mode', nextmonth:'paymentMode'
+};
+// fixed / semifixed have no account column
+const ACCOUNT_FIELD = {
+  income:'accountReceived', savings:'accountUsed', variable:'accountUsed',
+  unexpected:'accountUsed', lending:'accountUsed', nextmonth:'accountUsed'
+};
+// "2026-10-02" → "02 Oct 2026"; anything else is shown as-is
+function fmtDate(v) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v || '');
+  if (!m) return v || '';
+  return new Date(+m[1], +m[2]-1, +m[3]).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' });
+}
+// Collapsed-card detail line: date · payment mode · account (always shown, "—" when empty)
+function cardDetailsHtml(key, row) {
+  const bits = [
+    ['📅', DATE_FIELD[key]    ? fmtDate(row[DATE_FIELD[key]]) : null],
+    ['💳', PAYMENT_FIELD[key] ? row[PAYMENT_FIELD[key]]       : null],
+    ['🏦', ACCOUNT_FIELD[key] ? row[ACCOUNT_FIELD[key]]       : null],
+  ].filter(([, v]) => v !== null);
+  return bits.map(([icon, v]) =>
+    `<span class="row-card-chip${v ? '' : ' empty'}">${icon} ${escHtml(v || '—')}</span>`
+  ).join('');
+}
 function statusSlug(s) { return (s||'empty').toString().toLowerCase().replace(/[^a-z0-9]+/g,'-'); }
 function isMobileView() { return window.matchMedia('(max-width: 767px)').matches; }
 function escAttr(v) { return (v ?? '').toString().replace(/"/g,'&quot;'); }
@@ -1047,7 +1073,6 @@ function renderCardField(col, row, key, id) {
 function renderSheetCards(c, key, title, rows, schema) {
   const primaryK = PRIMARY_FIELD[key]    || 'source';
   const metaK    = META_FIELD[key]       || 'category';
-  const dateK    = DATE_FIELD[key];
 
   const empty = `<div class="row-card" style="text-align:center;padding:2rem 1rem;color:var(--muted);font-size:.82rem">
     No entries yet — tap <strong style="color:var(--accent)">➕ Add Entry</strong> to get started.
@@ -1056,8 +1081,7 @@ function renderSheetCards(c, key, title, rows, schema) {
   const cards = rows.map((row, i) => {
     const id      = row._id;
     const primary = row[primaryK] || '—';
-    const metaBits = [row[metaK], dateK ? row[dateK] : ''].filter(v => v && v !== '');
-    const metaTxt  = metaBits.length ? metaBits.join(' · ') : '\u00A0';
+    const metaTxt  = row[metaK] || '\u00A0';
     const status   = row.status || '';
     const slug     = statusSlug(status);
     const amountTxt = (row.amount !== undefined && row.amount !== '')
@@ -1076,6 +1100,7 @@ function renderSheetCards(c, key, title, rows, schema) {
           <div class="row-card-amount">${amountTxt}</div>
           <div class="row-card-status status-${slug}">${escHtml(status || '—')}</div>
         </div>
+        <div class="row-card-details">${cardDetailsHtml(key, row)}</div>
       </summary>
       <div class="row-card-body">
         ${bodyFields}
@@ -1127,17 +1152,18 @@ function updateCell(key, rowId, field, value) {
   // Live-update card summary (mobile view) so the collapsed header stays accurate
   const card = document.querySelector(`.row-card[data-id="${rowId}"]`);
   if (card) {
-    const primaryK = PRIMARY_FIELD[key], metaK = META_FIELD[key], dateK = DATE_FIELD[key];
+    const primaryK = PRIMARY_FIELD[key], metaK = META_FIELD[key];
     if (field === primaryK) {
       const t = card.querySelector('.row-card-title');
       if (t) t.textContent = value || '—';
     }
-    if (field === metaK || field === dateK) {
+    if (field === metaK) {
       const m = card.querySelector('.row-card-meta');
-      if (m) {
-        const bits = [row[metaK], dateK ? row[dateK] : ''].filter(v => v && v !== '');
-        m.textContent = bits.length ? bits.join(' · ') : '\u00A0';
-      }
+      if (m) m.textContent = value || '\u00A0';
+    }
+    if (field === DATE_FIELD[key] || field === PAYMENT_FIELD[key] || field === ACCOUNT_FIELD[key]) {
+      const d = card.querySelector('.row-card-details');
+      if (d) d.innerHTML = cardDetailsHtml(key, row);
     }
     if (field === 'amount') {
       const a = card.querySelector('.row-card-amount');
