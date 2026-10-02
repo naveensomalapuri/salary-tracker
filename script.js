@@ -18,6 +18,7 @@ let pickerMonth   = { ...currentMonth };
 let currentTab    = 'dashboard';
 let currentFileId = null;
 let currentFileModified = null;  // Drive modifiedTime when we last loaded/saved — used for conflict detection
+let prevMonth     = null;   // { label, totals } of the previous month's file, for the dashboard comparison
 let hasChanges    = false;
 let addRowContext  = null;
 let gisLoaded     = false;
@@ -256,6 +257,11 @@ const ICONS = {
   arrowRightCircle: '<circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="m12 16 4-4-4-4"/>',
   creditCard:  '<rect width="20" height="14" x="2" y="5" rx="2"/><path d="M2 10h20"/>',
   bank:        '<path d="M3 22h18"/><path d="M6 18v-7"/><path d="M10 18v-7"/><path d="M14 18v-7"/><path d="M18 18v-7"/><path d="M12 2 20 7H4z"/>',
+  arrowUp:     '<path d="m5 12 7-7 7 7"/><path d="M12 19V5"/>',
+  arrowDown:   '<path d="M12 5v14"/><path d="m19 12-7 7-7-7"/>',
+  bell:        '<path d="M10.268 21a2 2 0 0 0 3.464 0"/><path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"/>',
+  chartBar:    '<path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M7 16h8"/><path d="M7 11h12"/><path d="M7 6h3"/>',
+  trendingUp:  '<path d="M16 7h6v6"/><path d="m22 7-8.5 8.5-5-5L2 17"/>',
 };
 function icon(name, cls = '') {
   return `<svg class="ico${cls ? ' '+cls : ''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name] || ''}</svg>`;
@@ -488,6 +494,7 @@ async function loadOrCreateCurrentMonth() {
     if (DEST_FOLDER_ID) q += ` and '${DEST_FOLDER_ID}' in parents`;
     const files = await driveList(q);
 
+    prevMonth = null;
     let ok;
     if (files.length > 0) {
       currentFileId = files[0].id;
@@ -496,36 +503,52 @@ async function loadOrCreateCurrentMonth() {
     } else {
       ok = await createFromMaster(name);
     }
-    // Pull any "Next Month" entries staged in the previous month's file —
-    // only when this month's file is actually loaded, otherwise they'd go into empty data
-    if (ok) await migrateFromPreviousMonth();
+    // Read the previous month once: it feeds the dashboard comparison and the
+    // "Next Month" carry-over — only when this month's file is actually loaded,
+    // otherwise carried entries would go into empty data
+    if (ok) {
+      const prev = await loadPreviousMonth();
+      if (prev) await migrateFromPreviousMonth(prev);
+    }
   } catch(e) {
     showToast(e.message,'error');
     console.error(e);
   }
 }
 
-// Look for staged entries in the previous month's file and migrate them
-// into the current month's target section (Variable / Unexpected / Fixed / SemiFixed).
+// Download the previous month's file (if any) and keep its totals for the comparison.
+// Returns { id, name, label, data } or null.
+async function loadPreviousMonth() {
+  let prevM = currentMonth.month - 1;
+  let prevY = currentMonth.year;
+  if (prevM < 0) { prevM = 11; prevY--; }   // January → previous December
+  const name = `${MONTHS[prevM]}-${prevY}_Salary_Tracker.json`;
+  try {
+    let q = `name='${name}' and trashed=false and mimeType='application/json'`;
+    if (DEST_FOLDER_ID) q += ` and '${DEST_FOLDER_ID}' in parents`;
+    const files = await driveList(q);
+    if (files.length === 0) return null;   // no previous month file — silent no-op
+    const prev = { id: files[0].id, name, label: `${MONTHS[prevM]} ${prevY}`,
+                   data: JSON.parse(await driveDownloadText(files[0].id)) };
+    prevMonth = { label: prev.label, totals: computeTotals(prev.data) };
+    if (currentTab === 'dashboard') switchTab('dashboard');
+    return prev;
+  } catch (e) {
+    console.error('Previous month error:', e);
+    showToast('Could not read previous month: ' + e.message, 'error');
+    return null;
+  }
+}
+
+// Migrate entries staged in the previous month's file into the current month's
+// target section (Variable / Unexpected / Fixed / SemiFixed).
 // The current month is saved FIRST, then source entries are flipped to "Migrated",
 // so an interruption can never lose entries. Each carried row remembers its source
 // _id, so a retry after a partial failure won't duplicate it.
-async function migrateFromPreviousMonth() {
-  // Compute previous month/year (handle January → previous December)
-  let prevM = currentMonth.month - 1;
-  let prevY = currentMonth.year;
-  if (prevM < 0) { prevM = 11; prevY--; }
-  const prevName = `${MONTHS[prevM]}-${prevY}_Salary_Tracker.json`;
-
+async function migrateFromPreviousMonth(prev) {
+  const { id: prevId, name: prevName, data: prevData } = prev;
+  const prevLabel = prev.label;
   try {
-    let q = `name='${prevName}' and trashed=false and mimeType='application/json'`;
-    if (DEST_FOLDER_ID) q += ` and '${DEST_FOLDER_ID}' in parents`;
-    const files = await driveList(q);
-    if (files.length === 0) return; // no previous month file — silent no-op
-
-    const prevId   = files[0].id;
-    const prevText = await driveDownloadText(prevId);
-    const prevData = JSON.parse(prevText);
     const staged   = (prevData.nextmonth || []).filter(r => sameText(r.status, 'Staged'));
     if (staged.length === 0) return;
 
@@ -547,7 +570,7 @@ async function migrateFromPreviousMonth() {
         amount:         src.amount || '',
         status:         'Pending',
         remarks:        src.remarks || '',
-        _carriedFrom:   `${MONTHS[prevM]} ${prevY}`,
+        _carriedFrom:   prevLabel,
         _carriedFromId: src._id || '',
       };
       // Per-target field shape — schemas differ between variable/unexpected and fixed/semifixed
@@ -568,7 +591,7 @@ async function migrateFromPreviousMonth() {
 
     if (migrated > 0) {
       switchTab(currentTab); // re-render so migrated rows show immediately
-      showToast(`Migrated ${migrated} ${migrated===1?'entry':'entries'} from ${MONTHS[prevM]} → ${MONTHS[currentMonth.month]} and saved`, 'success');
+      showToast(`Migrated ${migrated} ${migrated===1?'entry':'entries'} from ${prevLabel.split(' ')[0]} → ${MONTHS[currentMonth.month]} and saved`, 'success');
     }
   } catch (e) {
     console.error('Migration error:', e);
@@ -766,7 +789,8 @@ function exportExcel() {
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
       ['Salary Tracker — '+MONTHS[currentMonth.month]+' '+currentMonth.year],[''],
       ['Income Received (Paid)', t.incomePaid, '', 'Pending Income', t.incomePending, '', 'Delayed Income', t.incomeDelayed],[''],
-      ['Total Expenses (Paid)', t.expPaid, '', 'Savings (Saved)', t.saved, '', 'Net Balance', t.net],[''],
+      ['Total Expenses (Paid)', t.expPaid, '', 'Savings (Saved)', t.saved, '', 'Net Balance', t.net],
+      ['Withdrawn from Savings', t.withdrawn, '', 'Net Savings', t.netSaved, '', 'Projected Month-End', t.projected],[''],
       ['Category', 'Paid', 'Pending', 'Delayed'],
       ['Fixed Expenses',      t.cat.fixed.paid,      t.cat.fixed.pending,      t.cat.fixed.delayed],
       ['Semi Fixed Expenses', t.cat.semifixed.paid,  t.cat.semifixed.pending,  t.cat.semifixed.delayed],
@@ -774,7 +798,11 @@ function exportExcel() {
       ['Unexpected Expenses', t.cat.unexpected.paid, t.cat.unexpected.pending, t.cat.unexpected.delayed],
       ['Total Expenses',      t.expPaid,             t.expPending,             t.expDelayed],
       ['Savings',             t.saved,               t.savingsPending,         ''],[''],
-      ['Lending', 'Total Lent', t.lent, 'Total Borrowed', t.borrowed, 'To Receive', t.toReceive, 'To Pay', t.toPay]
+      ['Lending', 'Total Lent', t.lent, 'Total Borrowed', t.borrowed, 'To Receive', t.toReceive, 'To Pay', t.toPay],
+      ...(t.loanCount ? [[''], ['Loans', 'EMIs This Month', t.emi, 'Principal Remaining', t.loanRemaining,
+                               'EMI % of Expected Income', t.emiPct === null ? '' : round2(t.emiPct)]] : []),
+      ...(t.categories.length ? [[''], ['Spending by Category (Paid)', 'Amount', 'Subcategories'],
+          ...t.categories.map(c => [c.name, c.amount, c.subs.map(x => `${x.name}: ${x.amount}`).join(', ')])] : []),
     ]), 'Dashboard');
     sections.forEach(key => {
       const schema = SCHEMAS[key] || [];
@@ -829,34 +857,82 @@ function switchTab(tab) {
 }
 
 // Single source of truth for every number on the dashboard and in the Excel export.
-// Rules: income counts Paid, expenses count Paid, savings count Saved; Lending & Next Month are kept separate.
+// Rules: income counts Paid, expenses count Paid, savings count Saved − Withdrawn;
+// Lending & Next Month are kept separate. Takes any month's data (used for the comparison too).
 const EXPENSE_SECTIONS = ['fixed','semifixed','variable','unexpected'];
-function computeTotals() {
-  const by = (k, st) => sumIf(data[k] || [], 'amount', 'status', st);
+const LOAN_SECTIONS    = ['fixed','semifixed'];
+const EMI_GUIDELINE_PCT = 40;   // common rule of thumb: total EMIs under ~40% of income
+function computeTotals(d = data) {
+  const by = (k, st) => sumIf(d[k] || [], 'amount', 'status', st);
   const t = {
     incomePaid:     by('income','Paid'),
     incomePending:  by('income','Pending'),
     incomeDelayed:  by('income','Delayed'),
     saved:          by('savings','Saved'),
     savingsPending: by('savings','Pending'),
-    savingsTarget:  sum(data.savings || [], 'targetAmount'),
+    withdrawn:      by('savings','Withdrawn'),
+    savingsTarget:  sum(d.savings || [], 'targetAmount'),
     cat: {},
   };
+  t.incomeExpected = round2(t.incomePaid + t.incomePending + t.incomeDelayed);
   EXPENSE_SECTIONS.forEach(k => t.cat[k] = { paid: by(k,'Paid'), pending: by(k,'Pending'), delayed: by(k,'Delayed') });
   const total = f => round2(EXPENSE_SECTIONS.reduce((s, k) => s + t.cat[k][f], 0));
   t.expPaid    = total('paid');
   t.expPending = total('pending');
   t.expDelayed = total('delayed');
 
-  // Net Balance = Paid Income − Paid Expenses − Saved
-  t.net = round2(t.incomePaid - t.expPaid - t.saved);
+  // A Withdrawn row is money taken back out of savings: it lowers net savings and
+  // returns to the balance. Net savings can go negative when drawing on older savings.
+  t.netSaved = round2(t.saved - t.withdrawn);
+
+  // Net Balance = Paid Income − Paid Expenses − Net Saved
+  t.net = round2(t.incomePaid - t.expPaid - t.netSaved);
+  // Projected month-end: as if every expected income arrives and every bill / planned saving goes out
+  t.projected = round2(t.incomeExpected - (t.expPaid + t.expPending + t.expDelayed) - (t.netSaved + t.savingsPending));
   // Share of received income already spent or saved (null when nothing received yet)
-  t.usedPct = t.incomePaid > 0 ? (t.expPaid + t.saved) / t.incomePaid * 100 : null;
-  t.savingsPct = t.savingsTarget > 0 ? t.saved / t.savingsTarget * 100 : null;
+  t.usedPct = t.incomePaid > 0 ? (t.expPaid + t.netSaved) / t.incomePaid * 100 : null;
+  t.savingsPct = t.savingsTarget > 0 ? Math.max(0, t.netSaved) / t.savingsTarget * 100 : null;
+
+  // Loans: Fixed / Semi Fixed rows with a loan number or a total loan amount.
+  // Amount is the monthly EMI, Pending Amount the principal still outstanding.
+  const loans = LOAN_SECTIONS.flatMap(k => (d[k] || []).filter(r => String(r.loanNumber ?? '').trim() !== '' || toNum(r.totalLoanAmount) > 0));
+  const withTotal = loans.filter(r => toNum(r.totalLoanAmount) > 0);
+  const rated     = loans.filter(r => toNum(r.interestRate) > 0 && toNum(r.pendingAmount) > 0);
+  t.loanCount     = loans.length;
+  t.emi           = sum(loans, 'amount');
+  t.loanRemaining = sum(loans, 'pendingAmount');
+  t.loanTotal     = sum(withTotal, 'totalLoanAmount');
+  t.loanRepaidPct = t.loanTotal > 0
+    ? Math.min(100, Math.max(0, (t.loanTotal - sum(withTotal, 'pendingAmount')) / t.loanTotal * 100)) : null;
+  t.emiPct        = t.incomeExpected > 0 ? t.emi / t.incomeExpected * 100 : null;
+  // Interest rate weighted by what's still outstanding ("8.5%", "8.5 % p.a." → 8.5)
+  const ratedBase = sum(rated, 'pendingAmount');
+  t.loanRate      = ratedBase > 0 ? rated.reduce((s, r) => s + toNum(r.interestRate) * toNum(r.pendingAmount), 0) / ratedBase : null;
+
+  // Where the money went: paid expenses grouped by Category (case-insensitive), with Subcategory detail
+  const groups = new Map();
+  EXPENSE_SECTIONS.forEach(k => (d[k] || []).filter(r => sameText(r.status, 'Paid')).forEach(r => {
+    const name = String(r.category ?? '').trim() || 'Uncategorized';
+    const g = groups.get(name.toLowerCase()) || { name, amount: 0, subs: new Map() };
+    g.amount += toNum(r.amount);
+    const sub = String(r.subcategory ?? '').trim();
+    if (sub) {
+      const sg = g.subs.get(sub.toLowerCase()) || { name: sub, amount: 0 };
+      sg.amount += toNum(r.amount);
+      g.subs.set(sub.toLowerCase(), sg);
+    }
+    groups.set(name.toLowerCase(), g);
+  }));
+  t.categories = [...groups.values()]
+    .map(g => ({ name: g.name, amount: round2(g.amount),
+                 subs: [...g.subs.values()].map(x => ({ name: x.name, amount: round2(x.amount) }))
+                                           .filter(x => x.amount > 0).sort((a, b) => b.amount - a.amount) }))
+    .filter(g => g.amount > 0)
+    .sort((a, b) => b.amount - a.amount);
 
   // Lending: what's still open is amount − returned on entries not marked Fully Paid.
   // Money owed TO you and money YOU owe are kept apart — adding them together means nothing.
-  const lend = data.lending || [];
+  const lend = d.lending || [];
   const open = r => !sameText(r.status, 'Fully Paid');
   const openBal = type => round2(lend.filter(r => sameText(r.type, type) && open(r))
                                      .reduce((s, r) => s + Math.max(0, lendBalance(r)), 0));
@@ -867,6 +943,43 @@ function computeTotals() {
   t.lendSettled = lend.filter(r => !open(r)).length;
   t.lendOpen    = lend.length - t.lendSettled;
   return t;
+}
+
+// ── DUE-DATE ALERTS ───────────────────────────────────────────────────────
+const DUE_SOON_DAYS = 3;
+// "Date To Pay" is free text: a day of the month ("5", "5th", "every 5th") falls in the
+// month being viewed; full dates ("2026-10-05", "05/10/2026" as dd/mm/yyyy) are taken as-is.
+function parseDueDate(v) {
+  const s = String(v ?? '').trim();
+  let m;
+  if ((m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/)))           return new Date(+m[1], +m[2]-1, +m[3]);
+  if ((m = s.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/))) return new Date(+m[3], +m[2]-1, +m[1]);
+  if ((m = s.match(/^(?:on\s+|every\s+)?(\d{1,2})(?:st|nd|rd|th)?(?:\s+of\s+(?:every|each)\s+month)?$/i))) {
+    const day = +m[1];
+    if (day < 1 || day > 31) return null;
+    const last = new Date(currentMonth.year, currentMonth.month + 1, 0).getDate();
+    return new Date(currentMonth.year, currentMonth.month, Math.min(day, last));   // "31st" → 30 Nov
+  }
+  return null;
+}
+// Unpaid bills and open lending entries that are overdue or due within DUE_SOON_DAYS
+function computeDueAlerts(d = data, today = new Date()) {
+  const t0 = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const days = due => Math.round((due - t0) / 86400000);   // round() absorbs DST hour shifts
+  const out = [];
+  const sectionLabel = { fixed:'Fixed', semifixed:'Semi Fixed' };
+  LOAN_SECTIONS.forEach(k => (d[k] || []).forEach(r => {
+    if (sameText(r.status, 'Paid')) return;
+    const due = parseDueDate(r.dateToPay);
+    if (due) out.push({ name: r.source || '—', what: sectionLabel[k], amount: toNum(r.amount), due, days: days(due) });
+  }));
+  (d.lending || []).forEach(r => {
+    if (sameText(r.status, 'Fully Paid') || lendBalance(r) <= 0) return;
+    const due = parseDueDate(r.dueDate);
+    const what = sameText(r.type, 'Borrowed') ? 'To pay back' : 'To receive';
+    if (due) out.push({ name: r.personName || '—', what, amount: lendBalance(r), due, days: days(due) });
+  });
+  return out.filter(a => a.days <= DUE_SOON_DAYS).sort((a, b) => a.days - b.days);
 }
 
 function renderDashboard(c) {
@@ -883,7 +996,7 @@ function renderDashboard(c) {
   const money = (v, color) => `<td style="text-align:right;color:var(${color});font-family:var(--font-mono)">${v>0?fmt(v):'-'}</td>`;
   const catLabels = { fixed:'Fixed', semifixed:'Semi Fixed', variable:'Variable', unexpected:'Unexpected' };
 
-  c.innerHTML = noFile + `
+  c.innerHTML = noFile + dueAlertsHtml() + `
     <div class="dashboard-grid">
       <div class="stat-card income">
         <div class="stat-label">Income Received</div>
@@ -896,8 +1009,9 @@ function renderDashboard(c) {
         ${t.expPending + t.expDelayed > 0 ? `<div style="font-size:.68rem;margin-top:.3rem;color:var(--muted)">Still to pay: <span style="color:var(--pending)">${fmt(t.expPending + t.expDelayed)}</span></div>` : ''}
       </div>
       <div class="stat-card" style="background:linear-gradient(135deg,rgba(0,229,160,.08),rgba(0,229,160,.03));border-color:rgba(0,229,160,.25)">
-        <div class="stat-label">Total Savings</div>
-        <div class="stat-value" style="color:var(--accent)">${fmt(t.saved)}</div>
+        <div class="stat-label">${t.withdrawn > 0 ? 'Net Savings' : 'Total Savings'}</div>
+        <div class="stat-value" style="color:var(--accent)">${fmt(t.netSaved)}</div>
+        ${t.withdrawn > 0 ? `<div style="font-size:.68rem;margin-top:.3rem;color:var(--muted)">Saved ${fmt(t.saved)} − Withdrawn <span style="color:var(--delayed)">${fmt(t.withdrawn)}</span></div>` : ''}
         <div style="font-size:.68rem;margin-top:.3rem;color:var(--muted)">Pending: <span style="color:var(--pending)">${fmt(t.savingsPending)}</span></div>
         ${t.savingsPct !== null ? `
         <div style="margin-top:.55rem">
@@ -911,12 +1025,17 @@ function renderDashboard(c) {
       <div class="stat-card balance">
         <div class="stat-label">Net Balance</div>
         <div class="stat-value ${t.net>=0?'balance-pos':'balance-neg'}">${fmt(t.net)}</div>
-        <div style="font-size:.68rem;margin-top:.3rem;color:var(--muted)">Received − Paid Expenses − Saved</div>
+        <div style="font-size:.68rem;margin-top:.3rem;color:var(--muted)">Received − Paid Expenses − ${t.withdrawn > 0 ? 'Net Saved' : 'Saved'}</div>
       </div>
       <div class="stat-card pending">
         <div class="stat-label">Pending Income</div>
         <div class="stat-value" style="color:var(--pending)">${fmt(t.incomePending)}</div>
         ${t.incomeDelayed>0?`<div style="font-size:.68rem;margin-top:.3rem;color:var(--delayed)">Delayed: ${fmt(t.incomeDelayed)}</div>`:''}
+      </div>
+      <div class="stat-card projected">
+        <div class="stat-label">Projected Month-End</div>
+        <div class="stat-value ${t.projected>=0?'balance-pos':'balance-neg'}">${fmt(t.projected)}</div>
+        <div style="font-size:.68rem;margin-top:.3rem;color:var(--muted)">If all expected income arrives and every bill &amp; saving is done</div>
       </div>
     </div>
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;margin-bottom:1rem">
@@ -943,12 +1062,16 @@ function renderDashboard(c) {
             <td style="text-align:right;color:var(--delayed);font-family:var(--font-mono)">${fmt(t.expDelayed)}</td>
           </tr>
           <tr>
-            <td>Savings <span style="font-size:.65rem;color:var(--muted)">(Saved / Pending)</span></td>
-            ${money(t.saved,'--paid')}${money(t.savingsPending,'--pending')}<td style="text-align:right;color:var(--muted)">-</td>
+            <td>Savings <span style="font-size:.65rem;color:var(--muted)">(${t.withdrawn > 0 ? 'Saved − Withdrawn' : 'Saved'} / Pending)</span></td>
+            ${money(t.netSaved,'--paid')}${money(t.savingsPending,'--pending')}<td style="text-align:right;color:var(--muted)">-</td>
           </tr>
         </tbody>
       </table></div>
     </div>
+
+    ${categoryChartHtml(t)}
+    ${loansHtml(t)}
+    ${comparisonHtml(t)}
 
     ${(()=>{
       const lend = data.lending || [];
@@ -1003,6 +1126,124 @@ function renderDashboard(c) {
         </div>
       </div>`;
     })()}`;
+}
+
+// ── DASHBOARD SECTIONS ────────────────────────────────────────────────────
+function sectionHead(ic, title, note) {
+  return `<div class="section-head">${icon(ic)} ${title}${note ? `<span class="section-note">— ${note}</span>` : ''}</div>`;
+}
+function plural(n, word) { return `${n} ${word}${n === 1 ? '' : 's'}`; }
+
+function dueAlertsHtml() {
+  if (!currentFileId) return '';
+  const alerts = computeDueAlerts();
+  if (alerts.length === 0) return '';
+  const when = a => a.days < 0 ? `Overdue by ${plural(-a.days, 'day')}`
+                  : a.days === 0 ? 'Due today'
+                  : `Due in ${plural(a.days, 'day')}`;
+  return `${sectionHead('bell', 'Due Soon', `unpaid, overdue or due within ${DUE_SOON_DAYS} days`)}
+    <div class="dash-panel due-list">
+      ${alerts.map(a => `<div class="due-item ${a.days < 0 ? 'overdue' : 'soon'}">
+        ${icon(a.days < 0 ? 'alertCircle' : 'clock', 'due-ico')}
+        <div class="due-main">
+          <div class="due-name">${escHtml(a.name)}</div>
+          <div class="due-sub">${escHtml(a.what)} · ${fmtDate(a.due.getFullYear()+'-'+String(a.due.getMonth()+1).padStart(2,'0')+'-'+String(a.due.getDate()).padStart(2,'0'))}</div>
+        </div>
+        <div class="due-right">
+          <div class="due-amt">${fmt(a.amount)}</div>
+          <div class="due-when">${when(a)}</div>
+        </div>
+      </div>`).join('')}
+    </div>`;
+}
+
+// Horizontal bar list — one series (amount), so one hue; bars share a baseline and
+// are scaled to the largest category. Tap a category to see its subcategories.
+const CATEGORY_LIMIT = 8;
+function categoryChartHtml(t) {
+  let cats = t.categories;
+  if (cats.length === 0) return '';
+  if (cats.length > CATEGORY_LIMIT) {
+    const rest = cats.slice(CATEGORY_LIMIT - 1);
+    cats = [...cats.slice(0, CATEGORY_LIMIT - 1),
+            { name: `Other (${rest.length})`, amount: round2(rest.reduce((s, c) => s + c.amount, 0)),
+              subs: rest.map(c => ({ name: c.name, amount: c.amount })) }];
+  }
+  const total = round2(cats.reduce((s, c) => s + c.amount, 0));
+  const max   = Math.max(...cats.map(c => c.amount));
+  const row = c => {
+    const pct = c.amount / total * 100;
+    const head = `<div class="cat-top">
+        <span class="cat-name">${escHtml(c.name)}${c.subs.length ? icon('chevronRight', 'cat-chev') : ''}</span>
+        <span class="cat-amt">${fmt(c.amount)}<span class="cat-pct">${pct.toFixed(pct < 10 ? 1 : 0)}%</span></span>
+      </div>
+      <div class="cat-track"><div class="cat-bar" style="width:${Math.max(1, c.amount / max * 100)}%"></div></div>`;
+    const tip = `${escAttr(c.name)}: ${fmt(c.amount)} · ${pct.toFixed(1)}% of paid expenses`;
+    if (!c.subs.length) return `<div class="cat-row" title="${tip}">${head}</div>`;
+    return `<details class="cat-row"><summary title="${tip}">${head}</summary>
+      <div class="cat-subs">${c.subs.map(x => `<div class="cat-sub"><span>${escHtml(x.name)}</span><span>${fmt(x.amount)}</span></div>`).join('')}</div>
+    </details>`;
+  };
+  return `${sectionHead('chartBar', 'Spending by Category', `paid expenses, ${fmt(total)}`)}
+    <div class="dash-panel cat-chart">${cats.map(row).join('')}</div>`;
+}
+
+function miniStat(label, value, color) {
+  return `<div class="mini-stat"><div class="mini-label">${label}</div><div class="mini-value"${color ? ` style="color:var(${color})"` : ''}>${value}</div></div>`;
+}
+
+function loansHtml(t) {
+  if (t.loanCount === 0) return '';
+  const high = t.emiPct !== null && t.emiPct >= EMI_GUIDELINE_PCT;
+  return `${sectionHead('bank', 'Loans & EMIs', plural(t.loanCount, 'loan'))}
+    <div class="dash-panel">
+      <div class="mini-grid">
+        ${miniStat('EMIs This Month', fmt(t.emi), '--accent2')}
+        ${miniStat('Principal Remaining', fmt(t.loanRemaining), '--pending')}
+        ${miniStat('Repaid', t.loanRepaidPct === null ? '—' : t.loanRepaidPct.toFixed(1) + '%', '--paid')}
+        ${miniStat('Avg Interest', t.loanRate === null ? '—' : t.loanRate.toFixed(2) + '%')}
+      </div>
+      <div class="panel-foot">
+        <div style="display:flex;justify-content:space-between;font-size:.73rem">
+          <span style="color:var(--muted)">EMI burden vs expected income</span>
+          <span style="font-family:var(--font-head);font-weight:700">${t.emiPct === null ? '—' : t.emiPct.toFixed(1) + '%'}</span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" style="width:${t.emiPct === null ? 0 : Math.min(100, t.emiPct)}%;background:var(${high ? '--delayed' : '--accent'})"></div></div>
+        ${t.emiPct === null ? '' : `<div class="status-line" style="color:var(${high ? '--delayed' : '--paid'})">
+          ${icon(high ? 'alertCircle' : 'checkCircle')} ${high ? 'Above' : 'Within'} the ${EMI_GUIDELINE_PCT}% guideline</div>`}
+      </div>
+    </div>`;
+}
+
+// This month vs the previous month's file. For money going out, up is shown as bad.
+function comparisonHtml(t) {
+  if (!prevMonth || !currentFileId) return '';
+  const p = prevMonth.totals;
+  const rows = [
+    ['Income Received', t.incomePaid, p.incomePaid, true],
+    ['Expenses Paid',   t.expPaid,    p.expPaid,    false],
+    ...EXPENSE_SECTIONS.map(k => [`<span class="cmp-indent">${{fixed:'Fixed',semifixed:'Semi Fixed',variable:'Variable',unexpected:'Unexpected'}[k]}</span>`,
+                                  t.cat[k].paid, p.cat[k].paid, false]),
+    ['Net Savings',     t.netSaved,   p.netSaved,   true],
+    ['Net Balance',     t.net,        p.net,        true],
+  ];
+  const change = (cur, prev, upIsGood) => {
+    const diff = round2(cur - prev);
+    if (diff === 0) return `<span style="color:var(--muted)">No change</span>`;
+    const good = (diff > 0) === upIsGood;
+    const pct  = prev !== 0 ? ` (${Math.abs(diff / prev * 100).toFixed(Math.abs(diff / prev) < .1 ? 1 : 0)}%)` : '';
+    return `<span style="color:var(${good ? '--paid' : '--delayed'})">${icon(diff > 0 ? 'arrowUp' : 'arrowDown')}${fmt(Math.abs(diff))}${pct}</span>`;
+  };
+  const short = prevMonth.label.slice(0, 3);
+  return `${sectionHead('trendingUp', 'Compared to ' + prevMonth.label)}
+    <div class="sheet-table"><div class="breakdown-table-wrap"><table class="cmp-table" style="min-width:unset;width:100%">
+      <thead><tr><th></th><th style="text-align:right">${short}</th><th style="text-align:right">${MONTHS[currentMonth.month].slice(0,3)} <span style="font-weight:400">/ change</span></th></tr></thead>
+      <tbody>${rows.map(([label, cur, prev, upIsGood]) => `<tr>
+        <td>${label}</td>
+        <td class="num" style="color:var(--muted)">${fmt(prev)}</td>
+        <td class="num">${fmt(cur)}<div class="cmp-change">${change(cur, prev, upIsGood)}</div></td>
+      </tr>`).join('')}</tbody>
+    </table></div></div>`;
 }
 
 // ── ROW-CARD CONFIG (used for mobile card view) ───────────────────────────
@@ -1080,11 +1321,11 @@ function renderSheetTable(c, key, title, rows, schema) {
         const v=escHtml(row[col.key]);
         if (col.type==='sno')      return `<td style="color:var(--muted);font-size:.68rem;min-width:22px">${ri+1}</td>`;
         if (col.type==='readonly') return `<td style="font-family:var(--font-mono);font-size:.8rem;color:var(--accent3);min-width:80px;text-align:right">${v||'—'}</td>`;
-        if (col.type==='select')   return `<td><select class="inline-select" style="color:${stColor[row[col.key]]||'var(--text)'}" onchange="updateCell('${key}','${id}','${col.key}',this.value)"><option value="">—</option>${(col.opts||[]).map(o=>`<option ${o===row[col.key]?'selected':''}>${escHtml(o)}</option>`).join('')}</select></td>`;
-        if (col.type==='number')   return `<td><input class="inline-input" type="number" step="0.01" value="${v}" onchange="updateCell('${key}','${id}','${col.key}',this.value)" style="width:90px;text-align:right"></td>`;
-        if (col.type==='date')     return `<td><input class="inline-input" type="date" value="${v}" onchange="updateCell('${key}','${id}','${col.key}',this.value)" style="width:118px"></td>`;
-        if (col.type==='textarea') return `<td><input class="inline-input" type="text" value="${v}" onchange="updateCell('${key}','${id}','${col.key}',this.value)" style="min-width:120px"></td>`;
-        return `<td><input class="inline-input" type="text" value="${v}" onchange="updateCell('${key}','${id}','${col.key}',this.value)" style="min-width:65px"></td>`;
+        if (col.type==='select')   return `<td><select class="inline-select" style="color:${stColor[row[col.key]]||'var(--text)'}" onchange="updateCell('${key}','${id}','${col.key}',this.value,this)"><option value="">—</option>${(col.opts||[]).map(o=>`<option ${o===row[col.key]?'selected':''}>${escHtml(o)}</option>`).join('')}</select></td>`;
+        if (col.type==='number')   return `<td><input class="inline-input" type="number" step="0.01" value="${v}" onchange="updateCell('${key}','${id}','${col.key}',this.value,this)" style="width:90px;text-align:right"></td>`;
+        if (col.type==='date')     return `<td><input class="inline-input" type="date" value="${v}" onchange="updateCell('${key}','${id}','${col.key}',this.value,this)" style="width:118px"></td>`;
+        if (col.type==='textarea') return `<td><input class="inline-input" type="text" value="${v}" onchange="updateCell('${key}','${id}','${col.key}',this.value,this)" style="min-width:120px"></td>`;
+        return `<td><input class="inline-input" type="text" value="${v}" onchange="updateCell('${key}','${id}','${col.key}',this.value,this)" style="min-width:65px"></td>`;
       }).join('')}<td><button class="delete-btn" onclick="deleteRow('${key}','${id}')" title="Delete">${icon('x')}</button></td></tr>`;
     }).join('');
 
@@ -1120,7 +1361,7 @@ function renderCardField(col, row, key, id) {
   if (col.type === 'sno') return '';
   const v = escAttr(row[col.key]);
   const span = (col.type === 'textarea') ? ' span-2' : '';
-  const onchange = `updateCell('${key}','${id}','${col.key}',this.value)`;
+  const onchange = `updateCell('${key}','${id}','${col.key}',this.value,this)`;
   let input;
   if (col.type === 'readonly') {
     input = `<div class="form-readonly">${escHtml(row[col.key]) || '—'}</div>`;
@@ -1197,9 +1438,29 @@ window.addEventListener('resize', () => {
 });
 
 // ── CELL EDIT / DELETE ────────────────────────────────────────────────────
-function updateCell(key, rowId, field, value) {
+// Rejects an edit that would make the numbers meaningless; returns the error message or ''
+function validateEdit(key, row, field, value) {
+  const col = (SCHEMAS[key] || []).find(c => c.key === field);
+  if (!col || col.type !== 'number' || String(value ?? '').trim() === '') return '';
+  if (!isFinite(parseFloat(String(value).replace(/[₹,\s]/g, '')))) return 'Please enter a valid number';
+  if (toNum(value) < 0) return `${col.label.replace(/\s*\(₹\)/, '')} can't be negative`;
+  if (key === 'lending' && (field === 'amount' || field === 'returned')) {
+    const amount   = field === 'amount'   ? toNum(value) : toNum(row.amount);
+    const returned = field === 'returned' ? toNum(value) : toNum(row.returned);
+    if (returned > amount) return `Returned (${fmt(returned)}) can't be more than Amount (${fmt(amount)})`;
+  }
+  return '';
+}
+
+function updateCell(key, rowId, field, value, el) {
   const row = data[key].find(r => r._id === rowId);
   if (!row) return;
+  const err = validateEdit(key, row, field, value);
+  if (err) {
+    showToast(err, 'error');
+    if (el) el.value = row[field] ?? '';   // put the previous value back
+    return;
+  }
   row[field] = value;
 
   if (key === 'lending') {
@@ -1418,6 +1679,21 @@ async function submitAddRow() {
     hasError = true;
   }
 
+  if (!hasError) {
+    const draft = {};
+    form.querySelectorAll('[name]').forEach(el => draft[el.name] = el.value);
+    for (const col of schema) {
+      const err = col.type === 'number' ? validateEdit(key, draft, col.key, draft[col.key]) : '';
+      if (err) {
+        const el = form.querySelector('[name="' + col.key + '"]');
+        if (el) { el.classList.add('input-error'); el.focus(); }
+        showToast(err, 'error');
+        hasError = true;
+        break;
+      }
+    }
+  }
+
   if (hasError) return;
   // ─────────────────────────────────────────────────────────────────────
 
@@ -1549,7 +1825,7 @@ function setFileStatus(linked) {
   el.className='file-status'+(linked?' linked':'');
   el.innerHTML=`<div class="dot"></div><span>${linked?getFileName():'No file'}</span>`;
 }
-function resetData() { data={}; SCHEMAS={}; }
+function resetData() { data={}; SCHEMAS={}; prevMonth=null; }
 function openModal(id)  { document.getElementById(id).classList.add('open'); }
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 

@@ -11,7 +11,9 @@ A mobile-first web app to manage your monthly finances directly from your phone.
 |---|---|
 | 📋 **Monthly files** | Auto-creates `March-2026_Salary_Tracker.json` from your master template each month |
 | 📤 **Next Month carry-over** | Stage an expense now; it moves into next month's file automatically when you open that month |
-| ✏️ **Inline editing** | Tap any cell to edit values, status, dates, amounts directly in the table |
+| ✏️ **Inline editing** | Tap any cell to edit values, status, dates, amounts directly in the table — negative amounts, or Returned larger than Amount in lending, are rejected |
+| 🔔 **Due-date alerts** | Unpaid bills and open lending entries that are overdue or due within 3 days appear at the top of the dashboard |
+| 📈 **Insights** | Projected month-end balance, spending by category, loan / EMI summary and a comparison with last month |
 | ➕ **Add / Delete rows** | Mobile-friendly form to add entries, one-tap delete |
 | ☁️ **Save to Drive** | One tap saves your JSON back to Google Drive (warns if the file was changed on another device since you loaded it) |
 | 📊 **Export Excel** | Download a formatted `.xlsx` anytime from the sync bar |
@@ -42,7 +44,7 @@ Drive Folder/
 
 | Tab | What it tracks |
 |---|---|
-| **Dashboard** | Total Income, Paid Expenses, Savings, Net Balance, Pending Income |
+| **Dashboard** | Due alerts, Income, Paid Expenses, Savings, Net Balance, Projected Month-End, category spending, loans, month comparison |
 | **Income** | Salary and other income sources |
 | **Savings** | Money set aside, with optional target amounts |
 | **Fixed Expenses** | EMIs, loans, insurance (monthly fixed amounts) |
@@ -61,18 +63,27 @@ Drive Folder/
 
 ### Dashboard Logic
 
-The dashboard **only counts rows where `status = Paid`** (or `Saved` for savings). Status matching ignores case and extra spaces, and amounts like `1,250` or `₹500` are read correctly.
+The dashboard **only counts rows where `status = Paid`** (or `Saved` for savings, minus `Withdrawn`). Status matching ignores case and extra spaces, and amounts like `1,250` or `₹500` are read correctly.
 
 | Card | What it shows |
 |---|---|
 | **Income Received** | Sum of income rows marked Paid (Expected total = Paid + Pending + Delayed) |
 | **Total Expenses (Paid)** | Sum of Fixed + Semi Fixed + Variable + Unexpected rows marked Paid (Still to pay = Pending + Delayed) |
-| **Total Savings** | Sum of savings rows marked Saved, with progress toward the summed Target Amount |
-| **Net Balance** | Income Received − Paid Expenses − Saved |
+| **Total / Net Savings** | Saved − Withdrawn (a Withdrawn row is money taken back out of savings, so it returns to the balance), with progress toward the summed Target Amount |
+| **Net Balance** | Income Received − Paid Expenses − Net Saved |
 | **Pending Income** | Sum of income rows marked Pending (Delayed shown underneath) |
-| **Spent + Saved vs Income** | (Paid Expenses + Saved) ÷ Income Received — can exceed 100%, and shows by how much you are over |
+| **Projected Month-End** | Expected income (Paid + Pending + Delayed) − all expenses (Paid + Pending + Delayed) − (Net Saved + Pending savings) |
+| **Spent + Saved vs Income** | (Paid Expenses + Net Saved) ÷ Income Received — can exceed 100%, and shows by how much you are over |
 
 The breakdown table shows **Paid**, **Pending**, and **Delayed** per expense category, a **Total Expenses** row (matches the card), and Savings on its own row.
+
+**Due Soon** lists Fixed / Semi Fixed rows not marked Paid, using **Date To Pay** (a day of the month like `5` or `5th`, or a full date like `2026-10-05` / `05/10/2026`), plus open lending entries by **Due Date** — anything overdue or due within 3 days.
+
+**Spending by Category** groups all paid expenses by Category (case-insensitive; blank → Uncategorized), largest first, top 7 plus "Other". Tap a category to see its Subcategories.
+
+**Loans & EMIs** uses Fixed / Semi Fixed rows that have a Loan Number or Total Loan Amount: EMIs this month (their Amount), principal remaining (Pending Amount), % repaid, average interest weighted by what's outstanding, and EMI burden as a % of expected income — flagged above the common 40% guideline.
+
+**Compared to last month** reads the previous month's file and shows income, paid expenses (per category), net savings and net balance side by side; for money going out, an increase is shown as bad.
 
 **Lending & Borrowing** is shown separately: Total Lent, Total Borrowed, **To Receive** (open Lent balances) and **To Pay** (open Borrowed balances). Balance = Amount − Returned, and entries marked Fully Paid count as settled. Next Month is also excluded from the totals.
 
