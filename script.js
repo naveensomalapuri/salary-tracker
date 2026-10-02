@@ -12,10 +12,12 @@ const MONTHS = ['January','February','March','April','May','June',
                 'July','August','September','October','November','December'];
 
 let tokenClient, accessToken, tokenExpiresAt = 0;
+let signedIn      = false;  // true after the first token; later tokens are silent refreshes
 let currentMonth  = { month: new Date().getMonth(), year: new Date().getFullYear() };
 let pickerMonth   = { ...currentMonth };
 let currentTab    = 'dashboard';
 let currentFileId = null;
+let currentFileModified = null;  // Drive modifiedTime when we last loaded/saved — used for conflict detection
 let hasChanges    = false;
 let addRowContext  = null;
 let gisLoaded     = false;
@@ -307,6 +309,10 @@ function onTokenResponse(resp) {
   accessToken = resp.access_token;
   // Google tokens expire in 3600s; refresh 5 min early to be safe
   tokenExpiresAt = Date.now() + ((resp.expires_in || 3600) - 300) * 1000;
+  // Silent refreshes reuse this callback — only run the sign-in flow once,
+  // otherwise a refresh would reload the month file and wipe unsaved edits.
+  if (signedIn) return;
+  signedIn = true;
   onSignedIn();
 }
 
@@ -342,7 +348,8 @@ async function signOut() {
   const ok = await showConfirmModal('👤 Sign Out', msg);
   if (!ok) return;
   if (accessToken && typeof google!=='undefined') google.accounts.oauth2.revoke(accessToken,()=>{});
-  accessToken=null; currentFileId=null; gisLoaded=false;
+  accessToken=null; tokenExpiresAt=0; signedIn=false;
+  currentFileId=null; currentFileModified=null; gisLoaded=false;
   hasChanges=false;
   document.getElementById('syncBar').classList.remove('visible');
   resetData();
@@ -387,16 +394,22 @@ async function driveDownloadText(fileId) {
     'master.json not found (404). Open ⚙️ Settings and paste the correct File ID from your Drive share link.'
   );
   if (r2.status === 403) throw new Error(
-    'Access denied (403). In Google Drive, right-click master.json → Share → set to "Anyone with the link" → Viewer. Then retry.'
+    'Access denied (403). Make sure the Google account you signed in with owns master.json or has been shared on it directly. Then retry.'
   );
   throw new Error('Download failed: ' + msg);
+}
+async function driveGetModifiedTime(fileId) {
+  await ensureFreshToken();
+  const r = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=modifiedTime&supportsAllDrives=true`, { headers:H() });
+  if (!r.ok) throw new Error('Metadata fetch failed: '+r.status);
+  return (await r.json()).modifiedTime || null;
 }
 async function driveUploadJson(fileId, obj, name) {
   await ensureFreshToken();
   const form = new FormData();
   form.append('metadata', new Blob([JSON.stringify({name})], {type:'application/json'}));
   form.append('file',     new Blob([JSON.stringify(obj, null, 2)], {type:'application/json'}));
-  const r = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`, {
+  const r = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart&fields=id,name,modifiedTime`, {
     method:'PATCH', headers:H(), body:form
   });
   if (!r.ok) throw new Error('Upload failed: '+r.status+' '+(await r.text()));
@@ -409,7 +422,7 @@ async function driveCreateJson(name, obj, folderId) {
   const form = new FormData();
   form.append('metadata', new Blob([JSON.stringify(meta)], {type:'application/json'}));
   form.append('file',     new Blob([JSON.stringify(obj, null, 2)], {type:'application/json'}));
-  const r = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name', {
+  const r = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,modifiedTime', {
     method:'POST', headers:H(), body:form
   });
   if (!r.ok) throw new Error('Create failed: '+r.status+' '+(await r.text()));
@@ -433,15 +446,17 @@ async function loadOrCreateCurrentMonth() {
     if (DEST_FOLDER_ID) q += ` and '${DEST_FOLDER_ID}' in parents`;
     const files = await driveList(q);
 
+    let ok;
     if (files.length > 0) {
       currentFileId = files[0].id;
       showToast('✓ File found! Loading...','success');
-      await loadJsonData();
+      ok = await loadJsonData();
     } else {
-      await createFromMaster(name);
+      ok = await createFromMaster(name);
     }
-    // Pull any "Next Month" entries staged in the previous month's file
-    await migrateFromPreviousMonth();
+    // Pull any "Next Month" entries staged in the previous month's file —
+    // only when this month's file is actually loaded, otherwise they'd go into empty data
+    if (ok) await migrateFromPreviousMonth();
   } catch(e) {
     showToast('❌ '+e.message,'error');
     console.error(e);
@@ -450,7 +465,9 @@ async function loadOrCreateCurrentMonth() {
 
 // Look for staged entries in the previous month's file and migrate them
 // into the current month's target section (Variable / Unexpected / Fixed / SemiFixed).
-// Source entries get their status flipped to "Migrated" so they aren't re-applied.
+// The current month is saved FIRST, then source entries are flipped to "Migrated",
+// so an interruption can never lose entries. Each carried row remembers its source
+// _id, so a retry after a partial failure won't duplicate it.
 async function migrateFromPreviousMonth() {
   // Compute previous month/year (handle January → previous December)
   let prevM = currentMonth.month - 1;
@@ -474,17 +491,22 @@ async function migrateFromPreviousMonth() {
     staged.forEach(src => {
       const targetKey = NEXTMONTH_TARGET_MAP[src.targetSection] || 'variable';
       if (!data[targetKey]) data[targetKey] = [];
+      src.status = 'Migrated';
+
+      // Already carried over by an earlier run that failed before updating the previous file
+      if (src._id && data[targetKey].some(r => r._carriedFromId === src._id)) return;
 
       const row = {
-        _id:          targetKey + '_' + Date.now() + '_' + Math.random().toString(36).slice(2,6),
-        source:       src.source || '',
-        category:     src.category || '',
-        paymentMode:  src.paymentMode || '',
-        accountUsed:  src.accountUsed || '',
-        amount:       src.amount || '',
-        status:       'Pending',
-        remarks:      src.remarks || '',
-        _carriedFrom: `${MONTHS[prevM]} ${prevY}`,
+        _id:            targetKey + '_' + Date.now() + '_' + Math.random().toString(36).slice(2,6),
+        source:         src.source || '',
+        category:       src.category || '',
+        paymentMode:    src.paymentMode || '',
+        accountUsed:    src.accountUsed || '',
+        amount:         src.amount || '',
+        status:         'Pending',
+        remarks:        src.remarks || '',
+        _carriedFrom:   `${MONTHS[prevM]} ${prevY}`,
+        _carriedFromId: src._id || '',
       };
       // Per-target field shape — schemas differ between variable/unexpected and fixed/semifixed
       if (targetKey === 'variable' || targetKey === 'unexpected') {
@@ -495,18 +517,16 @@ async function migrateFromPreviousMonth() {
         row.datePaid = src.date || '';
       }
       data[targetKey].push(row);
-
-      // Flip source status so we don't re-migrate next time
-      src.status = 'Migrated';
       migrated++;
     });
 
+    // Persist the carried rows in this month before marking the sources Migrated
+    if (migrated > 0) await uploadCurrentMonth();
+    await driveUploadJson(prevId, prevData, prevName);
+
     if (migrated > 0) {
-      // Persist the prev-month file so source entries stay marked Migrated
-      await driveUploadJson(prevId, prevData, prevName);
-      markDirty();           // current month has new rows — user reviews then saves
       switchTab(currentTab); // re-render so migrated rows show immediately
-      showToast(`📤 Migrated ${migrated} ${migrated===1?'entry':'entries'} from ${MONTHS[prevM]} → ${MONTHS[currentMonth.month]}`, 'success');
+      showToast(`📤 Migrated ${migrated} ${migrated===1?'entry':'entries'} from ${MONTHS[prevM]} → ${MONTHS[currentMonth.month]} and saved`, 'success');
     }
   } catch (e) {
     console.error('Migration error:', e);
@@ -514,7 +534,8 @@ async function migrateFromPreviousMonth() {
   }
 }
 
-// Always reads master.json from Drive — no hardcoded data anywhere
+// Always reads master.json from Drive — no hardcoded data anywhere.
+// Returns true if the month file was created and loaded.
 async function createFromMaster(name) {
   showToast('📋 Loading master.json from Drive...','info');
   try {
@@ -534,31 +555,41 @@ async function createFromMaster(name) {
 
     showToast('☁️ Creating ' + name + ' in Drive...','info');
     const result = await driveCreateJson(name, newData, DEST_FOLDER_ID);
-    currentFileId = result.id;
+    currentFileId       = result.id;
+    currentFileModified = result.modifiedTime || null;
 
     loadDataFromObject(newData);
     setFileStatus(true);
     switchTab(currentTab);
     showToast('✓ ' + name + ' created from master!','success');
+    return true;
   } catch(e) {
     showToast('❌ ' + e.message, 'error');
     console.error('createFromMaster error:', e);
+    return false;
   }
 }
 
+// Returns true on success. On failure the file is unlinked so a later Save
+// can't overwrite the Drive copy with empty data.
 async function loadJsonData() {
   try {
     const text = await driveDownloadText(currentFileId);
     const obj  = JSON.parse(text);
+    currentFileModified = await driveGetModifiedTime(currentFileId);
     // Rebuild schemas from the loaded file's actual keys
     buildSchemasFromData(obj);
     loadDataFromObject(obj);
     setFileStatus(true);
     switchTab(currentTab);
     showToast('✓ Data loaded!','success');
+    return true;
   } catch(e) {
+    currentFileId = null; currentFileModified = null;
+    resetData(); setFileStatus(false); switchTab(currentTab);
     showToast('❌ Load error: '+e.message,'error');
     console.error(e);
+    return false;
   }
 }
 
@@ -568,25 +599,49 @@ function loadDataFromObject(obj) {
   sections.forEach(k => {
     data[k] = (obj[k] || []).map((row, i) => ({
       ...row,
-      _id: row._id || (k+'_'+i+'_'+Date.now())
+      // _id is interpolated into inline handlers — regenerate anything that isn't a plain token
+      _id: (typeof row._id === 'string' && /^[\w-]+$/.test(row._id)) ? row._id : (k+'_'+i+'_'+Date.now())
     }));
   });
 }
 
 // ── SAVE MONTH FILE ───────────────────────────────────────────────────────
+function buildPayload() {
+  const sections = ['income','savings','fixed','semifixed','variable','unexpected','lending','nextmonth'];
+  const payload = { _version:1, _month:MONTHS[currentMonth.month], _year:currentMonth.year, _saved:new Date().toISOString() };
+  sections.forEach(k => {
+    // Keep stored sno in step with display order (deletes leave gaps otherwise)
+    payload[k] = (data[k] || []).map((r, i) => (r.sno !== undefined ? { ...r, sno: i + 1 } : r));
+  });
+  return payload;
+}
+
+async function uploadCurrentMonth() {
+  const result = await driveUploadJson(currentFileId, buildPayload(), getFileName());
+  currentFileModified = result.modifiedTime || null;
+  hasChanges = false;
+  document.getElementById('syncBar').classList.remove('visible');
+}
+
 async function saveToGDrive() {
   if (!currentFileId) { await loadOrCreateCurrentMonth(); if (!currentFileId) return; }
   const btn = document.getElementById('saveBtn');
   btn.innerHTML = '<div class="spinner"></div>';
   btn.disabled = true;
   try {
-    const sections = ['income','savings','fixed','semifixed','variable','unexpected','lending','nextmonth'];
-    const payload = { _version:1, _month:MONTHS[currentMonth.month], _year:currentMonth.year, _saved:new Date().toISOString() };
-    sections.forEach(k => payload[k] = data[k] || []);
-    await driveUploadJson(currentFileId, payload, getFileName());
+    // Saving replaces the whole file — warn if it changed elsewhere (e.g. another device) since we loaded it
+    if (currentFileModified) {
+      const remote = await driveGetModifiedTime(currentFileId);
+      if (remote && remote !== currentFileModified) {
+        const ok = await showConfirmModal(
+          '⚠️ File changed on Drive',
+          'This month\'s file was modified elsewhere (another device or tab) after you loaded it. Saving will <strong>overwrite those changes</strong>. Save anyway?'
+        );
+        if (!ok) return;
+      }
+    }
+    await uploadCurrentMonth();
     showToast('✓ Saved to Google Drive!','success');
-    hasChanges = false;
-    document.getElementById('syncBar').classList.remove('visible');
   } catch(e) {
     showToast('❌ Save error: '+e.message,'error');
     console.error(e);
@@ -597,19 +652,16 @@ async function saveToGDrive() {
 }
 
 // ── MASTER JSON EDITOR ────────────────────────────────────────────────────
-async function resolveMasterFileId() {
-  // If we have an ID, trust it — try to directly download to verify access.
-  // A metadata-only fetch can return 200 even when download is forbidden.
+// Downloads master.json and returns { id, text }. Uses the configured ID; if that
+// file doesn't exist (404), falls back to searching Drive by filename.
+async function downloadMaster() {
   if (MASTER_FILE_ID) {
-    const r = await fetch(
-      `https://www.googleapis.com/drive/v3/files/${MASTER_FILE_ID}?alt=media`,
-      { headers: H() }
-    );
-    if (r.ok) return MASTER_FILE_ID;
-    // 404 = wrong ID, 403 = no access — fall through to search
-    if (r.status === 403) throw new Error(
-      'Access denied to master.json. Open the file in Google Drive, click Share → change to "Anyone with the link can view", then retry.'
-    );
+    try {
+      return { id: MASTER_FILE_ID, text: await driveDownloadText(MASTER_FILE_ID) };
+    } catch (e) {
+      // Only a wrong ID is worth searching for — surface access/network errors as-is
+      if (!/\(404\)/.test(e.message)) throw e;
+    }
   }
   // ID missing or 404 — search Drive by filename (only finds files you own)
   showToast('Searching Drive for master.json...','info');
@@ -622,7 +674,7 @@ async function resolveMasterFileId() {
   MASTER_FILE_ID = foundId;
   localStorage.setItem('st_master_id', foundId);
   showToast('✓ Found master.json — ID updated in Settings','success');
-  return foundId;
+  return { id: foundId, text: await driveDownloadText(foundId) };
 }
 
 
@@ -631,8 +683,7 @@ async function editMasterJson() {
   closeModal('settingsModal');
   showToast('Loading master.json...','info');
   try {
-    const fileId = await resolveMasterFileId();
-    const text   = await driveDownloadText(fileId);
+    const { text } = await downloadMaster();
     document.getElementById('masterJsonEditor').value = JSON.stringify(JSON.parse(text), null, 2);
     showToast('✓ master.json loaded','success');
     openModal('masterJsonModal');
@@ -743,7 +794,7 @@ function renderDashboard(c) {
   const savingsPct = savingsTarget > 0 ? Math.min(100, (svi / savingsTarget) * 100) : 0;
   const te = fi + si + vi + ui;
 
-  // Net Balance = Total Income - Total Paid Expenses (matches Excel =C4-C15)
+  // Net Balance = Total Income - Total Paid Expenses - Savings
   const nb = ti - te - svi;
   const pct = ti > 0 ? Math.min(100, ((te + svi) / ti) * 100) : 0;
 
@@ -780,7 +831,7 @@ function renderDashboard(c) {
       <div class="stat-card balance">
         <div class="stat-label">Net Balance</div>
         <div class="stat-value ${nb>=0?'balance-pos':'balance-neg'}">${fmt(nb)}</div>
-        <div style="font-size:.68rem;margin-top:.3rem;color:var(--muted)">Total Income − Paid Expenses</div>
+        <div style="font-size:.68rem;margin-top:.3rem;color:var(--muted)">Income − Paid Expenses − Savings</div>
       </div>
       <div class="stat-card pending">
         <div class="stat-label">Pending Income</div>
@@ -902,7 +953,7 @@ const DATE_FIELD = {
 function statusSlug(s) { return (s||'empty').toString().toLowerCase().replace(/[^a-z0-9]+/g,'-'); }
 function isMobileView() { return window.matchMedia('(max-width: 767px)').matches; }
 function escAttr(v) { return (v ?? '').toString().replace(/"/g,'&quot;'); }
-function escHtml(v) { return (v ?? '').toString().replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+function escHtml(v) { return (v ?? '').toString().replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
 function renderSheet(c, key, title) {
   const rows    = data[key]    || [];
@@ -932,10 +983,10 @@ function renderSheetTable(c, key, title, rows, schema) {
   const tbody = rows.length===0 ? '' : rows.map((row,ri)=>{
       const id = row._id;
       return `<tr data-id="${id}">${schema.map(col=>{
-        const v=(row[col.key]??'').toString().replace(/"/g,'&quot;');
+        const v=escHtml(row[col.key]);
         if (col.type==='sno')      return `<td style="color:var(--muted);font-size:.68rem;min-width:22px">${ri+1}</td>`;
         if (col.type==='readonly') return `<td style="font-family:var(--font-mono);font-size:.8rem;color:var(--accent3);min-width:80px;text-align:right">${v||'—'}</td>`;
-        if (col.type==='select')   return `<td><select class="inline-select" style="color:${stColor[row[col.key]]||'var(--text)'}" onchange="updateCell('${key}','${id}','${col.key}',this.value)">${(col.opts||[]).map(o=>`<option ${o===row[col.key]?'selected':''}>${o}</option>`).join('')}</select></td>`;
+        if (col.type==='select')   return `<td><select class="inline-select" style="color:${stColor[row[col.key]]||'var(--text)'}" onchange="updateCell('${key}','${id}','${col.key}',this.value)"><option value="">—</option>${(col.opts||[]).map(o=>`<option ${o===row[col.key]?'selected':''}>${escHtml(o)}</option>`).join('')}</select></td>`;
         if (col.type==='number')   return `<td><input class="inline-input" type="number" step="0.01" value="${v}" onchange="updateCell('${key}','${id}','${col.key}',this.value)" style="width:90px;text-align:right"></td>`;
         if (col.type==='date')     return `<td><input class="inline-input" type="date" value="${v}" onchange="updateCell('${key}','${id}','${col.key}',this.value)" style="width:118px"></td>`;
         if (col.type==='textarea') return `<td><input class="inline-input" type="text" value="${v}" onchange="updateCell('${key}','${id}','${col.key}',this.value)" style="min-width:120px"></td>`;
@@ -1108,7 +1159,7 @@ async function deleteRow(key, rowId) {
   // Custom confirm modal — ask about monthly file first
   const confirmed = await showConfirmModal(
     '🗑️ Delete Row',
-    `Delete <strong>${label}</strong> from this month's file?`
+    `Delete <strong>${escHtml(label)}</strong> from this month's file?`
   );
   if (!confirmed) return;
 
@@ -1122,7 +1173,7 @@ async function deleteRow(key, rowId) {
   if (accessToken && MASTER_FILE_ID && key !== 'nextmonth') {
     const alsoMaster = await showConfirmModal(
       '📋 Also delete from Master?',
-      `Do you also want to remove <strong>${label}</strong> from <code>master.json</code>?<br><span style="font-size:.75rem;color:var(--muted)">This will affect all future months created from master.</span>`
+      `Do you also want to remove <strong>${escHtml(label)}</strong> from <code>master.json</code>?<br><span style="font-size:.75rem;color:var(--muted)">This will affect all future months created from master.</span>`
     );
     if (alsoMaster) {
       await syncDeleteToMaster(key, label, row);
@@ -1132,11 +1183,13 @@ async function deleteRow(key, rowId) {
   switchTab(currentTab);
 }
 
+// Fields that are blanked when a row is copied into master.json
+const MASTER_MONTH_ONLY_FIELDS = ['dateReceived','datePaid','dateGiven','dateStart','dateEnd','dueDate','date','amount','returned','balance','_id'];
+
 async function syncDeleteToMaster(key, label, deletedRow) {
   try {
     showToast('Syncing deletion to master.json...', 'info');
-    const masterFileId = await resolveMasterFileId();
-    const masterText   = await driveDownloadText(masterFileId);
+    const { id: masterFileId, text: masterText } = await downloadMaster();
     const masterData   = JSON.parse(masterText);
 
     if (!masterData[key]) { showToast('Section not found in master.json', 'error'); return; }
@@ -1146,11 +1199,23 @@ async function syncDeleteToMaster(key, label, deletedRow) {
     const matchKey  = matchKeys.find(k => deletedRow[k]);
     const matchVal  = matchKey ? deletedRow[matchKey] : null;
 
-    let idx = -1;
-    if (matchVal) {
-      idx = masterData[key].findIndex(r => r[matchKey] === matchVal);
+    const masterRows = masterData[key];
+    let candidates = matchVal ? masterRows.filter(r => r[matchKey] === matchVal) : [];
+
+    // Several master rows share the name — narrow down on the structural fields
+    // master keeps (month-specific fields are blank there, so they can't be compared)
+    if (candidates.length > 1) {
+      const skip = new Set([...MASTER_MONTH_ONLY_FIELDS, 'sno', 'status', '_carriedFrom', '_carriedFromId']);
+      const fields = Object.keys(deletedRow).filter(k => !skip.has(k) && k !== matchKey);
+      const exact = candidates.filter(r => fields.every(k => (r[k] ?? '') === (deletedRow[k] ?? '')));
+      if (exact.length !== 1) {
+        showToast(`⚠️ ${candidates.length} rows named "${label}" in master.json — couldn't tell which one, so none were deleted. Use 📝 Edit Master JSON.`, 'error');
+        return;
+      }
+      candidates = exact;
     }
 
+    const idx = candidates.length === 1 ? masterRows.indexOf(candidates[0]) : -1;
     if (idx === -1) {
       showToast(`⚠️ Could not find "${label}" in master.json — not deleted there`, 'error');
       return;
@@ -1226,7 +1291,7 @@ function showAddRow(key, title) {
         let preset = '';
         if (key === 'nextmonth' && col.key === 'status')        preset = 'Staged';
         if (key === 'nextmonth' && col.key === 'targetSection') preset = 'Variable';
-        input = `<select class="form-select" name="${col.key}"><option value="">Select...</option>${(col.opts||[]).map(o=>`<option${o===preset?' selected':''}>${o}</option>`).join('')}</select>`;
+        input = `<select class="form-select" name="${col.key}"><option value="">Select...</option>${(col.opts||[]).map(o=>`<option${o===preset?' selected':''}>${escHtml(o)}</option>`).join('')}</select>`;
       }
       else if (col.type==='date')     input = `<input type="date" class="form-input" name="${col.key}">`;
       else if (col.type==='number')   input = `<input type="number" class="form-input" name="${col.key}" step="0.01" min="0">`;
@@ -1285,7 +1350,7 @@ async function submitAddRow() {
     const label = row.source || row.personName || row.name || 'new row';
     const alsoMaster = await showConfirmModal(
       '📋 Also add to Master?',
-      `Add <strong>${label}</strong> to <code>master.json</code> as well?<br><span style="font-size:.75rem;color:var(--muted)">It will then appear in all future months created from master.</span>`
+      `Add <strong>${escHtml(label)}</strong> to <code>master.json</code> as well?<br><span style="font-size:.75rem;color:var(--muted)">It will then appear in all future months created from master.</span>`
     );
     if (alsoMaster) {
       await syncAddToMaster(key, row);
@@ -1299,17 +1364,15 @@ async function submitAddRow() {
 async function syncAddToMaster(key, newRow) {
   try {
     showToast('Syncing new row to master.json...', 'info');
-    const masterFileId = await resolveMasterFileId();
-    const masterText   = await driveDownloadText(masterFileId);
+    const { id: masterFileId, text: masterText } = await downloadMaster();
     const masterData   = JSON.parse(masterText);
 
     if (!masterData[key]) masterData[key] = [];
 
     // Strip month-specific fields (dates, amounts) — keep structural fields only
-    const monthOnlyFields = ['dateReceived','datePaid','dateGiven','dateStart','dateEnd','dueDate','date','amount','returned','balance','_id'];
     const masterRow = {};
     Object.keys(newRow).forEach(k => {
-      masterRow[k] = monthOnlyFields.includes(k) ? '' : newRow[k];
+      masterRow[k] = MASTER_MONTH_ONLY_FIELDS.includes(k) ? '' : newRow[k];
     });
     masterRow.sno = masterData[key].length + 1;
     masterRow.status = 'Pending'; // always reset to Pending in master

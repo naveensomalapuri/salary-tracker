@@ -808,3 +808,10 @@ body.day .sync-bar { background:rgba(255,255,255,.92); }
 }
 .confirm-modal-actions { display:flex; gap:.6rem; margin-top:.4rem; }
 .confirm-modal-actions .btn { flex:1; }
+
+/* iOS Safari zooms into inputs under 16px on focus — now that pinch-zoom is
+   allowed (no maximum-scale), keep touch inputs at 16px to avoid that jump */
+@media (max-width: 767px) {
+  .inline-input, .inline-select, .form-input, .form-select,
+  .row-card-body .form-input, .row-card-body .form-select { font-size:16px; }
+}
