@@ -908,3 +908,6 @@ details[open] > summary .cat-chev { transform:rotate(90deg); }
 .cmp-change { font-size:.68rem; margin-top:.15rem; }
 .cmp-table td.num .ico { width:.85em; height:.85em; margin-right:.15rem; vertical-align:-.05em; }
 .cmp-indent { padding-left:.9rem; color:var(--muted); font-size:.92em; }
+
+/* Money fields read as ₹ amounts */
+.money-input { font-family:var(--font-mono); text-align:right; }

@@ -784,9 +784,18 @@ function exportExcel() {
     const sheetNames = {income:'Income',savings:'Savings',fixed:'Fixed Expenses',semifixed:'Semi Fixed Exp',
                         variable:'Variable Exp',unexpected:'Unexpected Exp',lending:'Lending & Borrowing',
                         nextmonth:'Next Month (Reminder)'};
+    // Cells stay real numbers (SUM works); they just display as ₹ with two decimals
+    const INR = '"₹"#,##0.00;-"₹"#,##0.00';
+    const asMoney = (ws, skipCol = -1) => {
+      Object.keys(ws).forEach(ref => {
+        if (ref[0] === '!' || ws[ref].t !== 'n') return;
+        if (XLSX.utils.decode_cell(ref).c !== skipCol) ws[ref].z = INR;
+      });
+      return ws;
+    };
     // Same numbers as the in-app dashboard
     const t = computeTotals();
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
+    XLSX.utils.book_append_sheet(wb, asMoney(XLSX.utils.aoa_to_sheet([
       ['Salary Tracker — '+MONTHS[currentMonth.month]+' '+currentMonth.year],[''],
       ['Income Received (Paid)', t.incomePaid, '', 'Pending Income', t.incomePending, '', 'Delayed Income', t.incomeDelayed],[''],
       ['Total Expenses (Paid)', t.expPaid, '', 'Savings (Saved)', t.saved, '', 'Net Balance', t.net],
@@ -800,14 +809,14 @@ function exportExcel() {
       ['Savings',             t.saved,               t.savingsPending,         ''],[''],
       ['Lending', 'Total Lent', t.lent, 'Total Borrowed', t.borrowed, 'To Receive', t.toReceive, 'To Pay', t.toPay],
       ...(t.loanCount ? [[''], ['Loans', 'EMIs This Month', t.emi, 'Principal Remaining', t.loanRemaining,
-                               'EMI % of Expected Income', t.emiPct === null ? '' : round2(t.emiPct)]] : []),
+                               'EMI % of Expected Income', t.emiPct === null ? '' : t.emiPct.toFixed(1) + '%']] : []),
       ...(t.categories.length ? [[''], ['Spending by Category (Paid)', 'Amount', 'Subcategories'],
-          ...t.categories.map(c => [c.name, c.amount, c.subs.map(x => `${x.name}: ${x.amount}`).join(', ')])] : []),
-    ]), 'Dashboard');
+          ...t.categories.map(c => [c.name, c.amount, c.subs.map(x => `${x.name}: ${fmt(x.amount)}`).join(', ')])] : []),
+    ])), 'Dashboard');
     sections.forEach(key => {
       const schema = SCHEMAS[key] || [];
       const headers = schema.map(c => c.label);
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
+      XLSX.utils.book_append_sheet(wb, asMoney(XLSX.utils.aoa_to_sheet([
         [sheetNames[key]+' — '+MONTHS[currentMonth.month]+' '+currentMonth.year],
         headers,
         ...(data[key]||[]).map((row,i)=>schema.map(c=>{
@@ -816,7 +825,7 @@ function exportExcel() {
           if (c.type === 'number') return (row[c.key] === '' || row[c.key] == null) ? '' : toNum(row[c.key]);
           return row[c.key] || '';
         }))
-      ]), sheetNames[key]);
+      ]), schema.findIndex(c => c.type === 'sno')), sheetNames[key]);
     });
     XLSX.writeFile(wb, MONTHS[currentMonth.month]+'-'+currentMonth.year+'_Salary_Tracker.xlsx');
     showToast('Excel downloaded!','success');
@@ -840,6 +849,12 @@ function fmt(n) {
   const v = round2(toNum(n));
   const s = Math.abs(v).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
   return (v < 0 ? '−₹' : '₹') + s;   // round2 first so -0.001 shows ₹0.00, not ₹-0.00
+}
+// Money edit fields: show "₹1,250.00" at rest, swap in the plain number while editing
+function moneyText(v)  { return String(v ?? '').trim() === '' ? '' : fmt(v); }
+function moneyInput(cls, raw, onchange, style = '') {
+  return `<input class="${cls} money-input" type="text" inputmode="decimal" data-raw="${escAttr(raw)}" value="${escAttr(moneyText(raw))}"
+    onfocus="this.value=this.dataset.raw;this.select()" onblur="this.value=moneyText(this.dataset.raw)" onchange="${onchange}"${style ? ` style="${style}"` : ''}>`;
 }
 // Lending balance = amount − returned (what is still owed on the entry)
 function lendBalance(r)     { return round2(toNum(r.amount) - toNum(r.returned)); }
@@ -1320,9 +1335,9 @@ function renderSheetTable(c, key, title, rows, schema) {
       return `<tr data-id="${id}">${schema.map(col=>{
         const v=escHtml(row[col.key]);
         if (col.type==='sno')      return `<td style="color:var(--muted);font-size:.68rem;min-width:22px">${ri+1}</td>`;
-        if (col.type==='readonly') return `<td style="font-family:var(--font-mono);font-size:.8rem;color:var(--accent3);min-width:80px;text-align:right">${v||'—'}</td>`;
+        if (col.type==='readonly') return `<td style="font-family:var(--font-mono);font-size:.8rem;color:var(--accent3);min-width:80px;text-align:right">${moneyText(row[col.key])||'—'}</td>`;
         if (col.type==='select')   return `<td><select class="inline-select" style="color:${stColor[row[col.key]]||'var(--text)'}" onchange="updateCell('${key}','${id}','${col.key}',this.value,this)"><option value="">—</option>${(col.opts||[]).map(o=>`<option ${o===row[col.key]?'selected':''}>${escHtml(o)}</option>`).join('')}</select></td>`;
-        if (col.type==='number')   return `<td><input class="inline-input" type="number" step="0.01" value="${v}" onchange="updateCell('${key}','${id}','${col.key}',this.value,this)" style="width:90px;text-align:right"></td>`;
+        if (col.type==='number')   return `<td>${moneyInput('inline-input', row[col.key], `updateCell('${key}','${id}','${col.key}',this.value,this)`, 'width:118px;text-align:right')}</td>`;
         if (col.type==='date')     return `<td><input class="inline-input" type="date" value="${v}" onchange="updateCell('${key}','${id}','${col.key}',this.value,this)" style="width:118px"></td>`;
         if (col.type==='textarea') return `<td><input class="inline-input" type="text" value="${v}" onchange="updateCell('${key}','${id}','${col.key}',this.value,this)" style="min-width:120px"></td>`;
         return `<td><input class="inline-input" type="text" value="${v}" onchange="updateCell('${key}','${id}','${col.key}',this.value,this)" style="min-width:65px"></td>`;
@@ -1364,11 +1379,11 @@ function renderCardField(col, row, key, id) {
   const onchange = `updateCell('${key}','${id}','${col.key}',this.value,this)`;
   let input;
   if (col.type === 'readonly') {
-    input = `<div class="form-readonly">${escHtml(row[col.key]) || '—'}</div>`;
+    input = `<div class="form-readonly">${moneyText(row[col.key]) || '—'}</div>`;
   } else if (col.type === 'select') {
     input = `<select class="form-select" onchange="${onchange}"><option value="">—</option>${(col.opts||[]).map(o=>`<option ${o===row[col.key]?'selected':''}>${escHtml(o)}</option>`).join('')}</select>`;
   } else if (col.type === 'number') {
-    input = `<input class="form-input" type="number" step="0.01" value="${v}" onchange="${onchange}">`;
+    input = moneyInput('form-input', row[col.key], onchange);
   } else if (col.type === 'date') {
     input = `<input class="form-input" type="date" value="${v}" onchange="${onchange}">`;
   } else if (col.type === 'textarea') {
@@ -1458,9 +1473,12 @@ function updateCell(key, rowId, field, value, el) {
   const err = validateEdit(key, row, field, value);
   if (err) {
     showToast(err, 'error');
-    if (el) el.value = row[field] ?? '';   // put the previous value back
+    if (el) el.value = el.dataset.raw ?? row[field] ?? '';   // put the previous value back
     return;
   }
+  const col = (SCHEMAS[key] || []).find(c => c.key === field);
+  if (col && col.type === 'number' && String(value ?? '').trim() !== '') value = String(round2(toNum(value)));  // "1,250" → "1250"
+  if (el && el.dataset.raw !== undefined) el.dataset.raw = value;
   row[field] = value;
 
   if (key === 'lending') {
@@ -1471,11 +1489,11 @@ function updateCell(key, rowId, field, value, el) {
       const schema = SCHEMAS[key] || [];
       const balIdx = schema.findIndex(c => c.key === 'balance');
       const cells  = tr.querySelectorAll('td');
-      if (balIdx >= 0 && cells[balIdx]) cells[balIdx].textContent = row.balance || '—';
+      if (balIdx >= 0 && cells[balIdx]) cells[balIdx].textContent = moneyText(row.balance) || '—';
     }
     // Update balance readonly inside expanded card body, if present
     const cardBalance = document.querySelector(`.row-card[data-id="${rowId}"] .form-readonly`);
-    if (cardBalance) cardBalance.textContent = row.balance || '—';
+    if (cardBalance) cardBalance.textContent = moneyText(row.balance) || '—';
   }
 
   // Live-update card summary (mobile view) so the collapsed header stays accurate
