@@ -223,6 +223,48 @@ const FIELD_DEFAULTS = {
   accountReceived: DEFAULT_ACCOUNTS,
 };
 
+// ── ICONS ─────────────────────────────────────────────────────────────────
+// Inline SVG line icons (Lucide-style, 24×24, stroked with currentColor so they follow theme/button colours).
+const ICONS = {
+  wallet:      '<path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/>',
+  lightbulb:   '<path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/>',
+  settings:    '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
+  calendar:    '<rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/>',
+  user:        '<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
+  moon:        '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
+  sun:         '<circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>',
+  x:           '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+  check:       '<path d="M20 6 9 17l-5-5"/>',
+  plus:        '<path d="M5 12h14"/><path d="M12 5v14"/>',
+  trash:       '<path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>',
+  cloudUpload: '<path d="M12 13v8"/><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="m8 17 4-4 4 4"/>',
+  sheet:       '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M8 13h2"/><path d="M14 13h2"/><path d="M8 17h2"/><path d="M14 17h2"/>',
+  edit:        '<path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z"/>',
+  clipboard:   '<rect width="8" height="4" x="8" y="2" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/>',
+  save:        '<path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/>',
+  chevronLeft: '<path d="m15 18-6-6 6-6"/>',
+  chevronRight:'<path d="m9 18 6-6-6-6"/>',
+  alignLeft:   '<path d="M15 12H3"/><path d="M17 18H3"/><path d="M21 6H3"/>',
+  checkCircle: '<circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/>',
+  alertCircle: '<circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/>',
+  info:        '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
+  folderOpen:  '<path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/>',
+  filePlus:    '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M9 15h6"/><path d="M12 18v-6"/>',
+  users:       '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+  clock:       '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+  list:        '<path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/>',
+  arrowRightCircle: '<circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="m12 16 4-4-4-4"/>',
+  creditCard:  '<rect width="20" height="14" x="2" y="5" rx="2"/><path d="M2 10h20"/>',
+  bank:        '<path d="M3 22h18"/><path d="M6 18v-7"/><path d="M10 18v-7"/><path d="M14 18v-7"/><path d="M18 18v-7"/><path d="M12 2 20 7H4z"/>',
+};
+function icon(name, cls = '') {
+  return `<svg class="ico${cls ? ' '+cls : ''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name] || ''}</svg>`;
+}
+// Static markup uses <i data-icon="name" class="..."></i> placeholders — swap them for SVGs
+function hydrateIcons(root = document) {
+  root.querySelectorAll('i[data-icon]').forEach(el => { el.outerHTML = icon(el.dataset.icon, el.className); });
+}
+
 // ── SCHEMA BUILDER ────────────────────────────────────────────────────────
 // Uses canonical schemas as the structural backbone.
 // Hydrates select options (except status) from actual master.json data values.
@@ -337,7 +379,7 @@ function onSignedIn() {
   document.getElementById('app').classList.add('visible');
   updateMonthDisplay();
   switchTab('dashboard');
-  showToast('✓ Signed in!','success');
+  showToast('Signed in!','success');
   // Auto-load current month file
   loadOrCreateCurrentMonth();
 }
@@ -345,7 +387,7 @@ async function signOut() {
   const msg = hasChanges
     ? 'You have unsaved changes. Sign out anyway?'
     : 'Sign out?';
-  const ok = await showConfirmModal('👤 Sign Out', msg);
+  const ok = await showConfirmModal('Sign Out', msg);
   if (!ok) return;
   if (accessToken && typeof google!=='undefined') google.accounts.oauth2.revoke(accessToken,()=>{});
   accessToken=null; tokenExpiresAt=0; signedIn=false;
@@ -391,7 +433,7 @@ async function driveDownloadText(fileId) {
   try { const e = await r2.json(); msg = e.error?.message || msg; } catch(_){}
 
   if (r2.status === 404) throw new Error(
-    'master.json not found (404). Open ⚙️ Settings and paste the correct File ID from your Drive share link.'
+    'master.json not found (404). Open Settings and paste the correct File ID from your Drive share link.'
   );
   if (r2.status === 403) throw new Error(
     'Access denied (403). Make sure the Google account you signed in with owns master.json or has been shared on it directly. Then retry.'
@@ -437,10 +479,10 @@ function getFileName() {
 // ── LOAD / CREATE MONTH FILE ──────────────────────────────────────────────
 async function loadOrCreateCurrentMonth() {
   if (!accessToken)    { showToast('Please sign in first','error'); return; }
-  if (!MASTER_FILE_ID) { showToast('Set Master JSON File ID in ⚙️ Settings first','error'); openSettingsModal(); return; }
+  if (!MASTER_FILE_ID) { showToast('Set Master JSON File ID in Settings first','error'); openSettingsModal(); return; }
 
   const name = getFileName();
-  showToast('🔍 Looking for '+name+'...','info');
+  showToast('Looking for '+name+'...','info');
   try {
     let q = `name='${name}' and trashed=false and mimeType='application/json'`;
     if (DEST_FOLDER_ID) q += ` and '${DEST_FOLDER_ID}' in parents`;
@@ -449,7 +491,7 @@ async function loadOrCreateCurrentMonth() {
     let ok;
     if (files.length > 0) {
       currentFileId = files[0].id;
-      showToast('✓ File found! Loading...','success');
+      showToast('File found! Loading...','success');
       ok = await loadJsonData();
     } else {
       ok = await createFromMaster(name);
@@ -458,7 +500,7 @@ async function loadOrCreateCurrentMonth() {
     // only when this month's file is actually loaded, otherwise they'd go into empty data
     if (ok) await migrateFromPreviousMonth();
   } catch(e) {
-    showToast('❌ '+e.message,'error');
+    showToast(e.message,'error');
     console.error(e);
   }
 }
@@ -526,22 +568,22 @@ async function migrateFromPreviousMonth() {
 
     if (migrated > 0) {
       switchTab(currentTab); // re-render so migrated rows show immediately
-      showToast(`📤 Migrated ${migrated} ${migrated===1?'entry':'entries'} from ${MONTHS[prevM]} → ${MONTHS[currentMonth.month]} and saved`, 'success');
+      showToast(`Migrated ${migrated} ${migrated===1?'entry':'entries'} from ${MONTHS[prevM]} → ${MONTHS[currentMonth.month]} and saved`, 'success');
     }
   } catch (e) {
     console.error('Migration error:', e);
-    showToast('⚠️ Migration check failed: ' + e.message, 'error');
+    showToast('Migration check failed: ' + e.message, 'error');
   }
 }
 
 // Always reads master.json from Drive — no hardcoded data anywhere.
 // Returns true if the month file was created and loaded.
 async function createFromMaster(name) {
-  showToast('📋 Loading master.json from Drive...','info');
+  showToast('Loading master.json from Drive...','info');
   try {
     // Use MASTER_FILE_ID directly — driveDownloadText handles all fallbacks
-    if (!MASTER_FILE_ID) throw new Error('No Master File ID set. Open ⚙️ Settings and paste your master.json file ID.');
-    showToast('⬇️ Downloading master.json (ID: ' + MASTER_FILE_ID.slice(0,8) + '...)','info');
+    if (!MASTER_FILE_ID) throw new Error('No Master File ID set. Open Settings and paste your master.json file ID.');
+    showToast('Downloading master.json (ID: ' + MASTER_FILE_ID.slice(0,8) + '...)','info');
     const masterText = await driveDownloadText(MASTER_FILE_ID);
     const masterData = JSON.parse(masterText);
 
@@ -553,7 +595,7 @@ async function createFromMaster(name) {
     newData._year    = currentMonth.year;
     newData._created = new Date().toISOString();
 
-    showToast('☁️ Creating ' + name + ' in Drive...','info');
+    showToast('Creating ' + name + ' in Drive...','info');
     const result = await driveCreateJson(name, newData, DEST_FOLDER_ID);
     currentFileId       = result.id;
     currentFileModified = result.modifiedTime || null;
@@ -561,10 +603,10 @@ async function createFromMaster(name) {
     loadDataFromObject(newData);
     setFileStatus(true);
     switchTab(currentTab);
-    showToast('✓ ' + name + ' created from master!','success');
+    showToast(name + ' created from master!','success');
     return true;
   } catch(e) {
-    showToast('❌ ' + e.message, 'error');
+    showToast(e.message, 'error');
     console.error('createFromMaster error:', e);
     return false;
   }
@@ -582,12 +624,12 @@ async function loadJsonData() {
     loadDataFromObject(obj);
     setFileStatus(true);
     switchTab(currentTab);
-    showToast('✓ Data loaded!','success');
+    showToast('Data loaded!','success');
     return true;
   } catch(e) {
     currentFileId = null; currentFileModified = null;
     resetData(); setFileStatus(false); switchTab(currentTab);
-    showToast('❌ Load error: '+e.message,'error');
+    showToast('Load error: '+e.message,'error');
     console.error(e);
     return false;
   }
@@ -634,19 +676,19 @@ async function saveToGDrive() {
       const remote = await driveGetModifiedTime(currentFileId);
       if (remote && remote !== currentFileModified) {
         const ok = await showConfirmModal(
-          '⚠️ File changed on Drive',
+          'File changed on Drive',
           'This month\'s file was modified elsewhere (another device or tab) after you loaded it. Saving will <strong>overwrite those changes</strong>. Save anyway?'
         );
         if (!ok) return;
       }
     }
     await uploadCurrentMonth();
-    showToast('✓ Saved to Google Drive!','success');
+    showToast('Saved to Google Drive!','success');
   } catch(e) {
-    showToast('❌ Save error: '+e.message,'error');
+    showToast('Save error: '+e.message,'error');
     console.error(e);
   } finally {
-    btn.innerHTML = '☁️ Save';
+    btn.innerHTML = icon('cloudUpload') + ' Save';
     btn.disabled = false;
   }
 }
@@ -668,12 +710,12 @@ async function downloadMaster() {
   const q = `name='master.json' and trashed=false and mimeType='application/json'`;
   const files = await driveList(q);
   if (files.length === 0) throw new Error(
-    'master.json not found. Check the File ID in ⚙️ Settings — paste the ID from your Drive share link.'
+    'master.json not found. Check the File ID in Settings — paste the ID from your Drive share link.'
   );
   const foundId = files[0].id;
   MASTER_FILE_ID = foundId;
   localStorage.setItem('st_master_id', foundId);
-  showToast('✓ Found master.json — ID updated in Settings','success');
+  showToast('Found master.json — ID updated in Settings','success');
   return { id: foundId, text: await driveDownloadText(foundId) };
 }
 
@@ -685,27 +727,27 @@ async function editMasterJson() {
   try {
     const { text } = await downloadMaster();
     document.getElementById('masterJsonEditor').value = JSON.stringify(JSON.parse(text), null, 2);
-    showToast('✓ master.json loaded','success');
+    showToast('master.json loaded','success');
     openModal('masterJsonModal');
   } catch(e) {
     console.error('editMasterJson error:', e);
-    showToast('❌ '+e.message,'error');
+    showToast(e.message,'error');
   }
 }
 
 async function saveMasterJson() {
   let json;
   try { json = JSON.parse(document.getElementById('masterJsonEditor').value); }
-  catch(e) { showToast('❌ Invalid JSON: '+e.message,'error'); return; }
+  catch(e) { showToast('Invalid JSON: '+e.message,'error'); return; }
   try {
     showToast('Saving...','info');
     await driveUploadJson(MASTER_FILE_ID, json, 'master.json');
     // Rebuild schemas from updated master
     buildSchemasFromData(json);
-    showToast('✓ master.json saved!','success');
+    showToast('master.json saved!','success');
     closeModal('masterJsonModal');
   } catch(e) {
-    showToast('❌ '+e.message,'error');
+    showToast(e.message,'error');
     console.error(e);
   }
 }
@@ -750,7 +792,7 @@ function exportExcel() {
       ]), sheetNames[key]);
     });
     XLSX.writeFile(wb, MONTHS[currentMonth.month]+'-'+currentMonth.year+'_Salary_Tracker.xlsx');
-    showToast('📊 Excel downloaded!','success');
+    showToast('Excel downloaded!','success');
   } catch(e) { showToast('Export error: '+e.message,'error'); }
 }
 
@@ -799,9 +841,9 @@ function renderDashboard(c) {
   const pct = ti > 0 ? Math.min(100, ((te + svi) / ti) * 100) : 0;
 
   const noFile = !currentFileId ? `<div class="load-card">
-    <div class="load-card-title">📂 ${MONTHS[currentMonth.month]} ${currentMonth.year}</div>
+    <div class="load-card-title">${icon('folderOpen')} ${MONTHS[currentMonth.month]} ${currentMonth.year}</div>
     <div class="load-card-sub">No file loaded. Tap below to load or create from master template.</div>
-    <button class="btn btn-primary" style="width:100%" onclick="loadOrCreateCurrentMonth()">📋 Load / Create Month File</button>
+    <button class="btn btn-primary" style="width:100%" onclick="loadOrCreateCurrentMonth()">${icon('filePlus')} Load / Create Month File</button>
   </div>` : '';
 
   c.innerHTML = noFile + `
@@ -883,7 +925,7 @@ function renderDashboard(c) {
       const pending        = lend.filter(r => r.status !== 'Fully Paid').length;
       return `
       <div class="section-head" style="margin-top:1.4rem">
-        🤝 Lending & Borrowing
+        ${icon('users')} Lending & Borrowing
         <span style="font-size:.65rem;font-weight:400;color:var(--muted);margin-left:.5rem;text-transform:none;letter-spacing:0">— not included in salary calculations</span>
       </div>
       <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;margin-bottom:1rem">
@@ -902,9 +944,9 @@ function renderDashboard(c) {
           </div>
         </div>
         <div style="margin-top:.75rem;padding-top:.75rem;border-top:1px solid var(--border);display:flex;justify-content:center;gap:1.5rem;font-size:.7rem;color:var(--muted)">
-          <span>✅ Settled: <strong style="color:var(--paid)">${fullyPaid}</strong></span>
-          <span>⏳ Pending: <strong style="color:var(--pending)">${pending}</strong></span>
-          <span>📋 Total entries: <strong>${lend.length}</strong></span>
+          <span>${icon('checkCircle')} Settled: <strong style="color:var(--paid)">${fullyPaid}</strong></span>
+          <span>${icon('clock')} Pending: <strong style="color:var(--pending)">${pending}</strong></span>
+          <span>${icon('list')} Total entries: <strong>${lend.length}</strong></span>
         </div>
       </div>`;
     })()}
@@ -916,7 +958,7 @@ function renderDashboard(c) {
       const total = sum(stagedRows, 'amount');
       return `
       <div class="section-head" style="margin-top:1.4rem">
-        📤 Next Month
+        ${icon('arrowRightCircle')} Next Month
         <span style="font-size:.65rem;font-weight:400;color:var(--muted);margin-left:.5rem;text-transform:none;letter-spacing:0">— not included in this month's balance</span>
       </div>
       <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;margin-bottom:1rem">
@@ -968,12 +1010,12 @@ function fmtDate(v) {
 // Collapsed-card detail line: date · payment mode · account (always shown, "—" when empty)
 function cardDetailsHtml(key, row) {
   const bits = [
-    ['📅', DATE_FIELD[key]    ? fmtDate(row[DATE_FIELD[key]]) : null],
-    ['💳', PAYMENT_FIELD[key] ? row[PAYMENT_FIELD[key]]       : null],
-    ['🏦', ACCOUNT_FIELD[key] ? row[ACCOUNT_FIELD[key]]       : null],
+    ['calendar',   DATE_FIELD[key]    ? fmtDate(row[DATE_FIELD[key]]) : null],
+    ['creditCard', PAYMENT_FIELD[key] ? row[PAYMENT_FIELD[key]]       : null],
+    ['bank',       ACCOUNT_FIELD[key] ? row[ACCOUNT_FIELD[key]]       : null],
   ].filter(([, v]) => v !== null);
-  return bits.map(([icon, v]) =>
-    `<span class="row-card-chip${v ? '' : ' empty'}">${icon} ${escHtml(v || '—')}</span>`
+  return bits.map(([name, v]) =>
+    `<span class="row-card-chip${v ? '' : ' empty'}">${icon(name)} ${escHtml(v || '—')}</span>`
   ).join('');
 }
 function statusSlug(s) { return (s||'empty').toString().toLowerCase().replace(/[^a-z0-9]+/g,'-'); }
@@ -1017,17 +1059,17 @@ function renderSheetTable(c, key, title, rows, schema) {
         if (col.type==='date')     return `<td><input class="inline-input" type="date" value="${v}" onchange="updateCell('${key}','${id}','${col.key}',this.value)" style="width:118px"></td>`;
         if (col.type==='textarea') return `<td><input class="inline-input" type="text" value="${v}" onchange="updateCell('${key}','${id}','${col.key}',this.value)" style="min-width:120px"></td>`;
         return `<td><input class="inline-input" type="text" value="${v}" onchange="updateCell('${key}','${id}','${col.key}',this.value)" style="min-width:65px"></td>`;
-      }).join('')}<td><button class="delete-btn" onclick="deleteRow('${key}','${id}')">✕</button></td></tr>`;
+      }).join('')}<td><button class="delete-btn" onclick="deleteRow('${key}','${id}')" title="Delete">${icon('x')}</button></td></tr>`;
     }).join('');
 
   // Empty state: show table with headers + a "no entries" row so column structure is always visible
   const emptyTbody = rows.length===0
-    ? `<tr><td colspan="${schema.length+1}" style="text-align:center;padding:2rem 1rem;color:var(--muted);font-size:.82rem">No entries yet — tap ➕ Add Entry to get started.</td></tr>`
+    ? `<tr><td colspan="${schema.length+1}" style="text-align:center;padding:2rem 1rem;color:var(--muted);font-size:.82rem">No entries yet — tap Add Entry to get started.</td></tr>`
     : '';
 
   c.innerHTML = `
     <div class="add-entry-center">
-      <button class="add-entry-btn" onclick="showAddRow('${key}','${title}')">➕ Add Entry</button>
+      <button class="add-entry-btn" onclick="showAddRow('${key}','${title}')">${icon('plus')} Add Entry</button>
     </div>
     <div class="section-head">${title}</div>
     <div class="sheet-table">
@@ -1075,7 +1117,7 @@ function renderSheetCards(c, key, title, rows, schema) {
   const metaK    = META_FIELD[key]       || 'category';
 
   const empty = `<div class="row-card" style="text-align:center;padding:2rem 1rem;color:var(--muted);font-size:.82rem">
-    No entries yet — tap <strong style="color:var(--accent)">➕ Add Entry</strong> to get started.
+    No entries yet — tap <strong style="color:var(--accent)">Add Entry</strong> to get started.
   </div>`;
 
   const cards = rows.map((row, i) => {
@@ -1105,7 +1147,7 @@ function renderSheetCards(c, key, title, rows, schema) {
       <div class="row-card-body">
         ${bodyFields}
         <div class="row-card-actions">
-          <button class="delete-btn-card" onclick="deleteRow('${key}','${id}')">✕ Delete entry</button>
+          <button class="delete-btn-card" onclick="deleteRow('${key}','${id}')">${icon('trash')} Delete entry</button>
         </div>
       </div>
     </details>`;
@@ -1113,7 +1155,7 @@ function renderSheetCards(c, key, title, rows, schema) {
 
   c.innerHTML = `
     <div class="add-entry-center">
-      <button class="add-entry-btn" onclick="showAddRow('${key}','${title}')">➕ Add Entry</button>
+      <button class="add-entry-btn" onclick="showAddRow('${key}','${title}')">${icon('plus')} Add Entry</button>
     </div>
     <div class="section-head">${title} · ${rows.length} ${rows.length===1?'entry':'entries'}</div>
     <div class="card-list">${rows.length === 0 ? empty : cards}</div>`;
@@ -1184,7 +1226,7 @@ async function deleteRow(key, rowId) {
 
   // Custom confirm modal — ask about monthly file first
   const confirmed = await showConfirmModal(
-    '🗑️ Delete Row',
+    'Delete Row',
     `Delete <strong>${escHtml(label)}</strong> from this month's file?`
   );
   if (!confirmed) return;
@@ -1198,7 +1240,7 @@ async function deleteRow(key, rowId) {
   // Now ask about master.json (skip for nextmonth — never written there)
   if (accessToken && MASTER_FILE_ID && key !== 'nextmonth') {
     const alsoMaster = await showConfirmModal(
-      '📋 Also delete from Master?',
+      'Also delete from Master?',
       `Do you also want to remove <strong>${escHtml(label)}</strong> from <code>master.json</code>?<br><span style="font-size:.75rem;color:var(--muted)">This will affect all future months created from master.</span>`
     );
     if (alsoMaster) {
@@ -1235,7 +1277,7 @@ async function syncDeleteToMaster(key, label, deletedRow) {
       const fields = Object.keys(deletedRow).filter(k => !skip.has(k) && k !== matchKey);
       const exact = candidates.filter(r => fields.every(k => (r[k] ?? '') === (deletedRow[k] ?? '')));
       if (exact.length !== 1) {
-        showToast(`⚠️ ${candidates.length} rows named "${label}" in master.json — couldn't tell which one, so none were deleted. Use 📝 Edit Master JSON.`, 'error');
+        showToast(`${candidates.length} rows named "${label}" in master.json — couldn't tell which one, so none were deleted. Use Edit Master JSON.`, 'error');
         return;
       }
       candidates = exact;
@@ -1243,7 +1285,7 @@ async function syncDeleteToMaster(key, label, deletedRow) {
 
     const idx = candidates.length === 1 ? masterRows.indexOf(candidates[0]) : -1;
     if (idx === -1) {
-      showToast(`⚠️ Could not find "${label}" in master.json — not deleted there`, 'error');
+      showToast(`Could not find "${label}" in master.json — not deleted there`, 'error');
       return;
     }
 
@@ -1253,9 +1295,9 @@ async function syncDeleteToMaster(key, label, deletedRow) {
 
     await driveUploadJson(masterFileId, masterData, 'master.json');
     buildSchemasFromData(masterData);
-    showToast(`✓ "${label}" deleted from master.json too`, 'success');
+    showToast(`"${label}" deleted from master.json too`, 'success');
   } catch(e) {
-    showToast('❌ Master sync error: ' + e.message, 'error');
+    showToast('Master sync error: ' + e.message, 'error');
     console.error(e);
   }
 }
@@ -1339,14 +1381,14 @@ async function submitAddRow() {
   if (nameField && !nameField.value.trim()) {
     nameField.classList.add('input-error');
     nameField.focus();
-    showToast('❌ Please enter a name / source', 'error');
+    showToast('Please enter a name / source', 'error');
     hasError = true;
   }
 
   const amountField = form.querySelector('[name="amount"]');
   if (amountField && (isNaN(parseFloat(amountField.value)) || parseFloat(amountField.value) <= 0)) {
     amountField.classList.add('input-error');
-    if (!hasError) { amountField.focus(); showToast('❌ Amount must be greater than 0', 'error'); }
+    if (!hasError) { amountField.focus(); showToast('Amount must be greater than 0', 'error'); }
     hasError = true;
   }
 
@@ -1375,7 +1417,7 @@ async function submitAddRow() {
   if (accessToken && MASTER_FILE_ID && key !== 'nextmonth') {
     const label = row.source || row.personName || row.name || 'new row';
     const alsoMaster = await showConfirmModal(
-      '📋 Also add to Master?',
+      'Also add to Master?',
       `Add <strong>${escHtml(label)}</strong> to <code>master.json</code> as well?<br><span style="font-size:.75rem;color:var(--muted)">It will then appear in all future months created from master.</span>`
     );
     if (alsoMaster) {
@@ -1408,9 +1450,9 @@ async function syncAddToMaster(key, newRow) {
     await driveUploadJson(masterFileId, masterData, 'master.json');
     buildSchemasFromData(masterData);
     const label = newRow.source || newRow.personName || newRow.name || 'row';
-    showToast(`✓ "${label}" added to master.json too`, 'success');
+    showToast(`"${label}" added to master.json too`, 'success');
   } catch(e) {
-    showToast('❌ Master sync error: ' + e.message, 'error');
+    showToast('Master sync error: ' + e.message, 'error');
     console.error(e);
   }
 }
@@ -1434,7 +1476,7 @@ function changeYear(d) {
 async function applyMonth() {
   if (hasChanges) {
     const ok = await showConfirmModal(
-      '⚠️ Unsaved Changes',
+      'Unsaved Changes',
       'You have unsaved changes in this month. Switching months will <strong>discard them</strong>. Continue?'
     );
     if (!ok) { closeModal('monthModal'); return; }
@@ -1462,7 +1504,7 @@ function saveSettings() {
   if (mid){ MASTER_FILE_ID=mid; localStorage.setItem('st_master_id',mid); }
   if (fid){ DEST_FOLDER_ID=fid; localStorage.setItem('st_folder_id',fid); }
   closeModal('settingsModal');
-  showToast('✓ Settings saved!','success');
+  showToast('Settings saved!','success');
 }
 
 // ── THEME ─────────────────────────────────────────────────────────────────
@@ -1488,7 +1530,9 @@ function closeModal(id) { document.getElementById(id).classList.remove('open'); 
 let toastTimer;
 function showToast(msg, type='info') {
   const t=document.getElementById('toast');
-  t.textContent=msg; t.className=`toast ${type} show`;
+  const ico = { success:'checkCircle', error:'alertCircle', info:'info' }[type] || 'info';
+  t.innerHTML = icon(ico) + `<span>${escHtml(msg)}</span>`;
+  t.className = `toast ${type} show`;
   clearTimeout(toastTimer);
   toastTimer=setTimeout(()=>t.classList.remove('show'), 3500);
 }
@@ -1502,6 +1546,7 @@ document.addEventListener('DOMContentLoaded', function() {
     MASTER_FILE_ID = DEFAULT_MASTER_ID;
   }
 
+  hydrateIcons();
   applyStoredTheme();
   updateMonthDisplay();
   renderMonthGrid();

@@ -831,3 +831,25 @@ body.day .sync-bar { background:rgba(255,255,255,.92); }
   .inline-input, .inline-select, .form-input, .form-select,
   .row-card-body .form-input, .row-card-body .form-select { font-size:16px; }
 }
+
+/* ── SVG ICONS ───────────────────────────────────────────────────────── */
+.ico {
+  width:1.1em; height:1.1em;
+  flex-shrink:0;
+  vertical-align:-.18em;
+}
+.icon-btn { color:var(--text); }
+.icon-btn .ico { width:19px; height:19px; }
+.logo-mark { color:#fff; }
+.logo-mark .ico { width:44px; height:44px; stroke-width:1.75; }
+.header-logo-main .ico { color:var(--accent); margin-right:.15rem; }
+.year-btn .ico { width:20px; height:20px; }
+.t-moon,.t-sun { width:15px; height:15px; }
+.t-moon { color:#5856d6; }
+.t-sun  { color:#ff9500; }
+.add-entry-btn { display:inline-flex; align-items:center; gap:.4rem; }
+.delete-btn { display:inline-flex; align-items:center; }
+.delete-btn-card { display:flex; align-items:center; justify-content:center; gap:.4rem; }
+.row-card-chip .ico { width:1em; height:1em; vertical-align:-.15em; opacity:.75; }
+.toast .ico { width:18px; height:18px; }
+.toast span { color:var(--text); }

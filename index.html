@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Salary Tracker – Naveen Somalapuri</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<link rel="stylesheet" href="styles.css?v=20261002b">
+<link rel="stylesheet" href="styles.css?v=20261002c">
 <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
 <link rel="stylesheet" href="https://cdn.datatables.net/fixedheader/3.4.0/css/fixedHeader.dataTables.min.css">
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
@@ -16,7 +16,7 @@
 
 <!-- SPLASH -->
 <div id="splash">
-  <div class="logo-mark">💰</div>
+  <div class="logo-mark"><i data-icon="wallet"></i></div>
   <h1 class="splash-title">Salary Tracker</h1>
   <p class="splash-name">Naveen Somalapuri</p>
   <p class="splash-sub">Monthly finances · From your phone</p>
@@ -30,9 +30,9 @@
     Continue with Google
   </button>
   <p class="splash-note">
-    💡 First time? After sign-in configure your<br>
+    <i data-icon="lightbulb"></i> First time? After sign-in configure your<br>
     Master JSON file ID and folder once.<br><br>
-    <a href="#" onclick="openSetupFromSplash();return false">⚙️ Configure settings →</a>
+    <a href="#" onclick="openSetupFromSplash();return false"><i data-icon="settings"></i> Configure settings →</a>
   </p>
 </div>
 
@@ -41,17 +41,17 @@
   <header class="app-header">
     <div class="header-top">
       <div class="header-logo">
-        <span class="header-logo-main">💰 Salary Tracker</span>
+        <span class="header-logo-main"><i data-icon="wallet"></i> Salary Tracker</span>
         <span class="header-logo-name">Naveen Somalapuri</span>
       </div>
       <div class="header-actions">
-        <div class="icon-btn" onclick="showMonthPicker()" title="Change Month">📅</div>
+        <div class="icon-btn" onclick="showMonthPicker()" title="Change Month"><i data-icon="calendar"></i></div>
         <button class="theme-toggle" onclick="toggleTheme()" title="Toggle Day/Night">
           <div class="toggle-track-day"></div>
-          <div class="toggle-thumb"><span class="t-moon">🌙</span><span class="t-sun">☀️</span></div>
+          <div class="toggle-thumb"><i data-icon="moon" class="t-moon"></i><i data-icon="sun" class="t-sun"></i></div>
         </button>
-        <div class="icon-btn" onclick="openSettingsModal()" title="Settings">⚙️</div>
-        <div class="icon-btn" onclick="signOut()" title="Sign Out">👤</div>
+        <div class="icon-btn" onclick="openSettingsModal()" title="Settings"><i data-icon="settings"></i></div>
+        <div class="icon-btn" onclick="signOut()" title="Sign Out"><i data-icon="user"></i></div>
       </div>
     </div>
     <div class="month-bar">
@@ -76,9 +76,9 @@
   <div class="content" id="content"></div>
 
   <div class="sync-bar" id="syncBar">
-    <button class="btn btn-secondary" onclick="discardChanges()" style="flex:.7">✕ Discard</button>
-    <button class="btn btn-primary"   id="saveBtn" onclick="saveToGDrive()">☁️ Save</button>
-    <button class="btn btn-export"    onclick="exportExcel()" style="flex:.8">📊 Excel</button>
+    <button class="btn btn-secondary" onclick="discardChanges()" style="flex:.7"><i data-icon="x"></i> Discard</button>
+    <button class="btn btn-primary"   id="saveBtn" onclick="saveToGDrive()"><i data-icon="cloudUpload"></i> Save</button>
+    <button class="btn btn-export"    onclick="exportExcel()" style="flex:.8"><i data-icon="sheet"></i> Excel</button>
   </div>
 </div>
 
@@ -86,10 +86,10 @@
 <div class="modal-overlay" id="settingsModal">
   <div class="modal">
     <div class="modal-handle"></div>
-    <h2 class="modal-title">⚙️ Settings</h2>
-    <button class="btn btn-secondary" style="margin-bottom:.75rem" onclick="editMasterJson()">📝 Edit Master JSON</button>
+    <h2 class="modal-title"><i data-icon="settings"></i> Settings</h2>
+    <button class="btn btn-secondary" style="margin-bottom:.75rem" onclick="editMasterJson()"><i data-icon="edit"></i> Edit Master JSON</button>
     <div style="background:rgba(0,229,160,.07);border:1px solid rgba(0,229,160,.2);border-radius:10px;padding:.9rem;margin-bottom:1.1rem;font-size:.75rem;line-height:1.7;color:var(--muted)">
-      <strong style="color:var(--accent)">📋 One-time setup:</strong><br>
+      <strong style="color:var(--accent)"><i data-icon="clipboard"></i> One-time setup:</strong><br>
       1. Upload <code style="color:var(--text)">master.json</code> to your Google Drive folder<br>
       2. Get its File ID from the share link<br>
       3. Paste below and save
@@ -110,7 +110,7 @@
     </div>
     <div style="display:flex;gap:.75rem;margin-top:1rem">
       <button class="btn btn-secondary" onclick="closeModal('settingsModal')">Cancel</button>
-      <button class="btn btn-primary"   onclick="saveSettings()">💾 Save</button>
+      <button class="btn btn-primary"   onclick="saveSettings()"><i data-icon="save"></i> Save</button>
     </div>
   </div>
 </div>
@@ -121,9 +121,9 @@
     <div class="modal-handle"></div>
     <h2 class="modal-title">Select Month</h2>
     <div class="year-selector">
-      <button class="year-btn" onclick="changeYear(-1)">&#8249;</button>
+      <button class="year-btn" onclick="changeYear(-1)" title="Previous year"><i data-icon="chevronLeft"></i></button>
       <div class="year-display" id="yearDisplay">2026</div>
-      <button class="year-btn" onclick="changeYear(1)">&#8250;</button>
+      <button class="year-btn" onclick="changeYear(1)" title="Next year"><i data-icon="chevronRight"></i></button>
     </div>
     <div class="month-grid" id="monthGrid"></div>
     <button class="btn btn-primary" onclick="applyMonth()" style="width:100%">Apply</button>
@@ -147,19 +147,19 @@
 <div class="modal-overlay" id="masterJsonModal">
   <div class="modal">
     <div class="modal-handle"></div>
-    <h2 class="modal-title">📝 Edit Master JSON</h2>
+    <h2 class="modal-title"><i data-icon="edit"></i> Edit Master JSON</h2>
     <p style="font-size:.72rem;color:var(--muted);margin-bottom:.75rem;line-height:1.6">
       Loaded live from your Drive. Edit rows/amounts then save back.
     </p>
     <div style="display:flex;gap:.5rem;margin-bottom:.6rem">
-      <button class="btn btn-secondary" style="flex:1;font-size:.72rem;padding:.55rem" onclick="formatMasterJson()">✨ Format</button>
-      <button class="btn btn-secondary" style="flex:1;font-size:.72rem;padding:.55rem" onclick="validateMasterJson()">✅ Validate</button>
+      <button class="btn btn-secondary" style="flex:1;font-size:.72rem;padding:.55rem" onclick="formatMasterJson()"><i data-icon="alignLeft"></i> Format</button>
+      <button class="btn btn-secondary" style="flex:1;font-size:.72rem;padding:.55rem" onclick="validateMasterJson()"><i data-icon="checkCircle"></i> Validate</button>
     </div>
     <textarea id="masterJsonEditor" spellcheck="false"
       style="width:100%;height:340px;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:10px;font-family:monospace;font-size:11.5px;line-height:1.5;resize:vertical;outline:none;"></textarea>
     <div style="display:flex;gap:.75rem;margin-top:1rem">
       <button class="btn btn-secondary" onclick="closeModal('masterJsonModal')">Cancel</button>
-      <button class="btn btn-primary"   onclick="saveMasterJson()">☁️ Save to Drive</button>
+      <button class="btn btn-primary"   onclick="saveMasterJson()"><i data-icon="cloudUpload"></i> Save to Drive</button>
     </div>
   </div>
 </div>
@@ -171,8 +171,8 @@
     <h2 class="modal-title" id="confirmModalTitle"></h2>
     <p class="confirm-modal-body" id="confirmModalBody"></p>
     <div class="confirm-modal-actions">
-      <button class="btn btn-secondary" id="confirmModalNo">✕ No</button>
-      <button class="btn btn-primary"   id="confirmModalYes">✓ Yes</button>
+      <button class="btn btn-secondary" id="confirmModalNo"><i data-icon="x"></i> No</button>
+      <button class="btn btn-primary"   id="confirmModalYes"><i data-icon="check"></i> Yes</button>
     </div>
   </div>
 </div>
@@ -180,6 +180,6 @@
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
 
-<script src="script.js?v=20261002b"></script>
+<script src="script.js?v=20261002c"></script>
 </body>
 </html>
