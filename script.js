@@ -526,7 +526,7 @@ async function migrateFromPreviousMonth() {
     const prevId   = files[0].id;
     const prevText = await driveDownloadText(prevId);
     const prevData = JSON.parse(prevText);
-    const staged   = (prevData.nextmonth || []).filter(r => r.status === 'Staged');
+    const staged   = (prevData.nextmonth || []).filter(r => sameText(r.status, 'Staged'));
     if (staged.length === 0) return;
 
     let migrated = 0;
@@ -642,7 +642,8 @@ function loadDataFromObject(obj) {
     data[k] = (obj[k] || []).map((row, i) => ({
       ...row,
       // _id is interpolated into inline handlers — regenerate anything that isn't a plain token
-      _id: (typeof row._id === 'string' && /^[\w-]+$/.test(row._id)) ? row._id : (k+'_'+i+'_'+Date.now())
+      _id: (typeof row._id === 'string' && /^[\w-]+$/.test(row._id)) ? row._id : (k+'_'+i+'_'+Date.now()),
+      ...(k === 'lending' ? { balance: String(lendBalance(row)) } : {})
     }));
   });
 }
@@ -760,27 +761,20 @@ function exportExcel() {
     const sheetNames = {income:'Income',savings:'Savings',fixed:'Fixed Expenses',semifixed:'Semi Fixed Exp',
                         variable:'Variable Exp',unexpected:'Unexpected Exp',lending:'Lending & Borrowing',
                         nextmonth:'Next Month (Reminder)'};
-    // Match Excel dashboard formulas exactly
-    // Total Income = only Paid entries
-    const ti = sumIf(data.income||[],'amount','status','Paid');
-    const pi = ti;
-    const pndI = sumIf(data.income||[],'amount','status','Pending');
-    const fi = sumIf(data.fixed||[],'amount','status','Paid');
-    const si = sumIf(data.semifixed||[],'amount','status','Paid');
-    const vi = sumIf(data.variable||[],'amount','status','Paid');
-    const ui = sumIf(data.unexpected||[],'amount','status','Paid');
-    const svi = sumIf(data.savings||[],'amount','status','Saved');
-    const te = fi + si + vi + ui;
-    const nb = ti - te - svi;
+    // Same numbers as the in-app dashboard
+    const t = computeTotals();
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
       ['Salary Tracker — '+MONTHS[currentMonth.month]+' '+currentMonth.year],[''],
-      ['Total Income', ti, '', 'Paid Income', pi, '', 'Pending Income', pndI],[''],
-      ['Total Expenses (Paid)', te, '', 'Savings (Saved)', svi, '', 'Net Balance', nb],[''],
-      ['Fixed Expenses (Paid)', fi],
-      ['Semi Fixed Expenses (Paid)', si],
-      ['Variable Expenses (Paid)', vi],
-      ['Unexpected Expenses (Paid)', ui],
-      ['Savings (Saved)', svi]
+      ['Income Received (Paid)', t.incomePaid, '', 'Pending Income', t.incomePending, '', 'Delayed Income', t.incomeDelayed],[''],
+      ['Total Expenses (Paid)', t.expPaid, '', 'Savings (Saved)', t.saved, '', 'Net Balance', t.net],[''],
+      ['Category', 'Paid', 'Pending', 'Delayed'],
+      ['Fixed Expenses',      t.cat.fixed.paid,      t.cat.fixed.pending,      t.cat.fixed.delayed],
+      ['Semi Fixed Expenses', t.cat.semifixed.paid,  t.cat.semifixed.pending,  t.cat.semifixed.delayed],
+      ['Variable Expenses',   t.cat.variable.paid,   t.cat.variable.pending,   t.cat.variable.delayed],
+      ['Unexpected Expenses', t.cat.unexpected.paid, t.cat.unexpected.pending, t.cat.unexpected.delayed],
+      ['Total Expenses',      t.expPaid,             t.expPending,             t.expDelayed],
+      ['Savings',             t.saved,               t.savingsPending,         ''],[''],
+      ['Lending', 'Total Lent', t.lent, 'Total Borrowed', t.borrowed, 'To Receive', t.toReceive, 'To Pay', t.toPay]
     ]), 'Dashboard');
     sections.forEach(key => {
       const schema = SCHEMAS[key] || [];
@@ -788,7 +782,12 @@ function exportExcel() {
       XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
         [sheetNames[key]+' — '+MONTHS[currentMonth.month]+' '+currentMonth.year],
         headers,
-        ...(data[key]||[]).map((row,i)=>schema.map(c=>c.type==='sno'?i+1:(row[c.key]||'')))
+        ...(data[key]||[]).map((row,i)=>schema.map(c=>{
+          if (c.type === 'sno') return i+1;
+          if (c.key === 'balance') return lendBalance(row);
+          if (c.type === 'number') return (row[c.key] === '' || row[c.key] == null) ? '' : toNum(row[c.key]);
+          return row[c.key] || '';
+        }))
       ]), sheetNames[key]);
     });
     XLSX.writeFile(wb, MONTHS[currentMonth.month]+'-'+currentMonth.year+'_Salary_Tracker.xlsx');
@@ -797,9 +796,25 @@ function exportExcel() {
 }
 
 // ── MATH HELPERS ─────────────────────────────────────────────────────────
-function sum(arr,f)         { return arr.reduce((s,r)=>s+(parseFloat(r[f])||0),0); }
-function sumIf(arr,f,cf,cv) { return arr.filter(r=>r[cf]===cv).reduce((s,r)=>s+(parseFloat(r[f])||0),0); }
-function fmt(n)             { return '₹'+parseFloat(n||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+// Amounts are stored as strings and may be hand-edited in master.json ("1,250", "₹500", " 300 ")
+function toNum(v) {
+  if (typeof v === 'number') return isFinite(v) ? v : 0;
+  const n = parseFloat(String(v ?? '').replace(/[₹,\s]/g, ''));
+  return isFinite(n) ? n : 0;
+}
+// Round to paise so float noise (0.1+0.2) never leaks into totals or stored balances
+function round2(n)          { return Math.round((n + Number.EPSILON) * 100) / 100; }
+// Status / type match ignores case and stray spaces ("paid " counts as "Paid")
+function sameText(a, b)     { return String(a ?? '').trim().toLowerCase() === String(b ?? '').trim().toLowerCase(); }
+function sum(arr,f)         { return round2(arr.reduce((s,r)=>s+toNum(r[f]),0)); }
+function sumIf(arr,f,cf,cv) { return sum(arr.filter(r=>sameText(r[cf],cv)), f); }
+function fmt(n) {
+  const v = round2(toNum(n));
+  const s = Math.abs(v).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
+  return (v < 0 ? '−₹' : '₹') + s;   // round2 first so -0.001 shows ₹0.00, not ₹-0.00
+}
+// Lending balance = amount − returned (what is still owed on the entry)
+function lendBalance(r)     { return round2(toNum(r.amount) - toNum(r.returned)); }
 
 // ── TABS ─────────────────────────────────────────────────────────────────
 function switchTab(tab) {
@@ -813,32 +828,51 @@ function switchTab(tab) {
   if (tab==='dashboard') renderDashboard(c); else renderSheet(c, tab, titles[tab]);
 }
 
+// Single source of truth for every number on the dashboard and in the Excel export.
+// Rules: income counts Paid, expenses count Paid, savings count Saved; Lending & Next Month are kept separate.
+const EXPENSE_SECTIONS = ['fixed','semifixed','variable','unexpected'];
+function computeTotals() {
+  const by = (k, st) => sumIf(data[k] || [], 'amount', 'status', st);
+  const t = {
+    incomePaid:     by('income','Paid'),
+    incomePending:  by('income','Pending'),
+    incomeDelayed:  by('income','Delayed'),
+    saved:          by('savings','Saved'),
+    savingsPending: by('savings','Pending'),
+    savingsTarget:  sum(data.savings || [], 'targetAmount'),
+    cat: {},
+  };
+  EXPENSE_SECTIONS.forEach(k => t.cat[k] = { paid: by(k,'Paid'), pending: by(k,'Pending'), delayed: by(k,'Delayed') });
+  const total = f => round2(EXPENSE_SECTIONS.reduce((s, k) => s + t.cat[k][f], 0));
+  t.expPaid    = total('paid');
+  t.expPending = total('pending');
+  t.expDelayed = total('delayed');
+
+  // Net Balance = Paid Income − Paid Expenses − Saved
+  t.net = round2(t.incomePaid - t.expPaid - t.saved);
+  // Share of received income already spent or saved (null when nothing received yet)
+  t.usedPct = t.incomePaid > 0 ? (t.expPaid + t.saved) / t.incomePaid * 100 : null;
+  t.savingsPct = t.savingsTarget > 0 ? t.saved / t.savingsTarget * 100 : null;
+
+  // Lending: what's still open is amount − returned on entries not marked Fully Paid.
+  // Money owed TO you and money YOU owe are kept apart — adding them together means nothing.
+  const lend = data.lending || [];
+  const open = r => !sameText(r.status, 'Fully Paid');
+  const openBal = type => round2(lend.filter(r => sameText(r.type, type) && open(r))
+                                     .reduce((s, r) => s + Math.max(0, lendBalance(r)), 0));
+  t.lent      = sumIf(lend, 'amount', 'type', 'Lent');
+  t.borrowed  = sumIf(lend, 'amount', 'type', 'Borrowed');
+  t.toReceive = openBal('Lent');
+  t.toPay     = openBal('Borrowed');
+  t.lendSettled = lend.filter(r => !open(r)).length;
+  t.lendOpen    = lend.length - t.lendSettled;
+  return t;
+}
+
 function renderDashboard(c) {
-  // ── Calculations match Excel formulas exactly ──────────────────────────
-  // Total Income  = SUM(Income.amount)           [Excel: =SUM(Income!H4:H6)]
-  // Paid Income   = SUMIF(Income.status="Paid")  [Excel: =SUMIF(Income!I4:I6,"Paid",Income!H4:H6)]
-  // Pending Income= SUMIF(Income.status="Pending")[Excel: =SUMIF(Income!I4:I6,"Pending",Income!H4:H6)]
-  // Expense cats  = SUMIF(status="Paid") per category
-  // Total Expenses= sum of all four paid expense categories [Excel: =SUM(I9,I13,I17,I21)]
-  // Net Balance   = Total Income - Total Expenses [Excel: =C4-C15]
-  // Total Income = only Paid entries (Pending/Delayed not counted)
-  const ti = sumIf(data.income||[],'amount','status','Paid');
-  const pi = ti; // same — ti is already paid-only
-  const pndIncome = sumIf(data.income||[],'amount','status','Pending');
-  const delIncome = sumIf(data.income||[],'amount','status','Delayed');
-
-  const fi = sumIf(data.fixed||[],'amount','status','Paid');
-  const si = sumIf(data.semifixed||[],'amount','status','Paid');
-  const vi = sumIf(data.variable||[],'amount','status','Paid');
-  const ui = sumIf(data.unexpected||[],'amount','status','Paid');
-  const svi = sumIf(data.savings||[],'amount','status','Saved');
-  const savingsTarget = sum(data.savings||[], 'targetAmount');
-  const savingsPct = savingsTarget > 0 ? Math.min(100, (svi / savingsTarget) * 100) : 0;
-  const te = fi + si + vi + ui;
-
-  // Net Balance = Total Income - Total Paid Expenses - Savings
-  const nb = ti - te - svi;
-  const pct = ti > 0 ? Math.min(100, ((te + svi) / ti) * 100) : 0;
+  const t = computeTotals();
+  const usedBar = t.usedPct === null ? 0 : Math.min(100, t.usedPct);  // bar is capped, the % text is not
+  const over    = t.usedPct !== null && t.usedPct > 100;
 
   const noFile = !currentFileId ? `<div class="load-card">
     <div class="load-card-title">${icon('folderOpen')} ${MONTHS[currentMonth.month]} ${currentMonth.year}</div>
@@ -846,70 +880,71 @@ function renderDashboard(c) {
     <button class="btn btn-primary" style="width:100%" onclick="loadOrCreateCurrentMonth()">${icon('filePlus')} Load / Create Month File</button>
   </div>` : '';
 
+  const money = (v, color) => `<td style="text-align:right;color:var(${color});font-family:var(--font-mono)">${v>0?fmt(v):'-'}</td>`;
+  const catLabels = { fixed:'Fixed', semifixed:'Semi Fixed', variable:'Variable', unexpected:'Unexpected' };
+
   c.innerHTML = noFile + `
     <div class="dashboard-grid">
       <div class="stat-card income">
-        <div class="stat-label">Total Income</div>
-        <div class="stat-value income">${fmt(ti)}</div>
-        <div style="font-size:.68rem;margin-top:.3rem;color:var(--muted)">Paid: <span style="color:var(--paid)">${fmt(pi)}</span> &nbsp; Pending: <span style="color:var(--pending)">${fmt(pndIncome)}</span></div>
+        <div class="stat-label">Income Received</div>
+        <div class="stat-value income">${fmt(t.incomePaid)}</div>
+        <div style="font-size:.68rem;margin-top:.3rem;color:var(--muted)">Expected total: <span style="color:var(--text)">${fmt(t.incomePaid + t.incomePending + t.incomeDelayed)}</span></div>
       </div>
       <div class="stat-card expenses">
         <div class="stat-label">Total Expenses (Paid)</div>
-        <div class="stat-value expenses">${fmt(te)}</div>
+        <div class="stat-value expenses">${fmt(t.expPaid)}</div>
+        ${t.expPending + t.expDelayed > 0 ? `<div style="font-size:.68rem;margin-top:.3rem;color:var(--muted)">Still to pay: <span style="color:var(--pending)">${fmt(t.expPending + t.expDelayed)}</span></div>` : ''}
       </div>
       <div class="stat-card" style="background:linear-gradient(135deg,rgba(0,229,160,.08),rgba(0,229,160,.03));border-color:rgba(0,229,160,.25)">
         <div class="stat-label">Total Savings</div>
-        <div class="stat-value" style="color:var(--accent)">${fmt(svi)}</div>
-        <div style="font-size:.68rem;margin-top:.3rem;color:var(--muted)">Saved: <span style="color:var(--paid)">${fmt(svi)}</span> &nbsp; Pending: <span style="color:var(--pending)">${fmt(sumIf(data.savings||[],'amount','status','Pending'))}</span></div>
-        ${savingsTarget > 0 ? `
+        <div class="stat-value" style="color:var(--accent)">${fmt(t.saved)}</div>
+        <div style="font-size:.68rem;margin-top:.3rem;color:var(--muted)">Pending: <span style="color:var(--pending)">${fmt(t.savingsPending)}</span></div>
+        ${t.savingsPct !== null ? `
         <div style="margin-top:.55rem">
           <div style="display:flex;justify-content:space-between;font-size:.65rem;color:var(--muted);margin-bottom:.25rem">
-            <span>Target: ${fmt(savingsTarget)}</span>
-            <span style="color:var(--accent);font-weight:700">${savingsPct.toFixed(1)}%</span>
+            <span>Target: ${fmt(t.savingsTarget)}</span>
+            <span style="color:var(--accent);font-weight:700">${t.savingsPct.toFixed(1)}%</span>
           </div>
-          <div class="progress-bar"><div class="progress-fill" style="width:${savingsPct}%;background:linear-gradient(90deg,var(--accent),var(--accent))"></div></div>
+          <div class="progress-bar"><div class="progress-fill" style="width:${Math.min(100, t.savingsPct)}%;background:linear-gradient(90deg,var(--accent),var(--accent))"></div></div>
         </div>` : ''}
       </div>
       <div class="stat-card balance">
         <div class="stat-label">Net Balance</div>
-        <div class="stat-value ${nb>=0?'balance-pos':'balance-neg'}">${fmt(nb)}</div>
-        <div style="font-size:.68rem;margin-top:.3rem;color:var(--muted)">Income − Paid Expenses − Savings</div>
+        <div class="stat-value ${t.net>=0?'balance-pos':'balance-neg'}">${fmt(t.net)}</div>
+        <div style="font-size:.68rem;margin-top:.3rem;color:var(--muted)">Received − Paid Expenses − Saved</div>
       </div>
       <div class="stat-card pending">
         <div class="stat-label">Pending Income</div>
-        <div class="stat-value" style="color:var(--pending)">${fmt(pndIncome)}</div>
-        ${delIncome>0?`<div style="font-size:.68rem;margin-top:.3rem;color:var(--delayed)">Delayed: ${fmt(delIncome)}</div>`:''}
+        <div class="stat-value" style="color:var(--pending)">${fmt(t.incomePending)}</div>
+        ${t.incomeDelayed>0?`<div style="font-size:.68rem;margin-top:.3rem;color:var(--delayed)">Delayed: ${fmt(t.incomeDelayed)}</div>`:''}
       </div>
     </div>
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;margin-bottom:1rem">
       <div style="display:flex;justify-content:space-between;margin-bottom:.45rem;font-size:.73rem">
-        <span style="color:var(--muted)">Expenses vs Total Income</span>
-        <span style="color:var(--accent2);font-family:var(--font-head);font-weight:700">${pct.toFixed(1)}%</span>
+        <span style="color:var(--muted)">Spent + Saved vs Income Received</span>
+        <span style="color:var(--accent2);font-family:var(--font-head);font-weight:700">${t.usedPct === null ? '—' : t.usedPct.toFixed(1)+'%'}</span>
       </div>
-      <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+      <div class="progress-bar"><div class="progress-fill" style="width:${usedBar}%"></div></div>
+      ${over ? `<div style="font-size:.68rem;margin-top:.4rem;color:var(--accent2)">Over by ${fmt(-t.net)} — more spent/saved than received</div>` : ''}
     </div>
     <div class="section-head">Expense Breakdown</div>
     <div class="sheet-table">
       <div class="breakdown-table-wrap"><table style="min-width:unset;width:100%">
         <thead><tr><th>Category</th><th style="text-align:right">Paid</th><th style="text-align:right">Pending</th><th style="text-align:right">Delayed</th></tr></thead>
         <tbody>
-          ${[
-            ['Fixed',      fi, sumIf(data.fixed||[],    'amount','status','Pending'), sumIf(data.fixed||[],    'amount','status','Delayed')],
-            ['Semi Fixed', si, sumIf(data.semifixed||[],'amount','status','Pending'), sumIf(data.semifixed||[],'amount','status','Delayed')],
-            ['Variable',   vi, sumIf(data.variable||[], 'amount','status','Pending'), sumIf(data.variable||[], 'amount','status','Delayed')],
-            ['Unexpected', ui, sumIf(data.unexpected||[],'amount','status','Pending'),sumIf(data.unexpected||[],'amount','status','Delayed')],
-            ['Savings',    svi, sumIf(data.savings||[], 'amount','status','Pending'), 0]
-          ].map(([cat,p,pnd,del])=>`<tr>
-            <td>${cat}</td>
-            <td style="text-align:right;color:var(--paid);font-family:var(--font-mono)">${p>0?fmt(p):'-'}</td>
-            <td style="text-align:right;color:var(--pending);font-family:var(--font-mono)">${pnd>0?fmt(pnd):'-'}</td>
-            <td style="text-align:right;color:var(--delayed);font-family:var(--font-mono)">${del>0?fmt(del):'-'}</td>
+          ${EXPENSE_SECTIONS.map(k => `<tr>
+            <td>${catLabels[k]}</td>
+            ${money(t.cat[k].paid,'--paid')}${money(t.cat[k].pending,'--pending')}${money(t.cat[k].delayed,'--delayed')}
           </tr>`).join('')}
           <tr style="border-top:1px solid var(--border);font-weight:700">
-            <td>Total</td>
-            <td style="text-align:right;color:var(--paid);font-family:var(--font-mono)">${fmt(te+svi)}</td>
-            <td style="text-align:right;color:var(--pending);font-family:var(--font-mono)">${fmt(sumIf(data.fixed||[],'amount','status','Pending')+sumIf(data.semifixed||[],'amount','status','Pending')+sumIf(data.variable||[],'amount','status','Pending')+sumIf(data.unexpected||[],'amount','status','Pending')+sumIf(data.savings||[],'amount','status','Pending'))}</td>
-            <td style="text-align:right;color:var(--delayed);font-family:var(--font-mono)">${fmt(sumIf(data.fixed||[],'amount','status','Delayed')+sumIf(data.semifixed||[],'amount','status','Delayed')+sumIf(data.variable||[],'amount','status','Delayed')+sumIf(data.unexpected||[],'amount','status','Delayed'))}</td>
+            <td>Total Expenses</td>
+            <td style="text-align:right;color:var(--paid);font-family:var(--font-mono)">${fmt(t.expPaid)}</td>
+            <td style="text-align:right;color:var(--pending);font-family:var(--font-mono)">${fmt(t.expPending)}</td>
+            <td style="text-align:right;color:var(--delayed);font-family:var(--font-mono)">${fmt(t.expDelayed)}</td>
+          </tr>
+          <tr>
+            <td>Savings <span style="font-size:.65rem;color:var(--muted)">(Saved / Pending)</span></td>
+            ${money(t.saved,'--paid')}${money(t.savingsPending,'--pending')}<td style="text-align:right;color:var(--muted)">-</td>
           </tr>
         </tbody>
       </table></div>
@@ -918,34 +953,25 @@ function renderDashboard(c) {
     ${(()=>{
       const lend = data.lending || [];
       if (lend.length === 0) return '';
-      const totalLent      = sumIf(lend,'amount','type','Lent');
-      const totalBorrowed  = sumIf(lend,'amount','type','Borrowed');
-      const outstanding    = lend.filter(r => r.status !== 'Fully Paid').reduce((s,r) => s + (parseFloat(r.balance)||parseFloat(r.amount)||0), 0);
-      const fullyPaid      = lend.filter(r => r.status === 'Fully Paid').length;
-      const pending        = lend.filter(r => r.status !== 'Fully Paid').length;
+      const cell = (label, v, color) => `<div>
+            <div style="font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.25rem">${label}</div>
+            <div style="font-family:var(--font-head);font-size:1rem;font-weight:700;color:var(${color})">${fmt(v)}</div>
+          </div>`;
       return `
       <div class="section-head" style="margin-top:1.4rem">
         ${icon('users')} Lending & Borrowing
         <span style="font-size:.65rem;font-weight:400;color:var(--muted);margin-left:.5rem;text-transform:none;letter-spacing:0">— not included in salary calculations</span>
       </div>
       <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;margin-bottom:1rem">
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.75rem;text-align:center">
-          <div>
-            <div style="font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.25rem">Total Lent</div>
-            <div style="font-family:var(--font-head);font-size:1rem;font-weight:700;color:var(--accent2)">${fmt(totalLent)}</div>
-          </div>
-          <div>
-            <div style="font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.25rem">Total Borrowed</div>
-            <div style="font-family:var(--font-head);font-size:1rem;font-weight:700;color:var(--accent3)">${fmt(totalBorrowed)}</div>
-          </div>
-          <div>
-            <div style="font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.25rem">Outstanding</div>
-            <div style="font-family:var(--font-head);font-size:1rem;font-weight:700;color:var(--delayed)">${fmt(outstanding)}</div>
-          </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.9rem .75rem;text-align:center">
+          ${cell('Total Lent', t.lent, '--accent2')}
+          ${cell('Total Borrowed', t.borrowed, '--accent3')}
+          ${cell('To Receive', t.toReceive, '--paid')}
+          ${cell('To Pay', t.toPay, '--delayed')}
         </div>
         <div style="margin-top:.75rem;padding-top:.75rem;border-top:1px solid var(--border);display:flex;justify-content:center;gap:1.5rem;font-size:.7rem;color:var(--muted)">
-          <span>${icon('checkCircle')} Settled: <strong style="color:var(--paid)">${fullyPaid}</strong></span>
-          <span>${icon('clock')} Pending: <strong style="color:var(--pending)">${pending}</strong></span>
+          <span>${icon('checkCircle')} Settled: <strong style="color:var(--paid)">${t.lendSettled}</strong></span>
+          <span>${icon('clock')} Open: <strong style="color:var(--pending)">${t.lendOpen}</strong></span>
           <span>${icon('list')} Total entries: <strong>${lend.length}</strong></span>
         </div>
       </div>`;
@@ -953,7 +979,7 @@ function renderDashboard(c) {
 
     ${(()=>{
       const nm = data.nextmonth || [];
-      const stagedRows = nm.filter(r => r.status === 'Staged');
+      const stagedRows = nm.filter(r => sameText(r.status, 'Staged'));
       if (stagedRows.length === 0) return '';
       const total = sum(stagedRows, 'amount');
       return `
@@ -1177,7 +1203,7 @@ function updateCell(key, rowId, field, value) {
   row[field] = value;
 
   if (key === 'lending') {
-    row.balance = String((parseFloat(row.amount)||0) - (parseFloat(row.returned)||0));
+    row.balance = String(lendBalance(row));
     // Update the rendered balance cell immediately without full re-render (table view)
     const tr = document.querySelector(`tr[data-id="${rowId}"]`);
     if (tr) {
@@ -1209,7 +1235,7 @@ function updateCell(key, rowId, field, value) {
     }
     if (field === 'amount') {
       const a = card.querySelector('.row-card-amount');
-      if (a) a.textContent = (value !== '' && !isNaN(parseFloat(value))) ? fmt(value) : '—';
+      if (a) a.textContent = String(value ?? '').trim() !== '' ? fmt(value) : '—';
     }
     if (field === 'status') {
       const s = card.querySelector('.row-card-status');
@@ -1386,7 +1412,7 @@ async function submitAddRow() {
   }
 
   const amountField = form.querySelector('[name="amount"]');
-  if (amountField && (isNaN(parseFloat(amountField.value)) || parseFloat(amountField.value) <= 0)) {
+  if (amountField && toNum(amountField.value) <= 0) {
     amountField.classList.add('input-error');
     if (!hasError) { amountField.focus(); showToast('Amount must be greater than 0', 'error'); }
     hasError = true;
@@ -1402,7 +1428,7 @@ async function submitAddRow() {
     const el = form.querySelector('[name="' + col.key + '"]');
     row[col.key] = el ? el.value : '';
   });
-  if (key === 'lending') row.balance = String((parseFloat(row.amount)||0) - (parseFloat(row.returned)||0));
+  if (key === 'lending') row.balance = String(lendBalance(row));
 
   if (!data[key]) data[key] = [];
   data[key].push(row);

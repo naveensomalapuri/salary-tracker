@@ -61,17 +61,22 @@ Drive Folder/
 
 ### Dashboard Logic
 
-The dashboard **only counts rows where `status = Paid`** (or `Saved` for savings):
+The dashboard **only counts rows where `status = Paid`** (or `Saved` for savings). Status matching ignores case and extra spaces, and amounts like `1,250` or `₹500` are read correctly.
 
 | Card | What it shows |
 |---|---|
-| **Total Income** | Sum of income rows marked Paid |
-| **Total Expenses (Paid)** | Sum of Fixed + Semi Fixed + Variable + Unexpected rows marked Paid |
-| **Total Savings** | Sum of savings rows marked Saved (with progress toward the target, if set) |
-| **Net Balance** | Total Income − Paid Expenses − Savings |
+| **Income Received** | Sum of income rows marked Paid (Expected total = Paid + Pending + Delayed) |
+| **Total Expenses (Paid)** | Sum of Fixed + Semi Fixed + Variable + Unexpected rows marked Paid (Still to pay = Pending + Delayed) |
+| **Total Savings** | Sum of savings rows marked Saved, with progress toward the summed Target Amount |
+| **Net Balance** | Income Received − Paid Expenses − Saved |
 | **Pending Income** | Sum of income rows marked Pending (Delayed shown underneath) |
+| **Spent + Saved vs Income** | (Paid Expenses + Saved) ÷ Income Received — can exceed 100%, and shows by how much you are over |
 
-The breakdown table shows **Paid**, **Pending**, and **Delayed** columns per expense category plus Savings. Lending & Borrowing and Next Month are shown separately and excluded from the totals.
+The breakdown table shows **Paid**, **Pending**, and **Delayed** per expense category, a **Total Expenses** row (matches the card), and Savings on its own row.
+
+**Lending & Borrowing** is shown separately: Total Lent, Total Borrowed, **To Receive** (open Lent balances) and **To Pay** (open Borrowed balances). Balance = Amount − Returned, and entries marked Fully Paid count as settled. Next Month is also excluded from the totals.
+
+The Excel export uses exactly the same numbers, and amount columns are exported as real numbers so you can SUM them in Excel.
 
 ### Next Month carry-over
 
